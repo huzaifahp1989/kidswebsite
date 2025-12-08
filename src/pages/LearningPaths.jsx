@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { awardPointsForGame } from "@/api/points";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -152,18 +153,11 @@ export default function LearningPaths() {
 
       await base44.entities.UserPathProgress.update(progressId, updateData);
 
-      // Award completion bonus if path is completed
+      // Award completion bonus using unified points system
       if (isCompleted && user) {
-        const newPoints = Math.min((user.points || 0) + (path.completion_points || 50), 1500);
-        const newBadges = [...(user.badges || [])];
-        if (!newBadges.includes(path.completion_badge)) {
-          newBadges.push(path.completion_badge);
-        }
-        
-        await base44.auth.updateMe({
-          points: newPoints,
-          badges: newBadges
-        });
+        try {
+          await awardPointsForGame(user, 'learning_path', { fallbackScore: path.completion_points || 50, metadata: { path_id: path.id } });
+        } catch {}
       }
 
       return { isCompleted, completionPercentage };

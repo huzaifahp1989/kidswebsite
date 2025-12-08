@@ -1,90 +1,61 @@
-import { getSupabase } from './_supabaseAdmin.js'
+const { json } = require('@netlify/functions');
 
-export async function handler(event) {
+async function sendWithSendGrid(to, subject, content) {
+  const key = process.env.SENDGRID_API_KEY;
+  if (!key) return { ok: false, reason: 'missing_key' };
+  const body = {
+    personalizations: [{ to: [{ email: to }] }],
+    from: { email: 'no-reply@imediackids.com', name: 'Islam Media Central' },
+    subject,
+    content: [{ type: 'text/html', value: content }],
+  };
+  const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return { ok: res.status >= 200 && res.status < 300, status: res.status };
+}
+
+exports.handler = async (event) => {
   try {
     if (event.httpMethod !== 'POST') {
-      return { statusCode: 405, body: 'Method Not Allowed' };
+      return json({ error: 'Method Not Allowed' }, { statusCode: 405 });
     }
-
-    const { supabase } = getSupabase()
-
-    const authHeader = event.headers.authorization || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return { statusCode: 401, body: 'Missing auth token' };
-
-    const { data: userData, error: userErr } = await supabase.auth.getUser(token)
-    if (userErr || !userData?.user) return { statusCode: 401, body: 'Invalid token' }
-    const uid = userData.user.id
-    const emailFromToken = String(userData.user.email || '').toLowerCase()
-    if (!uid || !emailFromToken) return { statusCode: 400, body: 'Invalid user token' };
-
-    const body = JSON.parse(event.body || '{}');
-    const fullName = String(body.fullName || '').trim();
-    const emailFromClient = String(body.email || emailFromToken).toLowerCase();
-
-    // Prevent spoofing: ensure client email matches token email
-    if (emailFromClient !== emailFromToken) {
-      return { statusCode: 403, body: 'Email mismatch' };
+    let payload = {};
+    try { payload = JSON.parse(event.body || '{}'); } catch {}
+    const firstName = String(payload.firstName || '').trim();
+    const lastName = String(payload.lastName || '').trim();
+    const email = String(payload.email || '').trim().toLowerCase();
+    const honeypot = String(payload.honeypot || '').trim();
+    if (honeypot) {
+      return json({ ok: true, ignored: true });
     }
-
-    await supabase.from('users').upsert({
-      id: uid,
-      email: emailFromToken,
-      full_name: fullName,
-      role: 'user',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-
-    // Attempt to notify admin via email if a provider is configured
-    const adminEmail = process.env.SIGNUP_ADMIN_EMAIL || 'imedia786@gmail.com';
-    const siteName = process.env.SITE_NAME || 'Islam Kids Zone';
-    let emailed = false;
-    let provider = '';
-
-    // Resend provider
-    const resendKey = process.env.RESEND_API_KEY || '';
-    if (resendKey) {
-      provider = 'resend';
-      try {
-        const res = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${resendKey}` },
-          body: JSON.stringify({
-            from: `no-reply@${(process.env.ADMIN_EMAIL_DOMAIN || 'example.com').replace(/^@/, '')}`,
-            to: [adminEmail],
-            subject: `[${siteName}] New signup: ${emailFromToken}`,
-            html: `<p>A new user signed up:</p><ul><li>Email: <strong>${emailFromToken}</strong></li><li>Name: ${fullName || '(not provided)'}</li><li>UID: ${uid}</li></ul>`,
-          }),
-        });
-        emailed = res.ok;
-      } catch {}
+    if (!email) {
+      return json({ error: 'Missing email' }, { statusCode: 400 });
     }
-
-    // SendGrid provider
-    if (!emailed) {
-      const sgKey = process.env.SENDGRID_API_KEY || '';
-      if (sgKey) {
-        provider = 'sendgrid';
-        try {
-          const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sgKey}` },
-            body: JSON.stringify({
-              personalizations: [{ to: [{ email: adminEmail }] }],
-              from: { email: `no-reply@${(process.env.ADMIN_EMAIL_DOMAIN || 'example.com').replace(/^@/, '')}` },
-              subject: `[${siteName}] New signup: ${emailFromToken}`,
-              content: [{ type: 'text/html', value: `<p>A new user signed up:</p><ul><li>Email: <strong>${emailFromToken}</strong></li><li>Name: ${fullName || '(not provided)'}</li><li>UID: ${uid}</li></ul>` }],
-            }),
-          });
-          emailed = res.ok;
-        } catch {}
-      }
+    const to = process.env.NOTIFY_TO_EMAIL || 'imediac786@gmail.com';
+    const subject = 'New Signup - Islam Media Central Kids';
+    const content = `
+      <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;">
+        <h2>New Signup</h2>
+        <p><strong>Name:</strong> ${firstName} ${lastName}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p style="color:#64748b;font-size:12px">Sent automatically by Islam Media Central</p>
+      </div>
+    `;
+    let ok = false;
+    let channel = 'none';
+    try {
+      const sg = await sendWithSendGrid(to, subject, content);
+      ok = !!sg.ok;
+      channel = 'sendgrid';
+    } catch (e) {
+      ok = false;
     }
-
-    const bodyOut = { ok: true, notified: emailed, provider: emailed ? provider : null };
-    return { statusCode: 200, body: JSON.stringify(bodyOut) };
+    // Always return 200 to avoid blocking signup UX; include status for observability
+    return json({ ok, channel });
   } catch (e) {
-    return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
+    return json({ error: String(e?.message || e) }, { statusCode: 500 });
   }
-}
+};

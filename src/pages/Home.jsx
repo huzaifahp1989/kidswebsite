@@ -1,24 +1,42 @@
 
-import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Gamepad2, BookOpen, Headphones, Video, GraduationCap, Trophy, Star, Sparkles, Heart, Shield, MessageCircle, ExternalLink, Palette, Mic, Newspaper, Radio, Play, Pause, Volume2, VolumeX, Target, Award, Users, UserPlus } from "lucide-react";
+import { Gamepad2, BookOpen, Headphones, Video, Trophy, Star, Sparkles, Heart, Shield, MessageCircle, ExternalLink, Palette, Newspaper, Target, Award, Users, UserPlus, User, Moon, Play } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 // import WordPressFeed from "@/components/WordPressFeed";
 import { useState, useEffect } from "react";
-import { sponsorsApi } from "@/api/firebase";
+import { sponsorsApi } from "/src/api/firebase";
+import { signUp, saveUserProfile } from "/src/api/firebase";
 import React from "react";
-import { useRadio } from "@/pages/Layout";
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch() {}
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-900">Something went wrong</div>
+            <div className="text-sm text-gray-600">Please refresh the page</div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+ 
 
 const features = [
-  {
-    title: "Arabic Learning",
-    description: "Learn Arabic letters, vocabulary and pronunciation",
-    icon: GraduationCap,
-    link: "ArabicLearning",
-    color: "from-indigo-600 to-violet-500"
-  },
   {
     title: "99 Names of Allah",
     description: "Asma’ul Husna with meanings and audio",
@@ -62,13 +80,6 @@ const features = [
     link: "Games",
     color: "from-blue-600 to-purple-500"
   },
-  {
-    title: "Learning Activities",
-    description: "Printable worksheets and activities",
-    icon: GraduationCap,
-    link: "Worksheets",
-    color: "from-cyan-600 to-blue-500"
-  },
 ];
 
 const islamicValues = [
@@ -93,16 +104,17 @@ const islamicValues = [
 ];
 
 export default function Home() {
-  const { isPlaying, isMuted, volume, togglePlay, toggleMute, setVolume } = useRadio();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [sponsors, setSponsors] = useState([]);
+  const [gregorianDate, setGregorianDate] = useState("");
+  const [islamicDate, setIslamicDate] = useState("");
 
   // Banner slides data
   const bannerSlides = [
     {
       id: 1,
-      text: "Welcome to Islam Kids Zone",
-      subtext: "Learn, Play & Grow in Faith",
+      text: "Welcome to Islam Media Central",
+      subtext: "Learn, Grow and Strengthen Iman",
       gradient: "from-blue-600 via-purple-600 to-pink-600"
     },
     {
@@ -134,6 +146,61 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  // Load today's Gregorian and Islamic (Hijri) date (API-first for consistency on mobile)
+  useEffect(() => {
+    const d = new Date();
+    try {
+      setGregorianDate(d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+    } catch {
+      setGregorianDate(d.toDateString());
+    }
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    fetch(`https://api.aladhan.com/v1/gToH?date=${dd}-${mm}-${yyyy}`)
+      .then(r => r.json())
+      .then(j => {
+        const h = j?.data?.hijri;
+        if (h) {
+          const monthMap = (m) => {
+            const x = String(m || '').toLowerCase();
+            if (x.includes('jumada') && x.includes('ii')) return 'Jumada al-Thani';
+            if (x.includes('jumada') && (x.includes('i') || x.includes('awwal') || x.includes('ula'))) return 'Jumada al-Ula';
+            if (x.includes('rabi') && x.includes('ii')) return 'Rabi al-Thani';
+            if (x.includes('rabi') && (x.includes('i') || x.includes('awwal'))) return 'Rabi al-Awwal';
+            if (x.includes('dhu') && (x.includes('qa') || x.includes('qadah') || x.includes("qa'dah"))) return 'Dhu al-Qadah';
+            if (x.includes('dhu') && x.includes('hij')) return 'Dhu al-Hijjah';
+            return m;
+          };
+          const monthName = monthMap(h.month?.en);
+          setIslamicDate(`${monthName} ${h.day} ${h.year} AH`);
+        } else {
+          throw new Error('No hijri data');
+        }
+      })
+      .catch(() => {
+        try {
+          const fmt = new Intl.DateTimeFormat('en-GB-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' });
+          const parts = fmt.formatToParts(d);
+          const obj = Object.fromEntries(parts.map(p => [p.type, p.value]));
+          const monthMap = (m) => {
+            const x = String(m || '').toLowerCase();
+            if (x.includes('jumada') && x.includes('ii')) return 'Jumada al-Thani';
+            if (x.includes('jumada') && (x.includes('i') || x.includes('awwal') || x.includes('ula'))) return 'Jumada al-Ula';
+            if (x.includes('rabi') && x.includes('ii')) return 'Rabi al-Thani';
+            if (x.includes('rabi') && (x.includes('i') || x.includes('awwal'))) return 'Rabi al-Awwal';
+            if (x.includes('dhu') && (x.includes('qa') || x.includes('qadah') || x.includes("qa'dah"))) return 'Dhu al-Qadah';
+            if (x.includes('dhu') && x.includes('hij')) return 'Dhu al-Hijjah';
+            return m;
+          };
+          const monthName = monthMap(obj.month);
+          setIslamicDate(`${monthName} ${obj.day} ${obj.year} AH`);
+        } catch {
+          setIslamicDate('');
+        }
+      });
+  }, []);
+
   // Load sponsors/ads for home placement
   useEffect(() => {
     const loadSponsors = async () => {
@@ -157,10 +224,7 @@ export default function Home() {
     loadSponsors();
   }, []);
 
-  const handleVolumeChange = (e) => {
-    const newVolume = parseFloat(e.target.value);
-    setVolume(newVolume);
-  };
+ 
 
   function SponsorTile({ item }) {
     const [imgError, setImgError] = React.useState(false);
@@ -184,74 +248,201 @@ export default function Home() {
     );
   }
 
+  function InlineSignupForm() {
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [terms, setTerms] = useState(false);
+    const [honeypot, setHoneypot] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [errorMsg, setErrorMsg] = useState("");
+
+    const sanitizeEmail = (v) => String(v || "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim().toLowerCase();
+    const validateEmail = (v) => {
+      const s = sanitizeEmail(v);
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+    };
+    const validatePassword = (v) => {
+      const s = String(v || "");
+      if (s.length < 8) return false;
+      if (!/[A-Z]/.test(s)) return false;
+      if (!/[a-z]/.test(s)) return false;
+      if (!/[0-9]/.test(s)) return false;
+      if (!/[!@#$%^&*(),.?":{}|<>\-_/]/.test(s)) return false;
+      return true;
+    };
+    const validate = () => {
+      const errs = [];
+      if (!firstName.trim()) errs.push("First name is required");
+      if (!lastName.trim()) errs.push("Last name is required");
+      if (!email.trim() || !validateEmail(email)) errs.push("Enter a valid email address");
+      if (!password || !validatePassword(password)) errs.push("Password must be 8+ chars with upper, lower, number, symbol");
+      if (password !== confirmPassword) errs.push("Passwords do not match");
+      if (!terms) errs.push("You must accept the terms and conditions");
+      if (honeypot) errs.push("Invalid form submission");
+      return errs;
+    };
+
+    const onSubmit = async (e) => {
+      e.preventDefault();
+      setErrorMsg("");
+      const errs = validate();
+      if (errs.length) { setErrorMsg(errs[0]); return; }
+      setSubmitting(true);
+      try {
+        const normalizedEmail = sanitizeEmail(email);
+        const user = await signUp(normalizedEmail, password);
+        try { await saveUserProfile(user.id, { full_name: `${firstName.trim()} ${lastName.trim()}`.trim(), email: normalizedEmail }); } catch {}
+        try {
+          const endpoint = import.meta.env?.DEV ? '/.netlify/functions/signupNotify' : '/api/signupNotify';
+          await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: normalizedEmail, honeypot }),
+          });
+        } catch (_) {}
+        setSuccess(true);
+      } catch (e) {
+        const m = String(e?.message || e || "");
+        if (m.toLowerCase().includes("already") || m.toLowerCase().includes("exists") || m.toLowerCase().includes("registered")) {
+          setErrorMsg("This email is already registered");
+        } else {
+          setErrorMsg("Failed to sign up. Please try again");
+        }
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
+    return (
+      <form onSubmit={onSubmit} noValidate className="bg-white rounded-2xl border-2 border-blue-200 p-6 shadow">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First name</label>
+            <input id="firstName" type="text" value={firstName} onChange={(e)=>setFirstName(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring" required />
+          </div>
+          <div>
+            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Last name</label>
+            <input id="lastName" type="text" value={lastName} onChange={(e)=>setLastName(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring" required />
+          </div>
+        </div>
+        <div className="mt-4">
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email address</label>
+        <input id="email" type="email" inputMode="email" autoComplete="email" autoCorrect="off" autoCapitalize="none" value={email} onChange={(e)=>setEmail(e.target.value)} onBlur={(e)=>setEmail(sanitizeEmail(e.target.value))} className="mt-1 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring" required />
+        </div>
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+            <input id="password" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring" required />
+            <div className="mt-1 text-xs text-gray-500">Use 8+ chars with upper, lower, number, symbol</div>
+          </div>
+          <div>
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">Confirm password</label>
+            <input id="confirmPassword" type="password" value={confirmPassword} onChange={(e)=>setConfirmPassword(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring" required />
+          </div>
+        </div>
+        <div className="mt-4">
+          <label htmlFor="terms" className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <input id="terms" type="checkbox" checked={terms} onChange={(e)=>setTerms(e.target.checked)} className="rounded" />
+            I agree to the Terms & Conditions
+          </label>
+        </div>
+        <input aria-hidden="true" tabIndex="-1" type="text" value={honeypot} onChange={(e)=>setHoneypot(e.target.value)} className="hidden" />
+        {errorMsg ? <div className="mt-4 text-sm text-red-600">{errorMsg}</div> : null}
+      {success ? <div className="mt-4 text-sm text-green-600">Registration successful. A confirmation has been sent, and the admin has been notified.</div> : null}
+        <div className="mt-6">
+          <Button type="submit" disabled={submitting} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700">
+            {submitting ? "Signing up..." : "Sign Up"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
   return (
-    <div className="min-h-screen">
+    <ErrorBoundary>
+    <div className="min-h-screen bg-white">
       {/* WhatsApp Chat Button */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="fixed bottom-6 left-4 md:left-6 z-50"
+        className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50"
       >
         <a
           href="https://wa.me/447447999284?text=Assalamu%20Alaikum!%20I%20have%20a%20question%20about%20Islam%20Kids%20Zone."
           target="_blank"
           rel="noopener noreferrer"
-          className="block bg-green-500 hover:bg-green-600 text-white rounded-full p-3 md:p-4 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110"
+          className="block bg-green-500 hover:bg-green-600 text-white rounded-full p-2 md:p-3 shadow-lg hover:shadow-xl transition-all duration-300"
           aria-label="Chat on WhatsApp"
         >
-          <MessageCircle className="w-6 h-6 md:w-8 md:h-8" />
+          <MessageCircle className="w-5 h-5 md:w-6 md:h-6" />
         </a>
       </motion.div>
 
-      {/* Hero Section */}
       <section className="relative py-12 md:py-20 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 opacity-50" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#8BB9FF] via-[#9A7CFF]/20 to-[#8BB9FF]/10 opacity-70" />
         <div className="max-w-6xl mx-auto relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <motion.div 
-              className="text-6xl md:text-8xl mb-6"
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
-            >
-              🌙
-            </motion.div>
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4 md:mb-6">
-              Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Islam Kids Zone</span>
-            </h1>
-            <p className="text-lg md:text-xl text-gray-700 mb-6 md:mb-8 max-w-3xl mx-auto">
-              A comprehensive Islamic learning platform designed for children. Learn through interactive games, stories, and engaging activities.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to={createPageUrl("Games")}>
-                <Button size="lg" className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-base md:text-lg px-6 md:px-8 py-4 md:py-6 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                  <Sparkles className="mr-2 w-5 h-5 md:w-6 md:h-6" />
-                  Start Learning
-                </Button>
-              </Link>
-              {/* Learning Paths CTA removed */}
-              <Link to={createPageUrl("Signup")}>
-                <Button size="lg" className="bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white text-base md:text-lg px-6 md:px-8 py-4 md:py-6 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                  <UserPlus className="mr-2 w-5 h-5 md:w-6 md:h-6" />
-                  Signup
-                </Button>
-              </Link>
-              <a href="https://studio--studio-653801381-47983.us-central1.hosted.app/" target="_blank" rel="noopener noreferrer">
-                <Button size="lg" variant="outline" className="border-2 border-blue-400 text-blue-700 bg-white hover:bg-blue-50 text-base md:text-lg px-6 md:px-8 py-4 md:py-6 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                  <ExternalLink className="mr-2 w-5 h-5 md:w-6 md:h-6" />
-                  Open Studio
-                </Button>
-              </a>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
+            <div className="mx-auto mb-4 w-16 h-16 md:w-20 md:h-20 rounded-full bg-[#F6C94B] flex items-center justify-center shadow">
+              <Moon className="w-8 h-8 md:w-10 md:h-10 text-white" />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900">Islam Kids Zone</h1>
+            <div className="mt-1 text-lg md:text-xl text-gray-700">Learn, Play & Grow</div>
+            <div className="mt-4 text-base md:text-lg text-gray-600 max-w-3xl mx-auto">
+              Explore interactive Islamic games, stories, quizzes, and fun learning activities designed just for kids.
+            </div>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <a href={createPageUrl("Games")}><Button className="rounded-full px-6 bg-blue-600 hover:bg-blue-700">Play Games</Button></a>
+              <a href={createPageUrl("Stories")}><Button className="rounded-full px-6 bg-purple-600 hover:bg-purple-700">Read Stories</Button></a>
+              <a href={createPageUrl("Quizzes")}><Button className="rounded-full px-6 bg-rose-600 hover:bg-rose-700">Start Quiz</Button></a>
+            </div>
+            <div className="mt-6 w-full max-w-sm sm:max-w-md mx-auto text-center">
+              <div className="px-5 py-4 rounded-2xl bg-white/80 backdrop-blur border shadow">
+                <div className="text-xs sm:text-sm text-gray-500">Today</div>
+                <div className="text-sm sm:text-base font-semibold text-gray-900 leading-snug break-words">{gregorianDate || 'Loading…'}</div>
+                <div className="text-lg sm:text-xl font-bold text-purple-700 mt-1 leading-snug break-words">{islamicDate || 'Loading Hijri…'}</div>
+              </div>
             </div>
           </motion.div>
         </div>
       </section>
 
       
+      <section className="px-4 py-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-4">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Quick Access</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:gap-6 justify-center">
+            <a href={createPageUrl("KidsZone")} className="group flex flex-col items-center">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-amber-100 shadow-md flex items-center justify-center transition-transform group-hover:scale-[1.03]">
+                <Moon className="w-10 h-10 sm:w-12 sm:h-12 text-amber-600" />
+              </div>
+              <div className="mt-3 text-sm sm:text-base font-semibold text-gray-800">Kids Zone</div>
+            </a>
+
+            <a href={createPageUrl("Videos")} className="group flex flex-col items-center">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-purple-100 shadow-md flex items-center justify-center transition-transform group-hover:scale-[1.03]">
+                <Play className="w-10 h-10 sm:w-12 sm:h-12 text-purple-600" />
+              </div>
+              <div className="mt-3 text-sm sm:text-base font-semibold text-gray-800">Videos</div>
+            </a>
+          </div>
+
+          <div className="mt-6 flex items-center justify-center gap-3 sm:gap-4">
+            <a href={createPageUrl("Signup")}>
+              <Button className="rounded-full px-6 bg-blue-600 hover:bg-blue-700">Sign Up</Button>
+            </a>
+            <a href={createPageUrl("Login")}>
+              <Button className="rounded-full px-6 bg-purple-600 hover:bg-purple-700">Sign In</Button>
+            </a>
+          </div>
+        </div>
+      </section>
 
       {/* Animated Text Slider Banner */}
       <section className="py-8 md:py-12 px-4">
@@ -338,81 +529,7 @@ export default function Home() {
 
       {/* Sponsors & Ads */}
       {/* Removed sponsors section as per request */}
-      {/* Islamic Radio Player Section */}
-      <section className="py-8 md:py-12 px-4 bg-gradient-to-br from-purple-50 to-blue-50">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="border-4 border-purple-300 shadow-2xl bg-gradient-to-r from-purple-600 to-blue-600">
-              <CardContent className="p-6 md:p-8">
-                <div className="text-center mb-6">
-                  <div className="flex items-center justify-center gap-3 mb-4">
-                    <Radio className="w-10 h-10 md:w-12 md:h-12 text-white" />
-                    <h2 className="text-3xl md:text-4xl font-bold text-white">
-                      Islamic Radio 🎧
-                    </h2>
-                  </div>
-                  <p className="text-lg md:text-xl text-white/90">
-                    Listen to Live Islamic Content 24/7
-                  </p>
-                  <p className="text-sm text-white/80 mt-2">
-                    Radio continues playing as you browse the site!
-                  </p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  {/* Play/Pause Button */}
-                  <Button
-                    onClick={togglePlay}
-                    size="lg"
-                    className="bg-white/20 hover:bg-white/30 text-white border-4 border-white/40 rounded-full w-20 h-20 md:w-24 md:h-24 p-0 shadow-xl"
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-10 h-10 md:w-12 md:h-12" />
-                    ) : (
-                      <Play className="w-10 h-10 md:w-12 md:h-12 ml-1" />
-                    )}
-                  </Button>
-
-                  {/* Volume Control */}
-                  <div className="flex items-center gap-4 bg-white/20 px-6 py-4 rounded-full backdrop-blur-sm w-full sm:w-auto sm:min-w-[300px]">
-                    <Button
-                      onClick={toggleMute}
-                      size="sm"
-                      variant="ghost"
-                      className="text-white hover:bg-white/20 p-2 h-10 w-10"
-                    >
-                      {isMuted ? (
-                        <VolumeX className="w-6 h-6" />
-                      ) : (
-                        <Volume2 className="w-6 h-6" />
-                      )}
-                    </Button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.01"
-                      value={volume}
-                      onChange={handleVolumeChange}
-                      className="flex-1 h-3 bg-white/30 rounded-lg appearance-none cursor-pointer accent-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="text-center mt-6">
-                  <p className="text-sm text-white/80">
-                    {isPlaying ? "🎵 Now Playing - Islamic Radio" : "Click play to start listening"}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </section>
+      
 
       {/* Islamic Values */}
       <section className="py-12 md:py-16 px-4 bg-white">
@@ -450,46 +567,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-12 md:py-16 px-4 bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Comprehensive Islamic Learning
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Explore our wide range of educational resources designed for children
-            </p>
-          </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 * index }}
-                whileHover={{ scale: 1.05 }}
-              >
-                <Link to={feature.query ? (createPageUrl(feature.link) + feature.query) : createPageUrl(feature.link)}>
-                  <Card className="h-full hover:shadow-2xl transition-all duration-300 cursor-pointer border-2 hover:border-purple-300">
-                    <CardContent className="p-6 text-center">
-                      <div className={`w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r ${feature.color} flex items-center justify-center`}>
-                        <feature.icon className="w-8 h-8 text-white" />
-                      </div>
-                      <h3 className="text-lg font-bold mb-2 text-gray-900">{feature.title}</h3>
-                      <p className="text-sm text-gray-600">{feature.description}</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      
 
       {/* Monthly Competition Section */}
       <section className="py-12 md:py-16 px-4 bg-white">
@@ -510,18 +588,18 @@ export default function Home() {
                     Play games, complete challenges, and climb the leaderboard.
                   </p>
                   <div className="flex flex-wrap gap-4 justify-center">
-                    <Link to={createPageUrl("Leaderboard")}>
+                    <a href={createPageUrl("Leaderboard")}>
                       <Button size="lg" className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600">
                         <Trophy className="w-5 h-5 mr-2" />
                         View Leaderboard
                       </Button>
-                    </Link>
-                    <Link to={createPageUrl("Games")}>
+                    </a>
+                    <a href={createPageUrl("Games")}>
                       <Button size="lg" variant="outline" className="border-2 border-amber-500">
                         <Gamepad2 className="w-5 h-5 mr-2" />
                         Start Playing
                       </Button>
-                    </Link>
+                    </a>
                   </div>
                 </div>
               </CardContent>
@@ -530,42 +608,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Social Media Links Section */}
-      <section className="py-12 md:py-16 px-4 bg-gradient-to-br from-purple-50 to-pink-50">
-        <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Join Our Community
-            </h2>
-            <p className="text-lg text-gray-600 mb-8">
-              Follow us for daily Islamic inspiration and educational content
-            </p>
-            <div className="flex flex-wrap justify-center gap-4 md:gap-6">
-              <a
-                href="https://www.tiktok.com/@islamkidszone"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg"
-              >
-                <ExternalLink className="w-5 h-5" />
-                <span className="font-semibold">TikTok</span>
-              </a>
-              <a
-                href="https://www.instagram.com/islamkidszone"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-full transition-all duration-300 transform hover:scale-105 shadow-lg"
-              >
-                <ExternalLink className="w-5 h-5" />
-                <span className="font-semibold">Instagram</span>
-              </a>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      
 
       {/* Blog section removed per request: external link not pointing to correct page */}
 
@@ -582,15 +625,28 @@ export default function Home() {
             <p className="text-lg md:text-xl text-blue-100 mb-8">
               Join thousands of children learning about Islam through our engaging platform
             </p>
-            <Link to={createPageUrl("Games")}>
+            <a href={createPageUrl("Games")}>
               <Button size="lg" className="bg-white text-purple-600 hover:bg-blue-50 text-base md:text-lg px-8 md:px-12 py-4 md:py-6 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
                 <Sparkles className="mr-2 w-5 h-5 md:w-6 md:h-6" />
                 Get Started Now
               </Button>
-            </Link>
+            </a>
           </motion.div>
         </div>
       </section>
+      <section className="py-12 px-4 bg-gradient-to-br from-blue-50 to-purple-50">
+        <div className="max-w-3xl mx-auto">
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Create Your Account</h2>
+            <p className="text-sm text-gray-600">Join thousands of children learning about Islam through our engaging platform</p>
+          </div>
+          <noscript>
+            <div className="mb-4 p-3 rounded border bg-white text-sm text-gray-700">JavaScript is required to sign up. Please enable JavaScript in your browser.</div>
+          </noscript>
+          <InlineSignupForm />
+        </div>
+      </section>
     </div>
+    </ErrorBoundary>
   );
 }

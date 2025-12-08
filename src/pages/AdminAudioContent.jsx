@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { supabase } from '@/api/supabaseClient'
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 // import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,93 +69,206 @@ export default function AdminAudioContent() {
     featured: false
   });
 
-  // All usages of base44 logic below should be commented out or replaced with local-only logic
-  // const { data: audioContent = [], isLoading } = useQuery({
-  //   queryKey: ['audio-content'],
-  //   queryFn: () => base44.entities.AudioContent.list('-created_date'),
-  //   initialData: [],
-  // });
+  const { data: audioContent = [], isLoading } = useQuery({
+    queryKey: ['audio-content-storage'],
+    queryFn: async () => {
+      let files = []
+      let rows = []
+      try {
+        const storage = await supabase.storage.from('audio').list('', { limit: 500 })
+        files = Array.isArray(storage?.data) ? storage.data : []
+      } catch {}
+      try {
+        const meta = await supabase.from('audio_content').select('*')
+        rows = Array.isArray(meta?.data) ? meta.data : []
+      } catch {}
+      try {
+        const raw = localStorage.getItem('audio_content_local')
+        const localRows = raw ? JSON.parse(raw) : []
+        if (Array.isArray(localRows) && localRows.length) rows = [...rows, ...localRows]
+      } catch {}
+      const metaMap = new Map(rows.map(m => [m.slug || m.title, m]))
+      return files.map(f => {
+        const pub = supabase.storage.from('audio').getPublicUrl(f.name)?.data?.publicUrl || ''
+        const base = f.name.replace(/\.[^/.]+$/, '')
+        const m = metaMap.get(base) || {}
+        return {
+          id: m.id || `storage_${f.id || f.name}`,
+          title: m.title || base,
+          slug: base,
+          mp3_url: m.mp3_url || pub,
+          cover_image: m.cover_image || '',
+          description: m.description || '',
+          category: m.category || 'nasheed',
+          age_group: m.age_group || 'all',
+          status: 'active',
+          plays_count: m.plays_count || 0,
+          language: m.language || 'English',
+          duration: m.duration || '',
+          featured: !!m.featured,
+          subcategory: m.subcategory || '',
+        }
+      })
+    },
+    initialData: [],
+  });
   
-  // const createAudioMutation = useMutation({
-  //   mutationFn: (data) => base44.entities.AudioContent.create(data),
-  //   onSuccess: () => {
-  //     queryClient.invalidateQueries({ queryKey: ['audio-content'] });
-  //     setShowCreateDialog(false);
-  //     resetForm();
-  //     alert('Audio content created successfully!');
-  //   },
-  //   onError: (error) => {
-  //     console.error("Error creating audio:", error);
-  //     alert('Failed to create audio content. Please try again.');
-  //   }
-  // });
+  const createAudioMutation = useMutation({
+    mutationFn: async (data) => {
+      try {
+        const { data: userData } = await supabase.auth.getUser()
+        const uid = userData?.user?.id
+        if (!uid) throw new Error('Admin login required')
+        const row = { ...data, owner_id: uid }
+        const { error } = await supabase.from('audio_content').insert(row)
+        if (error) throw error
+        return true
+      } catch (err) {
+        try {
+          const raw = localStorage.getItem('audio_content_local')
+          const arr = raw ? JSON.parse(raw) : []
+          const id = `local_${Date.now()}`
+          arr.push({ ...data, id })
+          localStorage.setItem('audio_content_local', JSON.stringify(arr))
+          return true
+        } catch {}
+        throw err
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['audio-content-storage'] });
+      setShowCreateDialog(false);
+      resetForm();
+      alert('Audio content created successfully!');
+    },
+    onError: (e) => {
+      alert(e?.message || 'Failed to create audio content.')
+    }
+  });
   
-  // const updateAudioMutation = useMutation({
-  //   mutationFn: ({ id, data }) => base44.entities.AudioContent.update(id, data),
-  //   onSuccess: () => {
-  //     queryClient.invalidateQueries({ queryKey: ['audio-content'] });
-  //     setShowEditDialog(false);
-  //     setEditingAudio(null);
-  //     resetForm();
-  //     alert('Audio content updated successfully!');
-  //   },
-  //   onError: (error) => {
-  //     console.error("Error updating audio:", error);
-  //     alert('Failed to update audio content. Please try again.');
-  //   }
-  // });
+  const updateAudioMutation = useMutation({
+    mutationFn: async ({ slug, data }) => {
+      try {
+        const { data: userData } = await supabase.auth.getUser()
+        const uid = userData?.user?.id
+        if (!uid) throw new Error('Admin login required')
+        const patch = { ...data, owner_id: uid, updated_at: new Date().toISOString() }
+        const { error } = await supabase.from('audio_content').update(patch).eq('slug', slug)
+        if (error) throw error
+        return true
+      } catch (err) {
+        try {
+          const raw = localStorage.getItem('audio_content_local')
+          const arr = raw ? JSON.parse(raw) : []
+          const next = arr.map(it => (it.slug === slug ? { ...it, ...data } : it))
+          localStorage.setItem('audio_content_local', JSON.stringify(next))
+          return true
+        } catch {}
+        throw err
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['audio-content-storage'] });
+      setShowEditDialog(false);
+      setEditingAudio(null);
+      resetForm();
+      alert('Audio content updated successfully!');
+    },
+    onError: (e) => {
+      alert(e?.message || 'Failed to update audio content.')
+    }
+  });
   
-  // const deleteAudioMutation = useMutation({
-  //   mutationFn: (id) => base44.entities.AudioContent.delete(id),
-  //   onSuccess: () => {
-  //     queryClient.invalidateQueries({ queryKey: ['audio-content'] });
-  //     alert('Audio content deleted successfully!');
-  //   },
-  //   onError: (error) => {
-  //     console.error("Error deleting audio:", error);
-  //     alert('Failed to delete audio content. Please try again.');
-  //   }
-  // });
+  const deleteAudioMutation = useMutation({
+    mutationFn: async (slug) => {
+      try {
+        const { data: userData } = await supabase.auth.getUser()
+        const uid = userData?.user?.id
+        if (!uid) throw new Error('Admin login required')
+        const { error } = await supabase.from('audio_content').delete().eq('slug', slug)
+        if (error) throw error
+        return true
+      } catch (err) {
+        try {
+          const raw = localStorage.getItem('audio_content_local')
+          const arr = raw ? JSON.parse(raw) : []
+          const next = arr.filter(it => it.slug !== slug)
+          localStorage.setItem('audio_content_local', JSON.stringify(next))
+          return true
+        } catch {}
+        throw err
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['audio-content-storage'] });
+      alert('Audio content deleted successfully!');
+    },
+    onError: (e) => {
+      alert(e?.message || 'Failed to delete audio content.')
+    }
+  });
   
-  // const handleAudioUpload = async (event) => {
-  //   const file = event.target.files[0];
-  //   if (!file) return;
-  //   if (!file.type.startsWith('audio/')) {
-  //     alert('Please upload an audio file (MP3, WAV, etc.)');
-  //     return;
-  //   }
-  //   setUploadProgress({ ...uploadProgress, audio: true });
-  //   try {
-  //     const result = await base44.integrations.Core.UploadFile({ file });
-  //     setFormData({ ...formData, mp3_url: result.file_url });
-  //     alert('Audio file uploaded successfully!');
-  //   } catch (error) {
-  //     console.error("Error uploading audio:", error);
-  //     alert('Failed to upload audio file. Please try again.');
-  //   } finally {
-  //     setUploadProgress({ ...uploadProgress, audio: false });
-  //   }
-  // };
+  const handleAudioUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      alert('Please select an audio file');
+      return;
+    }
+    setUploadProgress(prev => ({ ...prev, audio: true }));
+    try {
+      const base = (formData.slug || formData.title || file.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const ext = file.name.includes('.') ? file.name.split('.').pop() : 'mp3';
+      const path = `${base}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('audio').upload(path, file, { contentType: file.type, upsert: true });
+      if (upErr) {
+        const url = URL.createObjectURL(file);
+        setFormData({ ...formData, mp3_url: url });
+        alert('Local preview set. Configure Supabase to persist uploads.');
+        return;
+      }
+      const pub = supabase.storage.from('audio').getPublicUrl(path)?.data?.publicUrl || '';
+      setFormData({ ...formData, mp3_url: pub, slug: base });
+      alert('Audio uploaded');
+    } catch {
+      const url = URL.createObjectURL(file);
+      setFormData({ ...formData, mp3_url: url });
+      alert('Local preview set. Configure Supabase to persist uploads.');
+    } finally {
+      setUploadProgress(prev => ({ ...prev, audio: false }));
+    }
+  };
   
-  // const handleImageUpload = async (event) => {
-  //   const file = event.target.files[0];
-  //   if (!file) return;
-  //   if (!file.type.startsWith('image/')) {
-  //     alert('Please upload an image file');
-  //     return;
-  //   }
-  //   setUploadProgress({ ...uploadProgress, image: true });
-  //   try {
-  //     const result = await base44.integrations.Core.UploadFile({ file });
-  //     setFormData({ ...formData, cover_image: result.file_url });
-  //     alert('Cover image uploaded successfully!');
-  //   } catch (error) {
-  //     console.error("Error uploading image:", error);
-  //     alert('Failed to upload image. Please try again.');
-  //   } finally {
-  //     setUploadProgress({ ...uploadProgress, image: false });
-  //   }
-  // };
+  const handleImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+    setUploadProgress(prev => ({ ...prev, image: true }));
+    try {
+      const base = (formData.slug || formData.title || file.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
+      const path = `${base}-cover.${ext}`;
+      const { error: upErr } = await supabase.storage.from('audio').upload(path, file, { contentType: file.type, upsert: true });
+      if (upErr) {
+        const url = URL.createObjectURL(file);
+        setFormData({ ...formData, cover_image: url });
+        alert('Local preview set. Configure Supabase to persist uploads.');
+        return;
+      }
+      const pub = supabase.storage.from('audio').getPublicUrl(path)?.data?.publicUrl || '';
+      setFormData({ ...formData, cover_image: pub, slug: base });
+      alert('Image uploaded');
+    } catch {
+      const url = URL.createObjectURL(file);
+      setFormData({ ...formData, cover_image: url });
+      alert('Local preview set. Configure Supabase to persist uploads.');
+    } finally {
+      setUploadProgress(prev => ({ ...prev, image: false }));
+    }
+  };
 
   const handleCreate = () => {
     if (!formData.title || !formData.category) {
@@ -208,14 +322,14 @@ export default function AdminAudioContent() {
     }
 
     updateAudioMutation.mutate({
-      id: editingAudio.id,
+      slug: editingAudio.slug,
       data: formData
     });
   };
 
   const handleDelete = (audio) => {
     if (confirm(`Are you sure you want to delete "${audio.title}"? This action cannot be undone.`)) {
-      deleteAudioMutation.mutate(audio.id);
+      deleteAudioMutation.mutate(audio.slug);
     }
   };
 
@@ -255,6 +369,8 @@ export default function AdminAudioContent() {
   return (
     <div className="min-h-screen py-8 px-4 bg-gradient-to-br from-purple-50 to-pink-50">
       <div className="max-w-7xl mx-auto">
+        <input type="file" accept="audio/*" ref={audioFileRef} onChange={handleAudioUpload} className="hidden" />
+        <input type="file" accept="image/*" ref={imageFileRef} onChange={handleImageUpload} className="hidden" />
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -276,6 +392,31 @@ export default function AdminAudioContent() {
             <Plus className="w-5 h-5 mr-2" />
             Add New Audio
           </Button>
+          <div className="mt-4 flex justify-center gap-2">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const { data: files, error } = await supabase.storage.from('audio').list('', { limit: 500 })
+                  if (error) { alert('Storage list failed'); return }
+                  const rows = (files || []).map(f => {
+                    const pub = supabase.storage.from('audio').getPublicUrl(f.name)?.data?.publicUrl || ''
+                    const base = f.name.replace(/\.[^/.]+$/, '')
+                    return { title: base, slug: base, mp3_url: pub, category: 'nasheed', age_group: 'all', language: 'English' }
+                  })
+                  if (rows.length === 0) { alert('No files found'); return }
+                  const { error: upErr } = await supabase.from('audio_content').upsert(rows, { onConflict: 'slug' })
+                  if (upErr) { alert('Upsert failed'); return }
+                  alert('Synced storage files into audio_content')
+                  queryClient.invalidateQueries({ queryKey: ['audio-content-storage'] })
+                } catch {
+                  alert('Import failed');
+                }
+              }}
+            >
+              Sync From Supabase Storage
+            </Button>
+          </div>
         </motion.div>
 
         {/* Stats */}
@@ -330,7 +471,7 @@ export default function AdminAudioContent() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {audioContent.map((audio, index) => (
               <motion.div
                 key={audio.id}
@@ -342,7 +483,7 @@ export default function AdminAudioContent() {
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
                       {/* Cover Image */}
-                      <div className="w-24 h-24 bg-gradient-to-br from-purple-200 to-pink-200 rounded-lg flex-shrink-0 overflow-hidden">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 bg-gradient-to-br from-purple-200 to-pink-200 rounded-lg flex-shrink-0 overflow-hidden">
                         {audio.cover_image ? (
                           <img
                             src={audio.cover_image}
@@ -418,6 +559,16 @@ export default function AdminAudioContent() {
                           )}
                           <span>{audio.language || 'English'}</span>
                         </div>
+                        {audio.mp3_url && (
+                          <div className="mt-3">
+                            <audio src={audio.mp3_url} controls preload="none" className="w-full" />
+                          </div>
+                        )}
+                        {audio.mp3_url && (
+                          <div className="mt-3">
+                            <audio src={audio.mp3_url} controls preload="none" className="w-full" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -487,78 +638,40 @@ export default function AdminAudioContent() {
                 </div>
               </div>
 
-              {/* Audio Upload */}
               <div>
-                <Label>Audio File (MP3)</Label>
-                <input
-                  ref={audioFileRef}
-                  type="file"
-                  accept="audio/*"
-                  onChange={handleAudioUpload}
-                  className="hidden"
+                <Label htmlFor="mp3_url">Audio URL (MP3)</Label>
+                <Input
+                  id="mp3_url"
+                  value={formData.mp3_url}
+                  onChange={(e) => setFormData({ ...formData, mp3_url: e.target.value })}
+                  placeholder="https://cdn.example.com/audio/file.mp3"
                 />
-                <div className="flex gap-2 mt-2">
-                  <Button
-                    type="button"
-                    onClick={() => audioFileRef.current?.click()}
-                    variant="outline"
-                    className="flex-1"
-                    disabled={uploadProgress.audio}
-                  >
-                    {uploadProgress.audio ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload Audio File
-                      </>
-                    )}
+                <div className="mt-2 flex gap-2">
+                  <Button onClick={() => audioFileRef.current && audioFileRef.current.click()} disabled={uploadProgress.audio}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploadProgress.audio ? 'Uploading...' : 'Upload Audio'}
                   </Button>
                   {formData.mp3_url && (
-                    <Badge className="bg-green-500 px-4 py-2">✓ Uploaded</Badge>
+                    <Button variant="outline" asChild>
+                      <a href={formData.mp3_url} target="_blank" rel="noreferrer">Preview</a>
+                    </Button>
                   )}
                 </div>
-                {formData.mp3_url && (
-                  <p className="text-xs text-gray-500 mt-1 truncate">{formData.mp3_url}</p>
-                )}
               </div>
 
-              {/* Cover Image Upload */}
               <div>
-                <Label>Cover Image</Label>
-                <input
-                  ref={imageFileRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
+                <Label htmlFor="cover_image">Cover Image URL</Label>
+                <Input
+                  id="cover_image"
+                  value={formData.cover_image}
+                  onChange={(e) => setFormData({ ...formData, cover_image: e.target.value })}
+                  placeholder="https://cdn.example.com/images/cover.jpg"
                 />
-                <div className="flex gap-2 mt-2">
-                  <Button
-                    type="button"
-                    onClick={() => imageFileRef.current?.click()}
-                    variant="outline"
-                    className="flex-1"
-                    disabled={uploadProgress.image}
-                  >
-                    {uploadProgress.image ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="w-4 h-4 mr-2" />
-                        Upload Cover Image
-                      </>
-                    )}
+                <div className="mt-2 flex gap-2">
+                  <Button onClick={() => imageFileRef.current && imageFileRef.current.click()} disabled={uploadProgress.image}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploadProgress.image ? 'Uploading...' : 'Upload Image'}
                   </Button>
-                  {formData.cover_image && (
-                    <Badge className="bg-green-500 px-4 py-2">✓ Uploaded</Badge>
-                  )}
                 </div>
                 {formData.cover_image && (
                   <div className="mt-2">
@@ -734,76 +847,24 @@ export default function AdminAudioContent() {
                 </div>
               </div>
 
-              {/* Audio Upload */}
               <div>
-                <Label>Audio File (MP3)</Label>
-                <input
-                  ref={audioFileRef}
-                  type="file"
-                  accept="audio/*"
-                  onChange={handleAudioUpload}
-                  className="hidden"
+                <Label htmlFor="edit-mp3_url">Audio URL (MP3)</Label>
+                <Input
+                  id="edit-mp3_url"
+                  value={formData.mp3_url}
+                  onChange={(e) => setFormData({ ...formData, mp3_url: e.target.value })}
+                  placeholder="https://cdn.example.com/audio/file.mp3"
                 />
-                <div className="flex gap-2 mt-2">
-                  <Button
-                    type="button"
-                    onClick={() => audioFileRef.current?.click()}
-                    variant="outline"
-                    className="flex-1"
-                    disabled={uploadProgress.audio}
-                  >
-                    {uploadProgress.audio ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        {formData.mp3_url ? 'Replace Audio' : 'Upload Audio File'}
-                      </>
-                    )}
-                  </Button>
-                  {formData.mp3_url && (
-                    <Badge className="bg-green-500 px-4 py-2">✓ Uploaded</Badge>
-                  )}
-                </div>
               </div>
 
-              {/* Cover Image Upload */}
               <div>
-                <Label>Cover Image</Label>
-                <input
-                  ref={imageFileRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
+                <Label htmlFor="edit-cover_image">Cover Image URL</Label>
+                <Input
+                  id="edit-cover_image"
+                  value={formData.cover_image}
+                  onChange={(e) => setFormData({ ...formData, cover_image: e.target.value })}
+                  placeholder="https://cdn.example.com/images/cover.jpg"
                 />
-                <div className="flex gap-2 mt-2">
-                  <Button
-                    type="button"
-                    onClick={() => imageFileRef.current?.click()}
-                    variant="outline"
-                    className="flex-1"
-                    disabled={uploadProgress.image}
-                  >
-                    {uploadProgress.image ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="w-4 h-4 mr-2" />
-                        {formData.cover_image ? 'Replace Image' : 'Upload Cover Image'}
-                      </>
-                    )}
-                  </Button>
-                  {formData.cover_image && (
-                    <Badge className="bg-green-500 px-4 py-2">✓ Uploaded</Badge>
-                  )}
-                </div>
                 {formData.cover_image && (
                   <div className="mt-2">
                     <img

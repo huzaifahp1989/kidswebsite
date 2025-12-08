@@ -138,6 +138,8 @@ export default function WordScrambleGame({ onComplete }) {
   const [showHint, setShowHint] = useState(false);
   const [user, setUser] = useState(null);
   const [words, setWords] = useState([]);
+  const [questionStartTs, setQuestionStartTs] = useState(null);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     loadUser();
@@ -180,6 +182,7 @@ export default function WordScrambleGame({ onComplete }) {
     setUserAnswer("");
     setShowResult(false);
     setShowHint(false);
+    setQuestionStartTs(Date.now());
   };
 
   const handleSubmit = (e) => {
@@ -193,8 +196,15 @@ export default function WordScrambleGame({ onComplete }) {
     setShowResult(true);
     
     if (correct) {
-      const points = selectedDifficulty === "easy" ? 5 : selectedDifficulty === "medium" ? 10 : 15;
-      setScore(score + points);
+      const base = selectedDifficulty === "easy" ? 5 : selectedDifficulty === "medium" ? 10 : 15;
+      const elapsed = questionStartTs ? (Date.now() - questionStartTs) / 1000 : 999;
+      const timeBonus = elapsed <= 5 ? 5 : elapsed <= 10 ? 3 : 0;
+      const streakMultiplier = 1 + Math.min(Math.max(streak - 1, 0) * 0.2, 1);
+      const earned = Math.round((base + timeBonus) * streakMultiplier);
+      setScore(score + earned);
+      setStreak(s => s + 1);
+    } else {
+      setStreak(0);
     }
   };
 
@@ -211,7 +221,7 @@ export default function WordScrambleGame({ onComplete }) {
   const completeGame = async () => {
     setGameComplete(true);
     
-    const finalScore = 10;
+    const finalScore = Math.max(0, Number(score || 0));
     
     if (user && onComplete) {
       onComplete(finalScore);

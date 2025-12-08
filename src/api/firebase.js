@@ -35,8 +35,20 @@ export async function signUp(email, password) {
 }
 
 export async function saveUserProfile(uid, profile) {
-  const patch = { id: uid, ...(profile || {}), updated_at: new Date().toISOString() }
-  const { error } = await supabase.from('users').upsert(patch)
+  const src = { ...(profile || {}) }
+  const patch = {
+    id: uid,
+    full_name: src.full_name ?? src.fullName ?? (src.email ? String(src.email).split('@')[0] : ''),
+    email: src.email ?? '',
+    age: (src.age != null ? Number(src.age) : null),
+    city: src.city ?? null,
+    madrasah_maktab: src.madrasah_maktab ?? src.madrasah ?? null,
+    avatar: src.avatar ?? null,
+    updated_at: new Date().toISOString(),
+    points: (src.points != null ? Number(src.points) : 0),
+    total_points: (src.total_points != null ? Number(src.total_points) : (src.points != null ? Number(src.points) : 0)),
+  }
+  const { error } = await supabase.from('users').upsert(patch, { onConflict: 'id', ignoreDuplicates: true })
   if (error) throw error
 }
 
@@ -168,58 +180,51 @@ export const usersApi = {
       // Use raw SQL query to bypass PostgREST schema cache issues
       const { data, error } = await supabase
         .rpc('get_users_for_leaderboard');
-      
+
       if (error) {
-        console.error('Error fetching users via RPC:', error);
-        
-        // Final fallback: return hardcoded sample data if database fails
-        console.log('Using hardcoded sample data as final fallback');
-        return [
-          {
-            id: 'sample-1',
-            uid: 'sample-1',
-            fullName: 'Amina Khan',
-            full_name: 'Amina Khan',
-            email: 'amina.khan@example.com',
-            role: 'user',
-            points: 1250,
-            lastAward: null,
-            last_award: null,
-            madrasah_maktab: 'Madrasah Al-Huda',
-            city: 'Karachi',
-            avatar: '👧'
-          },
-          {
-            id: 'sample-2',
-            uid: 'sample-2',
-            fullName: 'Yusuf Ahmed',
-            full_name: 'Yusuf Ahmed',
-            email: 'yusuf.ahmed@example.com',
-            role: 'user',
-            points: 980,
-            lastAward: null,
-            last_award: null,
-            madrasah_maktab: 'Maktab Al-Noor',
-            city: 'Lahore',
-            avatar: '👦'
-          },
-          {
-            id: 'sample-3',
-            uid: 'sample-3',
-            fullName: 'Fatima Hassan',
-            full_name: 'Fatima Hassan',
-            email: 'fatima.hassan@example.com',
-            role: 'user',
-            points: 750,
-            lastAward: null,
-            last_award: null,
-            madrasah_maktab: 'Madrasah Al-Ilm',
-            city: 'Islamabad',
-            avatar: '👧'
+        const sel = await supabase
+          .from('users')
+          .select('id, full_name, email, role, points, total_points, last_award, madrasah_maktab, city, avatar')
+          .order('total_points', { ascending: false })
+          .limit(100);
+        if (sel.error) {
+          try {
+            const arr = JSON.parse(localStorage.getItem('users') || '[]');
+            return arr.map(u => ({
+              id: u.id,
+              uid: u.id,
+              fullName: u.full_name || u.fullName || (u.email || '').split('@')[0] || 'Anonymous',
+              full_name: u.full_name || u.fullName || '',
+              email: u.email || '',
+              role: u.role || 'user',
+              points: Number(u.points || 0),
+              lastAward: u.last_award || null,
+              last_award: u.last_award || null,
+              madrasah_maktab: u.madrasah_maktab || '',
+              city: u.city || '',
+              avatar: u.avatar || '👤',
+            }));
+          } catch {
+            return [];
           }
-        ];
+        }
+        const mappedDirect = (sel.data || []).map(u => ({
+          id: u.id,
+          uid: u.id,
+          fullName: u.full_name || '',
+          full_name: u.full_name || '',
+          email: u.email || '',
+          role: u.role || 'user',
+          points: Number((u.total_points != null ? u.total_points : u.points) || 0),
+          lastAward: u.last_award || null,
+          last_award: u.last_award || null,
+          madrasah_maktab: u.madrasah_maktab || '',
+          city: u.city || '',
+          avatar: u.avatar || '👤',
+        }));
+        return mappedDirect;
       }
-      
+
       // Map Supabase data to expected format
       const mapped = (data || []).map(u => ({
         id: u.id,
@@ -228,7 +233,7 @@ export const usersApi = {
         full_name: u.full_name || '',
         email: u.email || '',
         role: u.role || 'user',
-        points: Number(u.points || 0),
+        points: Number((u.total_points != null ? u.total_points : u.points) || 0),
         lastAward: u.last_award || null,
         last_award: u.last_award || null,
         madrasah_maktab: u.madrasah_maktab || '',
@@ -374,4 +379,3 @@ export async function isAdminUser() {
   const email = String(user.email || '').toLowerCase();
   return adminEmail ? email === adminEmail : true
 }
-

@@ -153,7 +153,7 @@ export default function Videos() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredVideos.map((video, index) => {
               const thumbnail = video.thumbnail_url || getYouTubeThumbnail(video.video_url);
               

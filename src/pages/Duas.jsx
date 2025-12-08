@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Volume2, VolumeX, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -14,7 +14,8 @@ const duas = [
     arabic: "بِسْمِ اللهِ",
     transliteration: "Bismillah",
     translation: "In the name of Allah",
-    audio: null,
+    audioAr: "/duas_audio/bismillah-ar.mp3",
+    audioEn: "/duas_audio/bismillah-en.mp3",
     reference: "Sunan Abu Dawud"
   },
   {
@@ -24,7 +25,8 @@ const duas = [
     arabic: "الْحَمْدُ لِلَّهِ",
     transliteration: "Alhamdulillah",
     translation: "All praise is for Allah",
-    audio: null,
+    audioAr: "/duas_audio/alhamdulillah-ar.mp3",
+    audioEn: "/duas_audio/alhamdulillah-en.mp3",
     reference: "Sahih Muslim"
   },
   {
@@ -86,23 +88,76 @@ const duas = [
     translation: "O Allah, open for me the doors of Your mercy",
     audio: null,
     reference: "Muslim"
+  },
+  {
+    id: "bathroom_entry",
+    category: "Daily",
+    title: "Entering the Bathroom",
+    arabic: "اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْخُبُثِ وَالْخَبَائِثِ",
+    transliteration: "Allahumma inni a'udhu bika minal khubuthi wal khaba'ith",
+    translation: "O Allah, I seek refuge in You from male and female devils",
+    audio: null,
+    reference: "Bukhari"
+  },
+  {
+    id: "bathroom_exit",
+    category: "Daily",
+    title: "Leaving the Bathroom",
+    arabic: "غُفْرَانَكَ",
+    transliteration: "Ghufranak",
+    translation: "I seek Your forgiveness",
+    audio: null,
+    reference: "Abu Dawud"
+  },
+  {
+    id: "start_study",
+    category: "Learning",
+    title: "Before Studying",
+    arabic: "رَبِّ زِدْنِي عِلْمًا",
+    transliteration: "Rabbi zidni ilma",
+    translation: "My Lord, increase me in knowledge",
+    audio: null,
+    reference: "Quran 20:114"
+  },
+  {
+    id: "sneezing_reply",
+    category: "Manners",
+    title: "Sneeze Reply",
+    arabic: "يَرْحَمُكَ اللَّهُ",
+    transliteration: "Yarhamukallah",
+    translation: "May Allah have mercy on you",
+    audio: null,
+    reference: "Bukhari"
+  },
+  {
+    id: "waking_up",
+    category: "Morning",
+    title: "Waking Up",
+    arabic: "الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ",
+    transliteration: "Alhamdu lillahil-ladhi ahyana ba'da ma amatana wa ilayhin-nushur",
+    translation: "All praise is for Allah who gave us life after causing us to die, and to Him is the return",
+    audio: null,
+    reference: "Bukhari"
+  },
+  {
+    id: "market_entry",
+    category: "Protection",
+    title: "Entering the Market",
+    arabic: "لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ، يُحْيِي وَيُمِيتُ، وَهُوَ حَيٌّ لَا يَمُوتُ، بِيَدِهِ الْخَيْرُ، وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ",
+    transliteration: "La ilaha illallah wahdahu la sharika lahu, lahu-l mulku wa lahu-l hamdu, yuhyi wa yumit, wa huwa hayyun la yamutu, biyadihi-l khayr, wa huwa 'ala kulli shay'in qadir",
+    translation: "None has the right to be worshipped but Allah alone, without partner; His is the dominion and praise; He gives life and death and He is Ever-Living who does not die; in His Hand is all good and He has power over everything",
+    audio: null,
+    reference: "Tirmidhi"
   }
 ];
 
-const categories = ["All", "Daily", "Morning", "Bedtime", "Travel", "Protection"];
+const categories = ["All", "Daily", "Morning", "Bedtime", "Travel", "Protection", "Learning", "Manners"];
 
 export default function Duas() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [favorites, setFavorites] = useState([]);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const speakRef = useRef(null);
 
-  useEffect(() => {
-    speakRef.current = window?.speechSynthesis || null;
-    return () => {
-      try { speakRef.current?.cancel?.(); } catch {}
-    };
-  }, []);
+  useEffect(() => {}, []);
 
   const filteredDuas = selectedCategory === "All" 
     ? duas 
@@ -116,25 +171,7 @@ export default function Duas() {
     }
   };
 
-  const stopSpeaking = () => {
-    try { speakRef.current?.cancel?.(); setIsSpeaking(false); } catch {}
-  };
-
-  const speakText = (text, lang = "en-US") => {
-    try {
-      if (!speakRef.current) return;
-      stopSpeaking();
-      const utter = new SpeechSynthesisUtterance(text);
-      const voices = speakRef.current.getVoices?.() || [];
-      const match = voices.find(v => v.lang?.toLowerCase().startsWith(lang.toLowerCase().split('-')[0]));
-      if (match) utter.voice = match;
-      utter.lang = match?.lang || lang;
-      utter.rate = 0.95;
-      utter.onend = () => setIsSpeaking(false);
-      setIsSpeaking(true);
-      speakRef.current.speak(utter);
-    } catch {}
-  };
+  const stopSpeaking = () => {};
 
   return (
     <div className="min-h-screen py-8 md:py-12 px-2 md:px-4">
@@ -217,27 +254,8 @@ export default function Duas() {
                     )}
                   </div>
 
-                  {/* Audio Controls */}
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      onClick={() => speakText(dua.arabic, 'ar')}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                    >
-                      <Volume2 className="w-4 h-4" /> Play Arabic
-                    </Button>
-                    <Button
-                      onClick={() => speakText(dua.transliteration, 'en-US')}
-                      variant="outline"
-                      className="flex items-center gap-2"
-                    >
-                      <Volume2 className="w-4 h-4" /> Play Transliteration
-                    </Button>
-                    {isSpeaking && (
-                      <Button onClick={stopSpeaking} variant="ghost" className="flex items-center gap-2">
-                        <VolumeX className="w-4 h-4" /> Stop
-                      </Button>
-                    )}
+                    {null}
                   </div>
                 </CardContent>
               </Card>
@@ -265,6 +283,7 @@ export default function Duas() {
             </CardContent>
           </Card>
         </motion.div>
+        {null}
       </div>
     </div>
   );

@@ -143,24 +143,12 @@ const worksheets = [
 export default function Worksheets() {
   const [downloading, setDownloading] = useState(null);
 
-  const handleDownload = async (worksheet) => {
-    setDownloading(worksheet.id);
-    
-    // Simulate download process
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast.success(`Downloaded: ${worksheet.title}`);
-    toast.info("Note: This is a demo. Connect to actual worksheet files for production.");
-    
-    // Open resource link in new tab
-    window.open(worksheet.fileUrl, '_blank');
-    
-    setDownloading(null);
+  const handleDownload = (worksheet) => {
+    window.open(worksheet.fileUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handlePrint = (worksheet) => {
-    toast.info(`Opening ${worksheet.title} for printing...`);
-    window.open(worksheet.fileUrl, '_blank');
+    window.open(worksheet.fileUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (

@@ -21,7 +21,6 @@ import ContactUs from "./ContactUs";
 
 import Duas from "./Duas";
 
-import RecordAndShare from "./RecordAndShare";
 import RecordingStudio from "./RecordingStudio";
 
 import RecordingsAdmin from "./RecordingsAdmin";
@@ -30,7 +29,8 @@ import CreativeCorner from "./CreativeCorner";
 
 import LearningLibrary from "./LearningLibrary";
 
-import ColoringPages from "./ColoringPages";
+import LearningPaths from "./LearningPaths";
+
 
 import DrawingBoard from "./DrawingBoard";
 
@@ -63,6 +63,7 @@ import Manzil from "./Manzil";
 import Hizb from "./Hizb";
 import HifzDashboard from "./HifzDashboard";
 import QuranDictionary from "./QuranDictionary";
+import AdminReciters from "./AdminReciters";
 
 import ResetPointsAdmin from "./ResetPointsAdmin";
 
@@ -107,12 +108,17 @@ import AdminQuizManager from "./AdminQuizManager";
 import Signup from "./Signup";
 import Login from "./Login";
 import AdminMessages from "./AdminMessages";
-import Assistant from "./Assistant";
-import CompleteProfile from "./CompleteProfile";
-import ArabicLearning from "./ArabicLearning";
+import ChildProgress from "./ChildProgress";
+import QuizSignup from "./QuizSignup";
 import KidsRecordingStudio from "./KidsRecordingStudio";
+import KidsZone from "./KidsZone";
+import DailyMissions from "./DailyMissions";
+import MyRewards from "./MyRewards";
+import Alarm from "./Alarm";
+import Competition from "./Competition";
+import WhatsAppChannel from "./WhatsAppChannel";
 
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import Landing from "./Landing";
 
 const PAGES = {
@@ -138,17 +144,19 @@ const PAGES = {
     
     Duas: Duas,
     
-    RecordAndShare: RecordAndShare,
     RecordingStudio: RecordingStudio,
     KidsRecordingStudio: KidsRecordingStudio,
+    KidsZone: KidsZone,
+    DailyMissions: DailyMissions,
+    MyRewards: MyRewards,
     
     RecordingsAdmin: RecordingsAdmin,
     
     CreativeCorner: CreativeCorner,
     
     LearningLibrary: LearningLibrary,
+    LearningPaths: LearningPaths,
     
-    ColoringPages: ColoringPages,
     
     DrawingBoard: DrawingBoard,
     
@@ -178,6 +186,7 @@ const PAGES = {
     
     FullQuran: FullQuran,
     Quran: FullQuran,
+    AdminReciters: AdminReciters,
     QuranDictionary: QuranDictionary,
     Manzil: Manzil,
     Hizb: Hizb,
@@ -220,11 +229,13 @@ const PAGES = {
     Quizzes: Quizzes,
     
     AdminQuizManager: AdminQuizManager,
-    Signup: Signup,
+    Signup: QuizSignup,
+    QuizSignup: QuizSignup,
     Login: Login,
-    Assistant: Assistant,
-    CompleteProfile: CompleteProfile,
-    ArabicLearning: ArabicLearning,
+    ChildProgress: ChildProgress,
+    Alarm: Alarm,
+    Competition: Competition,
+    WhatsAppChannel: WhatsAppChannel,
 
 }
 
@@ -250,19 +261,21 @@ function PagesContent() {
     const location = useLocation();
     const currentPage = _getCurrentPage(location.pathname);
     // Allow Assistant page without AdminGuard during local development
-    const assistantElement = import.meta.env?.DEV
-      ? <Assistant />
-      : <AdminGuard><Assistant /></AdminGuard>;
     
+    const isDev = import.meta.env?.DEV;
+    const adminAudioContentElement = isDev ? <AdminAudioContent /> : <AdminGuard><AdminAudioContent /></AdminGuard>;
+
     return (
         <Layout currentPageName={currentPage}>
             <Routes>            
                 
-                    <Route path="/" element={<Home />} />
+                    <Route path="/" element={<Navigate to="/Home" replace />} />
                 
                 
                 <Route path="/Home" element={<Home />} />
-                <Route path="/kids" element={<Home />} />
+                <Route path="/kids" element={<KidsZone />} />
+                <Route path="/DailyMissions" element={<DailyMissions />} />
+                <Route path="/MyRewards" element={<MyRewards />} />
                 
                 <Route path="/Games" element={<Games />} />
                 <Route path="/games" element={<Games />} />
@@ -275,6 +288,7 @@ function PagesContent() {
                 <Route path="/Learn" element={<Learn />} />
                 
                 <Route path="/ParentZone" element={<ParentZone />} />
+                <Route path="/parentzone" element={<ParentZone />} />
                 
                 <Route path="/About" element={<About />} />
                 
@@ -284,17 +298,19 @@ function PagesContent() {
                 
                 <Route path="/Duas" element={<Duas />} />
                 
-                <Route path="/RecordAndShare" element={<RecordAndShare />} />
                 <Route path="/RecordingStudio" element={<RecordingStudio />} />
                 <Route path="/KidsRecordingStudio" element={<KidsRecordingStudio />} />
-                
+                <Route path="/KidsZone" element={<KidsZone />} />
+                <Route path="/kidszone" element={<KidsZone />} />
+
                 <Route path="/RecordingsAdmin" element={<AdminGuard><RecordingsAdmin /></AdminGuard>} />
                 
                 <Route path="/CreativeCorner" element={<CreativeCorner />} />
                 
                 <Route path="/LearningLibrary" element={<LearningLibrary />} />
+                <Route path="/LearningPaths" element={<LearningPaths />} />
+                <Route path="/learningpaths" element={<LearningPaths />} />
                 
-                <Route path="/ColoringPages" element={<ColoringPages />} />
                 
                 <Route path="/DrawingBoard" element={<DrawingBoard />} />
                 
@@ -323,8 +339,10 @@ function PagesContent() {
                 <Route path="/Multimedia" element={<Multimedia />} />
                 
                 <Route path="/FullQuran" element={<FullQuran />} />
+                <Route path="/fullquran" element={<FullQuran />} />
                 <Route path="/Quran" element={<FullQuran />} />
                 <Route path="/quran" element={<FullQuran />} />
+                <Route path="/AdminReciters" element={<AdminReciters />} />
                 <Route path="/QuranDictionary" element={<QuranDictionary />} />
                 <Route path="/dictionary" element={<QuranDictionary />} />
                 <Route path="/Manzil" element={<Manzil />} />
@@ -357,7 +375,7 @@ function PagesContent() {
                 
                 <Route path="/AdminVideos" element={<AdminGuard><AdminVideos /></AdminGuard>} />
                 
-                <Route path="/AdminAudioContent" element={<AdminGuard><AdminAudioContent /></AdminGuard>} />
+                <Route path="/AdminAudioContent" element={adminAudioContentElement} />
                 
                 <Route path="/AdminUsers" element={<AdminGuard><AdminUsers /></AdminGuard>} />
                 
@@ -371,6 +389,9 @@ function PagesContent() {
                 <Route path="/AdminStoryBuilder" element={<AdminGuard><AdminStoryBuilder /></AdminGuard>} />
                 
                 <Route path="/AdminGameSettings" element={<AdminGuard><AdminGameSettings /></AdminGuard>} />
+                <Route path="/AdminSurahSequences" element={<AdminGuard><AdminSurahSequences /></AdminGuard>} />
+                <Route path="/AdminWuduSteps" element={<AdminGuard><AdminWuduSteps /></AdminGuard>} />
+                <Route path="/AdminProphetClues" element={<AdminGuard><AdminProphetClues /></AdminGuard>} />
                 
                 <Route path="/AdminMessages" element={<AdminGuard><AdminMessages /></AdminGuard>} />
                 
@@ -378,22 +399,22 @@ function PagesContent() {
                 
                 <Route path="/AdminQuizManager" element={<AdminQuizManager />} />
                 {/* Signup routes and legacy Signin redirects */}
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/Signup" element={<Signup />} />
-                <Route path="/Signin" element={<Signup />} />
-                <Route path="/signin" element={<Signup />} />
+                <Route path="/signup" element={<QuizSignup />} />
+                <Route path="/Signup" element={<QuizSignup />} />
+                <Route path="/Signin" element={<QuizSignup />} />
+                <Route path="/signin" element={<QuizSignup />} />
+                <Route path="/QuizSignup" element={<QuizSignup />} />
+                <Route path="/quizsignup" element={<QuizSignup />} />
                 {/* Login routes */}
                 <Route path="/Login" element={<Login />} />
                 <Route path="/login" element={<Login />} />
-                {/* Profile completion */}
-                <Route path="/CompleteProfile" element={<CompleteProfile />} />
-                <Route path="/completeprofile" element={<CompleteProfile />} />
-                {/* Arabic Learning */}
-                <Route path="/ArabicLearning" element={<ArabicLearning />} />
-                <Route path="/arabiclearning" element={<ArabicLearning />} />
-                {/* Assistant routes: bypass guard in local dev for faster testing */}
-                <Route path="/Assistant" element={assistantElement} />
-                <Route path="/assistant" element={assistantElement} />
+                <Route path="/ChildProgress" element={<ChildProgress />} />
+                <Route path="/childprogress" element={<ChildProgress />} />
+                <Route path="/Alarm" element={<Alarm />} />
+                <Route path="/alarm" element={<Alarm />} />
+                <Route path="/Competition" element={<Competition />} />
+                <Route path="/WhatsAppChannel" element={<WhatsAppChannel />} />
+                
                 <Route path="*" element={<Home />} />
             </Routes>
         </Layout>
@@ -403,3 +424,6 @@ function PagesContent() {
 export default function Pages() {
     return <PagesContent />;
 }
+import AdminSurahSequences from "./AdminSurahSequences";
+import AdminWuduSteps from "./AdminWuduSteps";
+import AdminProphetClues from "./AdminProphetClues";

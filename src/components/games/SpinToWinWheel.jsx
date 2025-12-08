@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Gift, Star, Sparkles, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { addPoints } from "@/api/points";
 import PropTypes from 'prop-types';
 
 const rewards = [
@@ -30,14 +31,12 @@ export default function SpinToWinWheel({ user, onReward }) {
 
   const checkSpinAvailability = () => {
     if (!user) return;
-    
-    const lastSpinDate = user.last_spin_date;
-    if (!lastSpinDate) {
-      setCanSpin(true);
-      return;
-    }
+    const localKey = `spin_last_date_${user.id}`;
+    let lastSpinRaw = user.last_spin_date;
+    try { if (!lastSpinRaw) lastSpinRaw = localStorage.getItem(localKey); } catch {}
+    if (!lastSpinRaw) { setCanSpin(true); return; }
 
-    const lastSpin = new Date(lastSpinDate);
+    const lastSpin = new Date(lastSpinRaw);
     const now = new Date();
     const hoursSinceLastSpin = (now - lastSpin) / (1000 * 60 * 60);
 
@@ -77,16 +76,11 @@ export default function SpinToWinWheel({ user, onReward }) {
           reward_value: wonReward.type === "points" ? wonReward.value.toString() : wonReward.value,
           claimed: false
         });
-
-        // Update user's last spin date
-        await base44.auth.updateMe({
-          last_spin_date: new Date().toISOString()
-        });
+        try { localStorage.setItem(`spin_last_date_${user.id}`, new Date().toISOString()); } catch {}
 
         // Apply reward
         if (wonReward.type === "points") {
-          const newPoints = Math.min((user.points || 0) + wonReward.value, 400);
-          await base44.auth.updateMe({ points: newPoints });
+          try { await addPoints(user.id, "spin_to_win", Number(wonReward.value || 0)); } catch {}
         } else if (wonReward.type === "badge") {
           const badges = user.badges || [];
           if (!badges.includes(wonReward.value)) {

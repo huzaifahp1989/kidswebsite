@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { signUp, saveUserProfile, resetPassword, getFirebase, sendVerification } from "@/api/firebase";
+import { SendEmail } from "@/api/integrations";
 
 // Simple, dependency-free signup form that:
 // 1) Creates account with just name, email and password
@@ -12,6 +13,9 @@ export default function Signup() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [age, setAge] = useState("");
+  const [city, setCity] = useState("");
+  const [madrasah, setMadrasah] = useState("");
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -21,7 +25,22 @@ export default function Signup() {
   const [offerReset, setOfferReset] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [verificationSent, setVerificationSent] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
+  const [honeypot, setHoneypot] = useState("");
+  const [loadedAt, setLoadedAt] = useState(0);
+  const [formPass, setFormPass] = useState("");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setLoadedAt(Date.now());
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    const token = Array.from(arr).map(b => b.toString(16).padStart(2, "0")).join("");
+    try {
+      document.cookie = `csrf_token=${token}; Path=/; SameSite=Lax`;
+    } catch {}
+    setCsrfToken(token);
+  }, []);
 
   function validate() {
     const errs = {};
@@ -29,6 +48,12 @@ export default function Signup() {
     if (!email.trim()) errs.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errs.email = "Invalid email format";
     if (!password.trim() || password.length < 6) errs.password = "Password must be at least 6 characters";
+    if (!age.trim()) errs.age = "Age is required";
+    else if (Number(age) < 13) errs.age = "You must be at least 13 years old";
+    if (!city.trim()) errs.city = "City is required";
+    if (!madrasah.trim()) errs.madrasah = "Madrasah name is required";
+    const requiredPass = String(import.meta.env.VITE_SIGNUP_FORM_PASSWORD || "");
+    if (requiredPass && formPass.trim() !== requiredPass) errs.formPass = "Form password is incorrect";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -50,9 +75,12 @@ export default function Signup() {
 
       // Try to persist profile, but do not block success if it fails
       try {
-        await saveUserProfile(user.uid, {
+        await saveUserProfile(user.id, {
           fullName: fullName.trim(),
           email: normalizedEmail,
+          age: age.trim(),
+          city: city.trim(),
+          madrasah: madrasah.trim(),
         });
         setProfileSaved(true);
         // Also call backend to ensure record exists and notify admin by email
@@ -63,8 +91,8 @@ export default function Signup() {
             const endpoint = import.meta.env?.DEV ? "/.netlify/functions/signupNotify" : "/api/signupNotify";
             const res = await fetch(endpoint, {
               method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ email: normalizedEmail, fullName: fullName.trim() }),
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "X-CSRF-Token": csrfToken },
+              body: JSON.stringify({ email: normalizedEmail, fullName: fullName.trim(), age: Number(age), city: city.trim(), madrasah: madrasah.trim(), loadedAt, submittedAt: Date.now(), honeypot }),
             });
             if (res.ok) {
               const data = await res.json();
@@ -72,6 +100,21 @@ export default function Signup() {
             }
           }
         } catch (_) {}
+
+        const subject = `New Signup Notification - ${new Date().toISOString().slice(0,10)}`;
+        const body = `Full Name: ${fullName}\nAge: ${age}\nCity: ${city}\nMadrasah: ${madrasah}\nEmail: ${normalizedEmail}\nSubmitted At: ${new Date().toISOString()}`;
+        let attempt = 0;
+        let notified = false;
+        while (attempt < 3 && !notified) {
+          try {
+            await SendEmail({ from_name: "Islam Kids Zone", to: "imediac786@gmail.com", subject, body });
+            notified = true;
+            setInfoMsg(prev => prev || "Admin notified by email.");
+          } catch {
+            await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+          }
+          attempt++;
+        }
       } catch (persistErr) {
         // Non-blocking: surface a friendly note if Firestore permissions are missing
         const pCode = persistErr?.code || "";
@@ -87,8 +130,8 @@ export default function Signup() {
             const endpoint = import.meta.env?.DEV ? "/.netlify/functions/signupNotify" : "/api/signupNotify";
             const res = await fetch(endpoint, {
               method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ email: normalizedEmail, fullName: fullName.trim() }),
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "X-CSRF-Token": csrfToken },
+              body: JSON.stringify({ email: normalizedEmail, fullName: fullName.trim(), age: Number(age), city: city.trim(), madrasah: madrasah.trim(), loadedAt, submittedAt: Date.now(), honeypot }),
             });
             if (res.ok) {
               const data = await res.json();
@@ -96,6 +139,22 @@ export default function Signup() {
             }
           }
         } catch (_) {}
+        try {
+          const subject = `New Signup Notification - ${new Date().toISOString().slice(0,10)}`;
+          const body = `Full Name: ${fullName}\nAge: ${age}\nCity: ${city}\nMadrasah: ${madrasah}\nEmail: ${normalizedEmail}\nSubmitted At: ${new Date().toISOString()}`;
+          let attempt = 0;
+          let notified = false;
+          while (attempt < 3 && !notified) {
+            try {
+              await SendEmail({ from_name: "Islam Kids Zone", to: "imediac786@gmail.com", subject, body });
+              notified = true;
+              setInfoMsg(prev => prev || "Admin notified by email.");
+            } catch {
+              await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+            }
+            attempt++;
+          }
+        } catch {}
       }
     } catch (err) {
       const code = err?.code || "";
@@ -125,6 +184,7 @@ export default function Signup() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4 bg-white/50 rounded-lg p-6 shadow">
+        <input type="text" className="hidden" autoComplete="off" value={honeypot} onChange={e=>setHoneypot(e.target.value)} />
         <div>
           <label className="block text-sm font-medium mb-1" htmlFor="fullName">Full Name</label>
           <input
@@ -136,6 +196,85 @@ export default function Signup() {
             placeholder="e.g., Aisha Khan"
           />
           {errors.fullName && <div className="text-red-600 text-xs mt-1">{errors.fullName}</div>}
+        </div>
+
+        {String(import.meta.env.VITE_SIGNUP_FORM_PASSWORD || "") && (
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="formPass">Form Password</label>
+            <input
+              id="formPass"
+              type="password"
+              className="w-full rounded border px-3 py-2 focus:outline-none focus:ring"
+              value={formPass}
+              onChange={(e) => setFormPass(e.target.value)}
+              placeholder="Enter provided password"
+            />
+            {errors.formPass && <div className="text-red-600 text-xs mt-1">{errors.formPass}</div>}
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="age">Age</label>
+          <input
+            id="age"
+            type="number"
+            min={13}
+            className="w-full rounded border px-3 py-2 focus:outline-none focus:ring"
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            placeholder="e.g., 10"
+          />
+          {errors.age && <div className="text-red-600 text-xs mt-1">{errors.age}</div>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="city">City</label>
+          <input
+            id="city"
+            type="text"
+            className="w-full rounded border px-3 py-2 focus:outline-none focus:ring"
+            value={city}
+            list="major-cities"
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="e.g., Karachi"
+          />
+          {errors.city && <div className="text-red-600 text-xs mt-1">{errors.city}</div>}
+          <datalist id="major-cities">
+            <option value="Karachi" />
+            <option value="Lahore" />
+            <option value="Islamabad" />
+            <option value="Rawalpindi" />
+            <option value="Peshawar" />
+            <option value="Faisalabad" />
+            <option value="Multan" />
+            <option value="Hyderabad" />
+            <option value="Quetta" />
+            <option value="Sialkot" />
+            <option value="Gujranwala" />
+            <option value="Bahawalpur" />
+            <option value="Sukkur" />
+          </datalist>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="madrasah">Madrasah Name</label>
+          <input
+            id="madrasah"
+            type="text"
+            className="w-full rounded border px-3 py-2 focus:outline-none focus:ring"
+            value={madrasah}
+            list="madrasah-list"
+            onChange={(e) => setMadrasah(e.target.value)}
+            placeholder="e.g., Madrasah Al-Huda"
+          />
+          {errors.madrasah && <div className="text-red-600 text-xs mt-1">{errors.madrasah}</div>}
+          <datalist id="madrasah-list">
+            <option value="Darul Uloom Karachi" />
+            <option value="Jamia Binoria" />
+            <option value="Al-Huda" />
+            <option value="Jamia Tur Rasheed" />
+            <option value="Madrasah Taleem ul Quran" />
+          </datalist>
         </div>
 
 
@@ -212,7 +351,7 @@ export default function Signup() {
           type="submit"
           className="inline-flex items-center justify-center rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
           disabled={submitting}
-        >
+          >
           {submitting ? "Creating…" : "Create Account"}
         </button>
         <div className="mt-4 text-center">

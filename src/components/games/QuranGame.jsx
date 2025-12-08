@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, XCircle, Trophy, Star, BookOpen } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Star, BookOpen, Zap, Timer } from "lucide-react";
 // import { base44 } from "@/api/base44Client";
 
 const quranQuestions = [
@@ -89,6 +89,9 @@ export default function QuranGame({ onComplete }) {
   const [gameOver, setGameOver] = useState(false);
   const [user, setUser] = useState(null);
   const [questions, setQuestions] = useState([]);
+  const [questionStartTs, setQuestionStartTs] = useState(null);
+  const [streak, setStreak] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
     loadUser();
@@ -112,6 +115,25 @@ export default function QuranGame({ onComplete }) {
     setQuestions(shuffled);
   };
 
+  useEffect(() => {
+    if (questions.length > 0 && currentQuestion < questions.length) {
+      setQuestionStartTs(Date.now());
+      setElapsedSeconds(0);
+    }
+  }, [currentQuestion, questions]);
+
+  useEffect(() => {
+    let t;
+    if (questionStartTs && !showExplanation) {
+      t = setInterval(() => {
+        setElapsedSeconds(Math.floor((Date.now() - questionStartTs) / 1000));
+      }, 250);
+    }
+    return () => {
+      if (t) clearInterval(t);
+    };
+  }, [questionStartTs, showExplanation]);
+
   const handleAnswer = (answerIndex) => {
     if (selectedAnswer !== null) return;
     
@@ -120,6 +142,9 @@ export default function QuranGame({ onComplete }) {
     
     if (answerIndex === questions[currentQuestion].correct) {
       setScore(score + 10);
+      setStreak(s => s + 1);
+    } else {
+      setStreak(0);
     }
   };
 
@@ -163,6 +188,7 @@ export default function QuranGame({ onComplete }) {
     setSelectedAnswer(null);
     setShowExplanation(false);
     setGameOver(false);
+    setStreak(0);
   };
 
   if (questions.length === 0) {
@@ -228,9 +254,16 @@ export default function QuranGame({ onComplete }) {
           </Badge>
         </div>
         <Progress value={progress} className="h-2 bg-white/30" />
-        <p className="text-sm text-green-100 mt-2">
-          Question {currentQuestion + 1} of {questions.length}
-        </p>
+        <div className="flex justify-between text-xs mt-2">
+          <span className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+            <Zap className="w-4 h-4" />
+            Streak: {streak}
+          </span>
+          <span className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+            <Timer className="w-4 h-4" />
+            Time: {elapsedSeconds}s
+          </span>
+        </div>
       </CardHeader>
 
       <CardContent className="p-8">

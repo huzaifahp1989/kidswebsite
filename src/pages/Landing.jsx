@@ -5,7 +5,7 @@ import { ExternalLink } from "lucide-react";
 
 // Landing page that shows the external site first, with a clear link to the Kids Home page
 export default function Landing() {
-  const EXTERNAL_URL = "https://studio--studio-653801381-47983.us-central1.hosted.app/";
+  const EXTERNAL_URL = "https://traeimedia3phmb.vercel.app/Home";
   const [loaded, setLoaded] = useState(false);
 
   // Fallback if iframe cannot load due to X-Frame-Options or CSP

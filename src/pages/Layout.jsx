@@ -2,8 +2,8 @@
 
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Home, Gamepad2, BookOpen, Music, GraduationCap, Users, Info, Book, Trophy, ChevronDown, Menu, X, LogOut, User, LogIn, UserPlus, Video, Settings, Play, Pause, Volume2, VolumeX, Radio, Mail, Brain, Star, BarChart2, Layers, Shield } from "lucide-react";
-import { useState, useEffect, useRef, createContext, useContext } from "react";
+import { Home, Gamepad2, BookOpen, Music, GraduationCap, Users, Info, Book, Trophy, ChevronDown, Menu, X, LogOut, User, LogIn, UserPlus, Video, Settings, Play, Pause, Volume2, VolumeX, Radio, Mail, Star, BarChart2, Layers, Shield, Bell, Target, MessageCircle } from "lucide-react";
+import React, { useState, useEffect, useRef, createContext, useContext } from "react";
 import { motion } from "framer-motion";
 import {
   DropdownMenu,
@@ -12,9 +12,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import PropTypes from 'prop-types';
 import { watchAuth, getUserProfile } from "@/api/firebase";
+import { supabase } from "@/api/supabaseClient";
 // Base44 auth removed from public UI; email-only access in place
 
 // Create Radio Context
@@ -40,6 +42,7 @@ export default function Layout({ children, currentPageName }) {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const [isStandalone, setIsStandalone] = useState(false);
   
   // Radio player state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -56,8 +59,8 @@ export default function Layout({ children, currentPageName }) {
     navActiveGradient: "from-blue-500 to-purple-500",
     backgroundGradient: "from-blue-50 via-purple-50 to-pink-50",
     darkModeDefault: false,
-    showTestBanner: true,
-    showRadioBar: true,
+    showRadioBar: false,
+    showMobileSidebar: false,
   });
 
   useEffect(() => {
@@ -65,8 +68,15 @@ export default function Layout({ children, currentPageName }) {
       const raw = localStorage.getItem("siteSettings");
       if (raw) {
         const parsed = JSON.parse(raw);
-        setSiteSettings((prev) => ({ ...prev, ...parsed }));
+        setSiteSettings((prev) => ({ ...prev, ...parsed, showMobileSidebar: false }));
       }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      const standalone = (typeof window !== 'undefined' && (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)) || (typeof navigator !== 'undefined' && navigator.standalone === true);
+      setIsStandalone(!!standalone);
     } catch {}
   }, []);
 
@@ -81,7 +91,7 @@ export default function Layout({ children, currentPageName }) {
   const bgClass = `min-h-screen bg-gradient-to-br ${siteSettings.backgroundGradient}`;
   const headerClass = `bg-gradient-to-r ${siteSettings.headerGradient} text-white shadow-lg sticky top-0 z-50`;
   const supportEmail = siteSettings.supportEmail || "imedia786@gmail.com";
-  const radioSrc = siteSettings.radioUrl || "https://a4.asurahosting.com:7820/radio.mp3";
+  const radioSrc = siteSettings.radioUrl || "";
 
   useEffect(() => {
     // Define public pages that do NOT require authentication
@@ -105,12 +115,12 @@ export default function Layout({ children, currentPageName }) {
       try {
         if (u) {
           setIsAuthenticated(true);
-          let profile = null;
+          const fullName = u.email || "User";
+          let points = 0;
           try {
-            profile = await getUserProfile(u.uid);
+            const p = await getUserProfile(u.uid);
+            points = Number((p?.total_points != null ? p.total_points : p?.points) || 0);
           } catch {}
-          const fullName = profile?.fullName || profile?.name || u.displayName || u.email || "User";
-          const points = profile?.points || 0;
           setUser({ full_name: fullName, points, email: u.email, uid: u.uid });
         } else {
           setIsAuthenticated(false);
@@ -124,6 +134,33 @@ export default function Layout({ children, currentPageName }) {
     });
     return () => unsub?.();
   }, []);
+
+  useEffect(() => {
+    const handler = async () => {
+      try {
+        if (user?.uid) {
+          const p = await getUserProfile(user.uid);
+          const next = Number((p?.total_points != null ? p.total_points : p?.points) || prev?.points || 0);
+          setUser(prev => prev ? { ...prev, points: next } : prev);
+        }
+      } catch {}
+    };
+    window.addEventListener('ikz_points_awarded', handler);
+    const directHandler = (e) => {
+      try { const pts = Number(e?.detail?.points || NaN); if (!Number.isNaN(pts)) setUser(prev => prev ? { ...prev, points: pts } : prev); } catch {}
+    };
+    window.addEventListener('ikz_points_total', directHandler);
+    let channel;
+    try {
+      channel = supabase.channel('layout_users_changes').on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'users' },
+        handler
+      );
+      channel.subscribe();
+    } catch {}
+    return () => { try { window.removeEventListener('ikz_points_awarded', handler); } catch {}; try { window.removeEventListener('ikz_points_total', directHandler); } catch {}; try { channel?.unsubscribe?.(); } catch {} };
+  }, [user?.uid]);
 
   const handleLogout = () => {
     setIsAuthenticated(false);
@@ -162,12 +199,20 @@ export default function Layout({ children, currentPageName }) {
   };
 
   const baseNavItems = [
+    { name: "Sign Up", icon: UserPlus, path: "Signup" },
+    { name: "Sign In", icon: LogIn, path: "Login" },
     { name: "Kids Home", icon: Home, path: "Home" },
+    { name: "Kids Zone", icon: Star, path: "KidsZone" },
     { name: "Games", icon: Gamepad2, path: "Games" },
+    { name: "Daily Missions", icon: Target, path: "DailyMissions" },
+    { name: "My Rewards", icon: Trophy, path: "MyRewards" },
     { name: "Leaderboard", icon: Trophy, path: "Leaderboard" },
+    { name: "Competition", icon: Trophy, path: "Competition" },
+    { name: "WhatsApp Channel", icon: MessageCircle, path: "WhatsAppChannel" },
     { name: "Stories", icon: BookOpen, path: "Stories" },
     { name: "Videos", icon: Video, path: "Videos" },
     { name: "Kids Recording Studio", icon: Radio, path: "KidsRecordingStudio" },
+    { name: "Alarm", icon: Bell, path: "Alarm" },
     {
       name: "Learn",
       icon: GraduationCap,
@@ -189,15 +234,10 @@ export default function Layout({ children, currentPageName }) {
       ]
     },
     { name: "Parents", icon: Users, path: "ParentZone" },
-    { name: "Signup", icon: UserPlus, path: "Signup" },
     { name: "About", icon: Info, path: "About" },
   ];
 
-  const isAdminSection = String(currentPageName || '').toLowerCase().startsWith('admin');
-  const showAssistantNav = isAdminSection || currentPageName === 'Assistant';
-  const navItems = showAssistantNav
-    ? [...baseNavItems, { name: "AI Agent / ChatGPT", icon: Brain, path: "Assistant" }]
-    : baseNavItems;
+  const navItems = baseNavItems;
 
   // Add Privacy Policy link to navigation for mobile quick nav
   const navItemsWithPrivacy = [
@@ -207,7 +247,7 @@ export default function Layout({ children, currentPageName }) {
   // On mobile, the top quick icon bar should not show parent items with dropdowns
   // (e.g., Quran, Learn) because they have no direct path and taps do nothing.
   // Keep these accessible via the side menu (drawer) only.
-  const mobileIconNavItems = navItemsWithPrivacy.filter((item) => item.name !== "Quran" && item.name !== "Learn");
+  
 
   const handleMobileLinkClick = () => {
     setMobileMenuOpen(false);
@@ -220,7 +260,7 @@ export default function Layout({ children, currentPageName }) {
 
   const [menuQuery, setMenuQuery] = useState("");
   const normalizedQuery = menuQuery.trim().toLowerCase();
-  const kidsNames = ["Kids Home", "Games", "Stories", "Videos", "Leaderboard"];
+  const kidsNames = ["Kids Home", "Kids Zone", "Games", "Stories", "Videos", "Leaderboard"];
   const quranItem = navItemsWithPrivacy.find((i) => i.name === "Quran");
   const learnItem = navItemsWithPrivacy.find((i) => i.name === "Learn");
   const baseLinks = navItemsWithPrivacy.filter((i) => !i.dropdown && !i.external && i.name !== "Quran" && i.name !== "Learn");
@@ -250,19 +290,45 @@ export default function Layout({ children, currentPageName }) {
     setVolume: handleVolumeChange
   };
 
+  class ErrorBoundary extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = { hasError: false };
+    }
+    static getDerivedStateFromError() {
+      return { hasError: true };
+    }
+    componentDidCatch() {}
+    render() {
+      if (this.state.hasError) {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-900">Something went wrong</div>
+              <div className="text-sm text-gray-600">Please refresh the page</div>
+            </div>
+          </div>
+        );
+      }
+      return this.props.children;
+    }
+  }
+
   return (
     <RadioContext.Provider value={radioContextValue}>
       <div className={bgClass}>
         {/* Hidden Audio Element */}
-        <audio
-          ref={audioRef}
-          src={radioSrc}
-          preload="none"
-        />
+        {siteSettings.showRadioBar && radioSrc ? (
+          <audio
+            ref={audioRef}
+            src={radioSrc}
+            preload="none"
+          />
+        ) : null}
 
         {/* Header */}
         <header className={headerClass}>
-          <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 safe-pt">
             <div className="flex items-center justify-between">
               <Link to={createPageUrl("Home")} className="flex items-center gap-2 md:gap-3 hover:opacity-90 transition-opacity">
                 <div className="text-3xl md:text-4xl">{siteSettings.logoEmoji}</div>
@@ -272,86 +338,71 @@ export default function Layout({ children, currentPageName }) {
                 </div>
               </Link>
 
-              {/* Desktop Auth Buttons */}
-              <div className="hidden md:flex items-center gap-3">
-                {isAuthenticated && user ? (
+              <div className="hidden md:flex items-center gap-2">
+                {!isAuthenticated ? (
                   <>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full hover:bg-white/30 transition-colors">
-                          <User className="w-4 h-4" />
-                          <div className="text-sm text-left">
-                            <div className="font-semibold">{user.full_name || 'User'}</div>
-                            <div className="text-lg font-bold text-amber-600 mb-1">
-                              ⭐ {user.points || 0} points
-                            </div>
-                          </div>
-                          <ChevronDown className="w-4 h-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        {/* My Points removed */}
-                        <DropdownMenuItem asChild>
-                          <Link to={createPageUrl("DeleteAccount")} className="cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50">
-                            <Settings className="w-4 h-4 mr-2" />
-                            Delete Account
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
-                          <LogOut className="w-4 h-4 mr-2" />
-                          Logout
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Link to={createPageUrl("Home")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
+                      <Home className="w-4 h-4" />
+                      Home
+                    </Link>
+                    <Link to={createPageUrl("Signup")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-blue-700 bg-white border-2 border-blue-600 hover:bg-blue-50 shadow">
+                      <UserPlus className="w-4 h-4" />
+                      Sign Up
+                    </Link>
+                    <Link to={createPageUrl("Login")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow">
+                      <LogIn className="w-4 h-4" />
+                      Sign In
+                    </Link>
                   </>
-                ) : null}
+                ) : (
+                  <>
+                    <Link to={createPageUrl("Home")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
+                      <Home className="w-4 h-4" />
+                      Home
+                    </Link>
+                    <Badge className="bg-white/30 text-white border-white/40">
+                      {Number(user?.points || 0)} pts
+                    </Badge>
+                    <Link to={createPageUrl("MyRewards")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
+                      <Trophy className="w-4 h-4" />
+                      Rewards
+                    </Link>
+                    <Link to={createPageUrl("Leaderboard")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
+                      <BarChart2 className="w-4 h-4" />
+                      Leaderboard
+                    </Link>
+                  </>
+                )}
               </div>
 
               {/* Mobile auth is shown inside the drawer above menu; header kept minimal */}
 
               {/* Mobile Menu Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden text-white hover:bg-white/20"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </Button>
+              {!siteSettings.showMobileSidebar && (
+                <>
+                  <Link to={createPageUrl("Home")} className="md:hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
+                    <Home className="w-4 h-4" />
+                    Home
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="md:hidden text-white hover:bg-white/20"
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  >
+                    {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </header>
 
-        {/* Mobile Quick Nav (icon-only chips, sticky) */}
-        <nav className="md:hidden bg-white/95 backdrop-blur-sm shadow-sm sticky top-[56px] z-40 border-b border-gray-100">
-          <div className="max-w-7xl mx-auto px-2">
-            <div className="flex items-center overflow-x-auto gap-1 py-1.5 scrollbar-hide">
-              {mobileIconNavItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = item.path && currentPageName === item.path;
-                return (
-                  <Link
-                     key={item.path || item.name}
-                     to={item.path ? createPageUrl(item.path) : '#'}
-                     onClick={handleMobileLinkClick}
-                    aria-label={item.name}
-                    title={item.name}
-                    className={`flex items-center justify-center w-7 h-7 rounded-full whitespace-nowrap transition-all flex-shrink-0 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow'
-                        : 'bg-white border border-gray-200 text-gray-700'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </nav>
+        {/* Mobile Home pill (quick return to Home) */}
+
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:block bg-white shadow-md sticky top-[68px] z-40">
+        <nav className="hidden md:block bg-white shadow-md sticky top-[calc(env(safe-area-inset-top)+68px)] z-40">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex overflow-x-auto scrollbar-hide gap-1 py-2">
               {navItems.map((item) => {
@@ -411,7 +462,7 @@ export default function Layout({ children, currentPageName }) {
         </nav>
 
         {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
+        {mobileMenuOpen && !siteSettings.showMobileSidebar && (
           <div className="fixed inset-0 z-[1000] md:hidden">
             <div 
               className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -431,57 +482,28 @@ export default function Layout({ children, currentPageName }) {
                   </Button>
                 </div>
 
-                {/* Mobile Auth Section */}
                 {isAuthenticated && user ? (
-                  <div className="mb-4 pb-4 border-b border-gray-200">
-                    <div className="flex items-center gap-3 mb-3 bg-gradient-to-r from-blue-50 to-purple-500 p-3 rounded-lg">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-2xl">
-                        {user.avatar || '👤'}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-bold text-gray-900">{user.full_name || 'User'}</div>
-                        <div className="text-sm text-gray-600">{user.email}</div>
-                        <div className="text-lg font-bold text-amber-600 mb-1">
-                          ⭐ {user.points || 0} points
-                        </div>
-                      </div>
+                  <div className="mb-4 p-3 border rounded-lg bg-gray-50 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                      <User className="w-5 h-5" />
                     </div>
-                    <div className="space-y-2">
-                      {/* My Points removed from mobile drawer */}
-                      <Link to={createPageUrl("DeleteAccount")} onClick={handleMobileLinkClick}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full text-red-600 border-red-300 hover:bg-red-50"
-                        >
-                          <Settings className="w-4 h-4 mr-2" />
-                          Delete Account
-                        </Button>
-                      </Link>
-                      <Button
-                        onClick={handleLogout}
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                      >
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Logout
-                      </Button>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-gray-900 truncate">{user.full_name || "User"}</div>
+                      <div className="text-xs text-gray-600 flex items-center gap-2">
+                        <Badge className="bg-blue-100 text-blue-700">{Number(user.points || 0)} pts</Badge>
+                        <a href={createPageUrl("MyRewards")} className="text-blue-700">Rewards</a>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="mb-4 pb-4 border-b border-gray-200 space-y-2">
-                    <Link to={createPageUrl("Signup")} onClick={handleMobileLinkClick}>
-                      <Button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold shadow hover:scale-105 transition-transform w-full">
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        Sign up
-                      </Button>
+                  <div className="mb-4 flex items-center gap-2">
+                    <Link to={createPageUrl("Signup")} onClick={handleMobileLinkClick} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow">
+                      <UserPlus className="w-4 h-4" />
+                      Sign Up
                     </Link>
-                    <Link to={createPageUrl("Login")} onClick={handleMobileLinkClick}>
-                      <Button variant="outline" className="flex items-center gap-2 px-4 py-2 rounded-lg w-full">
-                        <LogIn className="w-4 h-4 mr-2" />
-                        Login
-                      </Button>
+                    <Link to={createPageUrl("Login")} onClick={handleMobileLinkClick} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-blue-700 bg-white border-2 border-blue-600 hover:bg-blue-50 shadow">
+                      <LogIn className="w-4 h-4" />
+                      Sign In
                     </Link>
                   </div>
                 )}
@@ -568,8 +590,78 @@ export default function Layout({ children, currentPageName }) {
           </div>
         )}
 
-        {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6" style={{ paddingBottom: isPlaying ? '100px' : '24px' }}>
+        {siteSettings.showMobileSidebar && (
+          <div className="md:hidden fixed top-[56px] bottom-0 left-0 w-72 bg-white shadow-2xl z-40 border-r border-gray-200 overflow-y-auto">
+            <div className="p-4">
+              {isAuthenticated && user ? (
+                <div className="mb-4 p-3 border rounded-lg bg-gray-50 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 truncate">{user.full_name || "User"}</div>
+                    <div className="text-xs text-gray-600 flex items-center gap-2">
+                      <Badge className="bg-blue-100 text-blue-700">{Number(user.points || 0)} pts</Badge>
+                      <a href={createPageUrl("MyRewards")} className="text-blue-700">Rewards</a>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              <div className="mb-3">
+                <Input value={menuQuery} onChange={(e) => setMenuQuery(e.target.value)} placeholder="Search menu" />
+              </div>
+              <nav className="flex flex-col gap-2 py-2">
+                {normalizedQuery ? (
+                  flatEntries
+                    .filter((it) => it.name?.toLowerCase().includes(normalizedQuery))
+                    .map((item) => {
+                      const Icon = item.icon;
+                      if (item.url) {
+                        return (
+                          <a key={`ext-app-${item.name}`} href={item.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium text-gray-800 bg-white hover:bg-blue-100 shadow">
+                            {Icon ? <Icon className="w-5 h-5 text-blue-600" /> : null}
+                            {item.name}
+                          </a>
+                        );
+                      }
+                      return (
+                        <Link key={`link-app-${item.name}`} to={createPageUrl(item.path)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium text-gray-800 bg-white hover:bg-blue-100 shadow">
+                          {Icon ? <Icon className="w-5 h-5 text-blue-600" /> : null}
+                          {item.name}
+                        </Link>
+                      );
+                    })
+                ) : (
+                  groups.map((group) => (
+                    <div key={`app-${group.title}`} className="flex flex-col gap-2">
+                      <div className="px-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{group.title}</div>
+                      {group.entries.map((item) => {
+                        if (item.url) {
+                          const Icon = item.icon;
+                          return (
+                            <a key={`app-ext-${group.title}-${item.name}`} href={item.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium text-gray-800 bg-white hover:bg-blue-100 shadow">
+                              {Icon ? <Icon className="w-5 h-5 text-blue-600" /> : null}
+                              {item.name}
+                            </a>
+                          );
+                        }
+                        const Icon = item.icon;
+                        return (
+                          <Link key={`app-link-${group.title}-${item.name}`} to={createPageUrl(item.path)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium text-gray-800 bg-white hover:bg-blue-100 shadow">
+                            {Icon ? <Icon className="w-5 h-5 text-blue-600" /> : null}
+                            {item.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  ))
+                )}
+              </nav>
+            </div>
+          </div>
+        )}
+
+        <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6 safe-pb" style={{ paddingBottom: isPlaying ? '100px' : '24px', marginLeft: siteSettings.showMobileSidebar ? '18rem' : undefined }}>
           {siteSettings.maintenanceMode && (
             <div className="mb-4">
               <div className="bg-yellow-100 border-2 border-yellow-300 rounded-lg p-3 shadow-md">
@@ -586,31 +678,9 @@ export default function Layout({ children, currentPageName }) {
               </div>
             </div>
           )}
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
           
-          {siteSettings.showTestBanner && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mt-8 mb-4"
-          >
-            <div className="bg-gradient-to-r from-blue-100 to-purple-100 border-2 border-blue-300 rounded-lg p-4 shadow-md">
-              <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm text-gray-800 leading-relaxed">
-                    <strong className="text-blue-600">⚠️ Test Mode:</strong> We are currently testing the website. 
-                    If you see any errors, please use the WhatsApp icon on the home page or contact page to message us. 
-                    <br className="hidden md:block" />
-                    <strong className="text-purple-600">📱 Install as App:</strong> To install this website as an app on your device, 
-                    click on the three dots (⋮) if using Chrome and scroll down to "Add to Home Screen."
-                  </p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-          )}
+          
         </main>
 
         {/* Persistent Radio Player Bar */}

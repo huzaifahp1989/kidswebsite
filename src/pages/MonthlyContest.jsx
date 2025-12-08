@@ -112,7 +112,7 @@ export default function MonthlyContest() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <Link to={createPageUrl(category.id === "story" ? "Stories" : category.id === "drawing" ? "DrawingBoard" : category.id === "recitation" ? "RecordAndShare" : "PoetryWriting")}>
+                  <Link to={createPageUrl(category.id === "story" ? "Stories" : category.id === "drawing" ? "DrawingBoard" : category.id === "recitation" ? "KidsRecordingStudio" : "PoetryWriting")}>
                     <Button className="w-full bg-gray-900 hover:bg-gray-800">
                       Submit Entry
                     </Button>

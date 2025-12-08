@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Settings } from "lucide-react";
+import { dispatchDocsDeploy } from '@/api/github'
 
 const DEFAULTS = {
   siteTitle: "Islam Kids Zone",
@@ -53,6 +54,7 @@ export default function AdminSettings() {
   const [lookupResult, setLookupResult] = useState("");
   const [delIdentifier, setDelIdentifier] = useState("");
   const [delResult, setDelResult] = useState("");
+  const [deployMsg, setDeployMsg] = useState("");
 
   useEffect(() => {
     try {
@@ -312,6 +314,33 @@ export default function AdminSettings() {
               </Button>
             </div>
             <p className="text-xs text-gray-500 mt-2">Stored locally for now. For production, persist in Firestore or your backend (Netlify functions), with secure server-side enforcement.</p>
+
+            <div className="pt-8 border-t">
+              <h2 className="text-xl font-semibold mb-4">Deployment</h2>
+              <div className="space-y-3">
+                <p className="text-sm text-gray-700">Trigger GitHub Actions to deploy the docs site.</p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={async () => {
+                      setDeployMsg('');
+                      try {
+                        const ok = await dispatchDocsDeploy();
+                        if (ok?.ok) setDeployMsg('Deploy started — check GitHub Actions.');
+                      } catch (e) {
+                        setDeployMsg(`Deploy failed: ${e?.message || e}`);
+                      }
+                    }}
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 text-white"
+                  >
+                    Deploy Now
+                  </Button>
+                </div>
+                {deployMsg && (
+                  <div className="text-sm p-2 rounded border bg-white/60">{deployMsg}</div>
+                )}
+                <p className="text-xs text-gray-500">Requires env vars at build time: <code>VITE_GITHUB_REPO</code> (e.g. <code>owner/repo</code>), <code>VITE_GITHUB_WORKFLOW</code> (default <code>deploy-docs.yml</code>), and <code>VITE_GITHUB_TOKEN</code> with repo permissions. Do not commit secrets.</p>
+              </div>
+            </div>
 
             <div className="pt-8 border-t">
               <h2 className="text-xl font-semibold mb-4">Admin Auth Tools</h2>

@@ -17,6 +17,22 @@ const writingPracticeWords = [
   { word: 'تعليم', transliteration: 'taʿlīm', meaning: 'education', difficulty: 'advanced' }
 ];
 
+const levelSets = {
+  easy: [
+    { word: 'ا', transliteration: 'alif', meaning: 'Alif', difficulty: 'beginner' },
+    { word: 'ب', transliteration: 'bāʼ', meaning: 'Ba', difficulty: 'beginner' },
+    { word: 'ت', transliteration: 'tāʼ', meaning: 'Ta', difficulty: 'beginner' },
+  ],
+  medium: [
+    { word: 'شجرة', transliteration: 'shajarah', meaning: 'tree', difficulty: 'intermediate' },
+    { word: 'حليب', transliteration: 'ḥalīb', meaning: 'milk', difficulty: 'intermediate' },
+    { word: 'بيت', transliteration: 'bayt', meaning: 'house', difficulty: 'intermediate' },
+  ],
+  hard: [
+    { word: 'أنا أحب اللغة العربية', transliteration: 'anā uḥibbu al-lughah al-ʿarabiyyah', meaning: 'I love Arabic', difficulty: 'advanced' },
+  ],
+};
+
 // Letter tracing guides
 const letterTracingGuides = [
   { letter: 'ب', steps: ['Start at the top dot', 'Draw downward curve', 'Add the dot underneath'] },
@@ -29,23 +45,32 @@ const letterTracingGuides = [
 
 export default function ArabicWritingPractice() {
   const canvasRef = useRef(null);
+  const containerRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentWord, setCurrentWord] = useState(0);
   const [showGuide, setShowGuide] = useState(false);
   const [strokeCount, setStrokeCount] = useState(0);
   const [completedWords, setCompletedWords] = useState([]);
   const [currentTool, setCurrentTool] = useState('pen'); // 'pen' or 'eraser'
+  const [level, setLevel] = useState('easy');
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw guide lines
-    drawGuidelines(ctx);
+    const resize = () => {
+      const parent = containerRef.current;
+      const w = Math.max(320, Math.min(800, parent ? parent.offsetWidth : 400));
+      const h = Math.round(w * 0.5);
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawGuidelines(ctx);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
   }, []);
 
   const drawGuidelines = (ctx) => {
@@ -79,10 +104,11 @@ export default function ArabicWritingPractice() {
     setIsDrawing(true);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const cx = e.touches?.[0]?.clientX ?? e.clientX;
+    const cy = e.touches?.[0]?.clientY ?? e.clientY;
+    const x = cx - rect.left;
+    const y = cy - rect.top;
     
     ctx.beginPath();
     ctx.moveTo(x, y);
@@ -90,13 +116,13 @@ export default function ArabicWritingPractice() {
 
   const draw = (e) => {
     if (!isDrawing) return;
-    
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const cx = e.touches?.[0]?.clientX ?? e.clientX;
+    const cy = e.touches?.[0]?.clientY ?? e.clientY;
+    const x = cx - rect.left;
+    const y = cy - rect.top;
     
     ctx.lineWidth = currentTool === 'pen' ? 3 : 20;
     ctx.lineCap = 'round';
@@ -146,7 +172,8 @@ export default function ArabicWritingPractice() {
     }
   };
 
-  const currentWordData = writingPracticeWords[currentWord];
+  const currentList = level === 'easy' ? levelSets.easy : level === 'medium' ? levelSets.medium : levelSets.hard;
+  const currentWordData = currentList[currentWord];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
@@ -166,6 +193,19 @@ export default function ArabicWritingPractice() {
           </p>
         </motion.div>
 
+        {/* Levels */}
+        <div className="flex justify-center gap-2 mb-4">
+          {['easy', 'medium', 'hard'].map((lv) => (
+            <Button
+              key={lv}
+              onClick={() => { setLevel(lv); setCurrentWord(0); setCompletedWords([]); clearCanvas(); }}
+              className={`${level === lv ? 'bg-blue-500 text-white' : 'bg-white text-gray-700 hover:bg-blue-50'}`}
+            >
+              {lv === 'easy' ? 'سهل' : lv === 'medium' ? 'متوسط' : 'صعب'}
+            </Button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Writing Canvas */}
           <Card className="shadow-lg">
@@ -177,10 +217,10 @@ export default function ArabicWritingPractice() {
             </CardHeader>
             <CardContent className="p-6">
               {/* Word Display */}
-              <div className="text-center mb-6 p-4 bg-gray-50 rounded-lg">
-                <h2 className="text-3xl font-bold text-gray-800 mb-2">{currentWordData.word}</h2>
-                <p className="text-lg text-gray-600 mb-1">{currentWordData.transliteration}</p>
-                <p className="text-md text-gray-500">{currentWordData.meaning}</p>
+              <div className="text-center mb-6 p-4 bg-gray-50 rounded-lg overflow-hidden">
+                <h2 className="text-3xl font-bold text-gray-800 mb-2 break-words leading-tight" dir="rtl" lang="ar">{currentWordData.word}</h2>
+                <p className="text-lg text-gray-600 mb-1 break-words leading-tight">{currentWordData.transliteration}</p>
+                <p className="text-md text-gray-500 break-words leading-tight">{currentWordData.meaning}</p>
                 <Badge className={`mt-2 ${
                   currentWordData.difficulty === 'beginner' ? 'bg-green-500' :
                   currentWordData.difficulty === 'intermediate' ? 'bg-yellow-500' : 'bg-red-500'
@@ -191,16 +231,17 @@ export default function ArabicWritingPractice() {
               </div>
 
               {/* Canvas */}
-              <div className="border-2 border-gray-300 rounded-lg overflow-hidden mb-4">
+              <div ref={containerRef} className="border-2 border-gray-300 rounded-lg overflow-hidden mb-4">
                 <canvas
                   ref={canvasRef}
-                  width={400}
-                  height={200}
                   className="w-full cursor-crosshair bg-white"
                   onMouseDown={startDrawing}
                   onMouseMove={draw}
                   onMouseUp={stopDrawing}
                   onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
                 />
               </div>
 
@@ -241,12 +282,12 @@ export default function ArabicWritingPractice() {
                 </Button>
                 
                 <span className="text-gray-600">
-                  {currentWord + 1} / {writingPracticeWords.length}
+                  {currentWord + 1} / {currentList.length}
                 </span>
                 
                 <Button
                   onClick={nextWord}
-                  disabled={currentWord === writingPracticeWords.length - 1}
+                  disabled={currentWord === currentList.length - 1}
                   className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300"
                 >
                   التالي

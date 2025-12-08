@@ -53,7 +53,7 @@ export default function MyPoints() {
   }, []);
 
   const cap = 1500;
-  const points = Number(profile?.points || 0);
+  const points = Number((profile?.total_points != null ? profile.total_points : profile?.points) || 0);
   const progress = Math.round(Math.min((points / cap) * 100, 100));
 
   return (
@@ -74,7 +74,7 @@ export default function MyPoints() {
               <div className="text-center text-gray-600">
                 <p className="mb-3">You’re not signed in.</p>
                 <p className="mb-4">Sign in to track your points and awards.</p>
-                <Link to="/Signup"><Button className="bg-blue-600 hover:bg-blue-700">Sign in / Signup</Button></Link>
+                <Link to="/QuizSignup"><Button className="bg-blue-600 hover:bg-blue-700">Sign in / Signup</Button></Link>
               </div>
             ) : loading ? (
               <div className="text-center text-gray-500">Loading your points…</div>

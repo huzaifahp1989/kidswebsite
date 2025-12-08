@@ -17,7 +17,6 @@ const quickLinks = [
   {
     category: "Creative Corner 🎨",
     links: [
-      { name: "Colouring Pages", path: "ColoringPages", icon: Palette },
       { name: "Drawing Board", path: "DrawingBoard", icon: Sparkles },
       { name: "Write Poetry", path: "PoetryWriting", icon: FileText },
       { name: "Monthly Contest", path: "MonthlyContest", icon: Trophy }
@@ -35,7 +34,6 @@ const quickLinks = [
   {
     category: "More Features ✨",
     links: [
-      { name: "Record & Share", path: "RecordAndShare", icon: MessageSquare },
       { name: "Contact Us", path: "ContactUs", icon: MessageSquare },
       { name: "Signup", path: "Signup", icon: UserPlus }
     ]

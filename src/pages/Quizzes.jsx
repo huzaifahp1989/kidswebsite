@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-// import { base44 } from "@/api/base44Client";
 import { awardPointsForGame } from "@/api/points";
-import { watchAuth } from "@/api/firebase";
+import { watchAuth, getUserProfile } from "@/api/firebase";
+import { useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,224 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Clock, Target, Star, CheckCircle2, XCircle, Award, Brain, BookOpen, Users, TrendingUp, Calendar } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
+
+const localQuizzes = [
+  {
+    id: "local_quran_1",
+    title: "Quran Basics",
+    description: "Key facts about the Qur'an",
+    subject: "Quran",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    is_featured: true,
+    icon: "📖",
+    questions: [
+      {
+        id: "q1",
+        category: "Quran",
+        question: "How many surahs are in the Qur'an?",
+        options: ["110", "112", "113", "114"],
+        correct_answer_index: 3,
+        explanation: "There are 114 surahs.",
+        source: "Basic Quran Facts"
+      },
+      {
+        id: "q2",
+        category: "Quran",
+        question: "Which surah is called The Opening?",
+        options: ["Al-Baqarah", "Al-Fatiha", "An-Nas", "Al-Ikhlas"],
+        correct_answer_index: 1,
+        explanation: "Al-Fatiha is The Opening.",
+        source: "Surah Names"
+      },
+      {
+        id: "q3",
+        category: "Quran",
+        question: "Which surah has Ayat al-Kursi?",
+        options: ["Al-Baqarah", "Al-Imran", "An-Nisa", "Al-Ma'idah"],
+        correct_answer_index: 0,
+        explanation: "Ayat al-Kursi is verse 255 of Al-Baqarah.",
+        source: "Surah Al-Baqarah"
+      },
+      {
+        id: "q4",
+        category: "Quran",
+        question: "Which surah is the shortest?",
+        options: ["Al-Kawthar", "Al-Ikhlas", "Al-Asr", "Al-Falaq"],
+        correct_answer_index: 0,
+        explanation: "Al-Kawthar has 3 verses.",
+        source: "Surah Al-Kawthar"
+      }
+    ]
+  },
+  {
+    id: "local_hadith_1",
+    title: "Hadith Essentials",
+    description: "Core hadith knowledge for kids",
+    subject: "Hadith",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "📜",
+    questions: [
+      {
+        id: "h1",
+        category: "Hadith",
+        question: "Which collection is by Imam Bukhari?",
+        options: ["Sahih Muslim", "Sahih Bukhari", "Sunan Abu Dawud", "Muwatta Malik"],
+        correct_answer_index: 1,
+        explanation: "Sahih Bukhari was compiled by Imam al-Bukhari.",
+        source: "Hadith Collections"
+      },
+      {
+        id: "h2",
+        category: "Hadith",
+        question: "What does 'Sahih' mean in hadith classification?",
+        options: ["Weak", "Sound", "Narration", "Chain"],
+        correct_answer_index: 1,
+        explanation: "Sahih means sound/ authentic.",
+        source: "Hadith Terms"
+      },
+      {
+        id: "h3",
+        category: "Hadith",
+        question: "Which companion narrated many hadiths?",
+        options: ["Abu Hurairah", "Bilal", "Umar", "Ali"],
+        correct_answer_index: 0,
+        explanation: "Abu Hurairah narrated a large number of hadiths.",
+        source: "Companions"
+      },
+      {
+        id: "h4",
+        category: "Hadith",
+        question: "Hadith are sayings of?",
+        options: ["Prophets", "Sahabah", "The Prophet Muhammad ﷺ", "Scholars"],
+        correct_answer_index: 2,
+        explanation: "Hadith are sayings, actions, approvals of the Prophet ﷺ.",
+        source: "Definition"
+      }
+    ]
+  },
+  {
+    id: "local_seerah_1",
+    title: "Seerah Highlights",
+    description: "Life of the Prophet Muhammad ﷺ",
+    subject: "Seerah",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "🕌",
+    questions: [
+      { id: "s1", category: "Seerah", question: "City of birth?", options: ["Medina", "Mecca", "Ta'if", "Jerusalem"], correct_answer_index: 1, explanation: "Born in Mecca.", source: "Seerah" },
+      { id: "s2", category: "Seerah", question: "First revelation surah?", options: ["Al-Alaq", "Al-Fatiha", "Al-Qadr", "Ad-Duha"], correct_answer_index: 0, explanation: "Read: Al-Alaq.", source: "Revelation" },
+      { id: "s3", category: "Seerah", question: "Migration year (Hijrah)?", options: ["610 CE", "622 CE", "630 CE", "632 CE"], correct_answer_index: 1, explanation: "Hijrah occurred in 622 CE.", source: "Timeline" },
+      { id: "s4", category: "Seerah", question: "Battle known for angels' support?", options: ["Uhud", "Badr", "Khandaq", "Hunayn"], correct_answer_index: 1, explanation: "Battle of Badr.", source: "Battles" }
+    ]
+  },
+  {
+    id: "local_fiqh_1",
+    title: "Fiqh Basics",
+    description: "Simple rulings and worship",
+    subject: "Fiqh",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "⚖️",
+    questions: [
+      { id: "f1", category: "Fiqh", question: "How many daily prayers?", options: ["3", "4", "5", "6"], correct_answer_index: 2, explanation: "Five daily prayers.", source: "Salah" },
+      { id: "f2", category: "Fiqh", question: "Wudu includes?", options: ["Wash face", "Comb hair", "Eat", "Sleep"], correct_answer_index: 0, explanation: "Wudu includes washing face.", source: "Wudu" },
+      { id: "f3", category: "Fiqh", question: "Month of fasting?", options: ["Muharram", "Rajab", "Ramadan", "Shawwal"], correct_answer_index: 2, explanation: "Fasting in Ramadan.", source: "Sawm" },
+      { id: "f4", category: "Fiqh", question: "Charity pillar?", options: ["Sadaqah", "Zakat", "Kaffarah", "Fitrah"], correct_answer_index: 1, explanation: "Zakat is a pillar.", source: "Zakat" }
+    ]
+  },
+  {
+    id: "local_prophets_1",
+    title: "Prophets of Allah",
+    description: "Stories of the Prophets",
+    subject: "Prophets",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "⭐",
+    questions: [
+      { id: "p1", category: "Prophets", question: "Prophet who built the Ka'bah?", options: ["Musa", "Isa", "Ibrahim", "Yusuf"], correct_answer_index: 2, explanation: "Ibrahim with his son Ismail.", source: "Ka'bah" },
+      { id: "p2", category: "Prophets", question: "Prophet swallowed by a fish?", options: ["Yunus", "Nuh", "Ayub", "Lut"], correct_answer_index: 0, explanation: "Prophet Yunus.", source: "Story" },
+      { id: "p3", category: "Prophets", question: "Prophet who received the Torah?", options: ["Dawud", "Musa", "Isa", "Muhammad"], correct_answer_index: 1, explanation: "Prophet Musa.", source: "Books" },
+      { id: "p4", category: "Prophets", question: "Prophet with the Psalms (Zabur)?", options: ["Dawud", "Isa", "Nuh", "Ishaq"], correct_answer_index: 0, explanation: "Prophet Dawud.", source: "Books" }
+    ]
+  },
+  {
+    id: "local_sahabah_1",
+    title: "Sahabah Knowledge",
+    description: "Companions of the Prophet ﷺ",
+    subject: "Sahabah",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "🛡️",
+    questions: [
+      { id: "sa1", category: "Sahabah", question: "First Caliph?", options: ["Umar", "Uthman", "Ali", "Abu Bakr"], correct_answer_index: 3, explanation: "Abu Bakr as-Siddiq.", source: "Caliphs" },
+      { id: "sa2", category: "Sahabah", question: "Muezzin known for his voice?", options: ["Abu Musa", "Bilal", "Ibn Mas'ud", "Ubay"], correct_answer_index: 1, explanation: "Bilal ibn Rabah.", source: "Voice" },
+      { id: "sa3", category: "Sahabah", question: "Daughter of the Prophet ﷺ?", options: ["Fatimah", "Aisha", "Hafsa", "Zaynab"], correct_answer_index: 0, explanation: "Fatimah az-Zahra.", source: "Family" },
+      { id: "sa4", category: "Sahabah", question: "Caliph titled al-Faruq?", options: ["Umar", "Uthman", "Ali", "Mu'awiya"], correct_answer_index: 0, explanation: "Umar ibn al-Khattab.", source: "Titles" }
+    ]
+  },
+  {
+    id: "local_akhlaq_1",
+    title: "Akhlaq & Manners",
+    description: "Islamic character and manners",
+    subject: "Akhlaq",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "💖",
+    questions: [
+      { id: "ak1", category: "Akhlaq", question: "Greeting in Islam?", options: ["Hello", "Salam", "Hi", "Peace"], correct_answer_index: 1, explanation: "Assalamu Alaikum.", source: "Manners" },
+      { id: "ak2", category: "Akhlaq", question: "Best among you are those who?", options: ["Are strongest", "Are richest", "Learn and teach Qur'an", "Travel"], correct_answer_index: 2, explanation: "Hadith.", source: "Hadith" },
+      { id: "ak3", category: "Akhlaq", question: "Truthfulness is?", options: ["Bad", "Neutral", "A virtue", "Optional"], correct_answer_index: 2, explanation: "Truthfulness is a virtue.", source: "Values" },
+      { id: "ak4", category: "Akhlaq", question: "Helping others is?", options: ["Discouraged", "Recommended", "Forbidden", "Makruh"], correct_answer_index: 1, explanation: "Recommended (mustahabb).",
+        source: "Virtues" }
+    ]
+  },
+  {
+    id: "local_history_1",
+    title: "Islamic History",
+    description: "Timeline and events",
+    subject: "History",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "🏺",
+    questions: [
+      { id: "hi1", category: "History", question: "Year of Hijrah?", options: ["610", "622", "630", "632"], correct_answer_index: 1, explanation: "622 CE.", source: "Timeline" },
+      { id: "hi2", category: "History", question: "Conquest of Mecca year?", options: ["610", "622", "630", "632"], correct_answer_index: 2, explanation: "630 CE.", source: "Timeline" },
+      { id: "hi3", category: "History", question: "Hudaibiyah is?", options: ["Battle", "Treaty", "City", "Surah"], correct_answer_index: 1, explanation: "Treaty of Hudaibiyah.", source: "Events" },
+      { id: "hi4", category: "History", question: "First revelation year?", options: ["610", "622", "630", "632"], correct_answer_index: 0, explanation: "610 CE.", source: "Timeline" }
+    ]
+  },
+  {
+    id: "local_mixed_1",
+    title: "Mixed Knowledge",
+    description: "A bit of everything",
+    subject: "Mixed",
+    is_full_quiz: true,
+    version: 1,
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "🎯",
+    questions: [
+      { id: "mx1", category: "Mixed", question: "How many pillars of Islam?", options: ["3", "4", "5", "6"], correct_answer_index: 2, explanation: "Five pillars.", source: "Basics" },
+      { id: "mx2", category: "Mixed", question: "City of the Prophet's Masjid?", options: ["Mecca", "Medina", "Ta'if", "Jerusalem"], correct_answer_index: 1, explanation: "Medina.", source: "Seerah" },
+      { id: "mx3", category: "Mixed", question: "Zakat is?", options: ["Optional", "Forbidden", "Pillar", "Makruh"], correct_answer_index: 2, explanation: "Zakat is a pillar.", source: "Fiqh" },
+      { id: "mx4", category: "Mixed", question: "Surah with Ikhlas?", options: ["112", "113", "114", "1"], correct_answer_index: 0, explanation: "Surah 112.", source: "Quran" }
+    ]
+  }
+];
 
 export default function Quizzes() {
-  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -24,80 +238,53 @@ export default function Quizzes() {
   const [quizResults, setQuizResults] = useState(null);
   const [filterSubject, setFilterSubject] = useState("all");
   const [fbUser, setFbUser] = useState(null);
+  const [totalPoints, setTotalPoints] = useState(null);
+  const queryClient = useQueryClient();
 
+  // Watch Firebase auth and mirror into local state for awarding
   useEffect(() => {
-    loadUser();
-  }, []);
-
-  // Watch Firebase auth to ensure points can be persisted to Firestore for Leaderboard
-  useEffect(() => {
-    const unsub = watchAuth((u) => setFbUser(u));
+    const unsub = watchAuth((u) => {
+      setFbUser(u);
+      if (u) setUser({ id: u.uid, email: u.email || "" }); else setUser(null);
+    });
     return () => unsub && unsub();
   }, []);
 
-  const loadUser = async () => {
-    try {
-      const authenticated = await base44.auth.isAuthenticated();
-      if (authenticated) {
-        const userData = await base44.auth.me();
-        setUser(userData);
-      }
-    } catch (error) {
-      console.log("User not authenticated");
-    }
-  };
+  useEffect(() => {
+    (async () => {
+      try {
+        if (fbUser?.uid) {
+          const p = await getUserProfile(fbUser.uid);
+          setTotalPoints(Number((p?.total_points != null ? p.total_points : p?.points) || 0));
+        }
+      } catch {}
+    })();
+  }, [fbUser]);
+
+  // Removed Base44 user bootstrap; Firebase auth drives user state
 
   const { data: quizzes = [], isLoading } = useQuery({
     queryKey: ['quizzes'],
     queryFn: async () => {
-      const allQuizzes = await base44.entities.Quiz.filter({ is_active: true }, '-created_date', 100);
-      
-      // Filter by date availability
-      const now = new Date();
-      return allQuizzes.filter(quiz => {
-        const startDate = quiz.start_date ? new Date(quiz.start_date) : null;
-        const endDate = quiz.end_date ? new Date(quiz.end_date) : null;
-        
-        if (startDate && now < startDate) return false;
-        if (endDate && now > endDate) return false;
-        
-        return true;
-      });
+      return localQuizzes;
     },
     initialData: [],
   });
 
-  const { data: userAttempts = [] } = useQuery({
-    queryKey: ['user-quiz-attempts', user?.id],
-    queryFn: () => base44.entities.QuizAttempt.filter({ user_id: user.id }, '-created_date', 100),
-    enabled: !!user,
-    initialData: [],
-  });
+  // Removed Base44 attempts tracking
 
   const { data: questions = [] } = useQuery({
     queryKey: ['quiz-questions', selectedQuiz?.id],
     queryFn: async () => {
       if (!selectedQuiz) return [];
-      
-      const questionIds = selectedQuiz.questions || [];
-      const loadedQuestions = await Promise.all(
-        questionIds.map(async (id) => {
-          try {
-            const q = await base44.entities.QuizQuestion.filter({ id });
-            return q[0];
-          } catch (e) {
-            return null;
-          }
-        })
-      );
-      
-      return loadedQuestions.filter(q => q !== null);
+      return selectedQuiz.questions || [];
     },
     enabled: !!selectedQuiz,
     initialData: [],
   });
 
   const startQuiz = (quiz) => {
+    if (isFullQuizLocked(quiz)) return;
     setSelectedQuiz(quiz);
     setCurrentQuestionIndex(0);
     setUserAnswers([]);
@@ -143,10 +330,7 @@ export default function Quizzes() {
     const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
     const passed = scorePercentage >= (selectedQuiz.passing_score || 70);
     
-    let pointsEarned = passed ? (selectedQuiz.points_reward || 20) : 0;
-    if (scorePercentage === 100) {
-      pointsEarned += (selectedQuiz.bonus_points || 10);
-    }
+    const pointsEarned = (correctCount * 5) + (scorePercentage === 100 ? 10 : 0);
     
     const results = {
       score: scorePercentage,
@@ -159,33 +343,15 @@ export default function Quizzes() {
     
     setQuizResults(results);
     setQuizComplete(true);
-    
-    // Persist Base44 attempt when available, but do not block points
-    if (user) {
+
+    if (isFullQuiz(selectedQuiz)) {
+      const version = String(selectedQuiz?.version || 1);
       try {
-        await base44.entities.QuizAttempt.create({
-          user_id: user.id,
-          quiz_id: selectedQuiz.id,
-          score: scorePercentage,
-          points_earned: pointsEarned,
-          correct_answers: correctCount,
-          total_questions: totalQuestions,
-          time_taken_seconds: timeTaken,
-          answers: [...userAnswers, {
-            question_id: questions[currentQuestionIndex]?.id,
-            selected_answer: selectedAnswer,
-            is_correct: selectedAnswer === questions[currentQuestionIndex]?.correct_answer_index
-          }],
-          passed: passed,
-          completed_at: new Date().toISOString()
-        });
-        await base44.entities.Quiz.update(selectedQuiz.id, {
-          total_attempts: (selectedQuiz.total_attempts || 0) + 1
-        });
-      } catch (error) {
-        console.error("Error saving quiz attempt:", error);
-      }
+        localStorage.setItem(fullLockKey, version);
+      } catch (e) {}
     }
+    
+    // Removed Base44 attempt persistence
     // Award points via unified Firebase-backed pipeline regardless of Base44 auth
     try {
       await awardPointsForGame(user, 'quiz', {
@@ -200,6 +366,18 @@ export default function Quizzes() {
           passed,
         }
       });
+      window._lastEarnedPoints = pointsEarned;
+      try {
+        if (fbUser?.uid) {
+          const p = await getUserProfile(fbUser.uid);
+          setTotalPoints(Number(p?.points || 0));
+        }
+      } catch {}
+      try {
+        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+        queryClient.invalidateQueries({ queryKey: ['monthly-leaderboard'] });
+        queryClient.invalidateQueries({ queryKey: ['leaderboard-users'] });
+      } catch {}
     } catch (e) {
       console.warn('awardPointsForGame failed:', e?.message || e);
     }
@@ -215,11 +393,7 @@ export default function Quizzes() {
     setQuizResults(null);
   };
 
-  const getUserBestScore = (quizId) => {
-    const attempts = userAttempts.filter(a => a.quiz_id === quizId);
-    if (attempts.length === 0) return null;
-    return Math.max(...attempts.map(a => a.score));
-  };
+  // Removed Base44 best-score computation
 
   const subjects = ["all", "Quran", "Hadith", "Seerah", "Fiqh", "Prophets", "Sahabah", "Akhlaq", "History", "Mixed"];
   
@@ -228,6 +402,15 @@ export default function Quizzes() {
     : quizzes.filter(q => q.subject === filterSubject);
 
   const featuredQuizzes = quizzes.filter(q => q.is_featured);
+
+  const userKey = user?.id ? String(user.id) : 'guest';
+  const fullLockKey = `full_quiz_lock_${userKey}`;
+  const isFullQuiz = (q) => Boolean(q?.is_full_quiz || String(q?.subject || '').toLowerCase() === 'mixed');
+  const isFullQuizLocked = (q) => {
+    if (!isFullQuiz(q)) return false;
+    const v = String(q?.version || 1);
+    return String(localStorage.getItem(fullLockKey) || '') === v;
+  };
 
   if (isLoading) {
     return (
@@ -379,7 +562,7 @@ export default function Quizzes() {
                   {quizResults.passed ? 'Congratulations!' : 'Keep Learning!'}
                 </h2>
                 
-                <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="grid grid-cols-2 gap-4 mb-2">
                   <div className="bg-blue-50 rounded-xl p-6 border-2 border-blue-200">
                     <Target className="w-8 h-8 mx-auto mb-2 text-blue-600" />
                     <p className="text-4xl font-bold text-blue-600">{quizResults.score}%</p>
@@ -391,6 +574,9 @@ export default function Quizzes() {
                     <p className="text-sm text-gray-600">Points</p>
                   </div>
                 </div>
+                {typeof totalPoints === 'number' && (
+                  <div className="text-sm text-gray-700 mb-6">Total points: {totalPoints}</div>
+                )}
 
                 <div className="bg-gray-50 rounded-xl p-6 mb-8">
                   <div className="flex justify-around text-center">
@@ -416,13 +602,7 @@ export default function Quizzes() {
                   </div>
                 </div>
 
-                {quizResults.score === 100 && (
-                  <div className="bg-gradient-to-r from-amber-100 to-yellow-100 border-2 border-amber-400 rounded-xl p-4 mb-6">
-                    <p className="text-amber-900 font-bold">
-                      ⭐ Perfect Score! +{selectedQuiz.bonus_points} Bonus Points!
-                    </p>
-                  </div>
-                )}
+                
 
                 <div className="flex gap-4 justify-center">
                   <Button onClick={resetQuiz} variant="outline" size="lg">
@@ -453,7 +633,7 @@ export default function Quizzes() {
                   <div className="text-sm text-yellow-900">
                     To track your points on the Leaderboard, please sign in.
                   </div>
-                  <Link to="/Signup">
+                  <Link to="/QuizSignup">
                     <Button className="bg-blue-600 hover:bg-blue-700">
                       Sign in / Signup
                     </Button>
@@ -485,6 +665,21 @@ export default function Quizzes() {
               {subject === "all" ? "All Subjects" : subject}
             </Button>
           ))}
+          {quizzes.length > 0 && (
+            <div className="w-full mt-3 flex flex-wrap justify-center gap-2">
+              {quizzes.map((q) => (
+                <Button
+                  key={q.id}
+                  onClick={() => startQuiz(q)}
+                  variant="outline"
+                  className="whitespace-nowrap"
+                  disabled={isFullQuizLocked(q)}
+                >
+                  {isFullQuizLocked(q) ? `${q.title} (Locked)` : q.title}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Featured Quizzes */}
@@ -539,8 +734,9 @@ export default function Quizzes() {
                         onClick={() => startQuiz(quiz)}
                         className="w-full bg-gradient-to-r from-amber-500 to-orange-500"
                         size="lg"
+                        disabled={isFullQuizLocked(quiz)}
                       >
-                        Start Quiz
+                        {isFullQuizLocked(quiz) ? 'Locked' : 'Start Quiz'}
                       </Button>
                     </CardContent>
                   </Card>
@@ -581,18 +777,13 @@ export default function Quizzes() {
                       {quiz.duration_minutes}m
                     </Badge>
                   </div>
-                  {user && getUserBestScore(quiz.id) !== null && (
-                    <div className="bg-green-100 rounded-lg p-2 mb-4">
-                      <p className="text-xs text-green-900">
-                        Best: {getUserBestScore(quiz.id)}%
-                      </p>
-                    </div>
-                  )}
+                  {/* Removed best score display tied to Base44 attempts */}
                   <Button
                     onClick={() => startQuiz(quiz)}
                     className="w-full bg-blue-600"
+                    disabled={isFullQuizLocked(quiz)}
                   >
-                    Take Quiz
+                    {isFullQuizLocked(quiz) ? 'Locked' : 'Take Quiz'}
                   </Button>
                 </CardContent>
               </Card>

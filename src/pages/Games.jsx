@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { usersApi } from "@/api/firebase";
+import { supabase } from "@/api/supabase";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Trophy, Star, Medal, Crown, ArrowLeft, Gamepad2, Users, Gift, LogIn, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,142 +10,90 @@ import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { watchAuth, getUserProfile, getFirebase } from "@/api/firebase";
-import { checkPointsEndpointHealth } from "@/api/points";
+import { watchAuth } from "@/api/firebase";
+import { awardPointsForGame } from "@/api/points";
+import { checkPointsEndpointHealth, checkAndResetMonthlyLeaderboardLocal } from "@/api/points";
 
-// Lazy load game components
-const WordScrambleGame = lazy(() => import("../components/games/WordScrambleGame"));
-const IslamicQuizGame = lazy(() => import("../components/games/IslamicQuizGame"));
-const IslamicWordSearchGame = lazy(() => import("../components/games/IslamicWordSearchGame"));
-const SeerahGame = lazy(() => import("../components/games/SeerahGame"));
-const QuranGame = lazy(() => import("../components/games/QuranGame"));
-const HadithGame = lazy(() => import("../components/games/HadithGame"));
-const FiqhGame = lazy(() => import("../components/games/FiqhGame"));
-const MemoryMatchGame = lazy(() => import("../components/games/MemoryMatchGame"));
-const QuestForIlm = lazy(() => import("../components/games/QuestForIlm"));
-const MatchingPairsOfIman = lazy(() => import("../components/games/MatchingPairsOfIman"));
-const SahabahArena = lazy(() => import("../components/games/SahabahArena"));
-const MazeOfGuidance = lazy(() => import("../components/games/MazeOfGuidance"));
-const AyatExplorer = lazy(() => import("../components/games/AyatExplorer"));
-const AkhlaqChallengeGame = lazy(() => import("../components/games/AkhlaqChallengeGame"));
-const DailySunnahGame = lazy(() => import("../components/games/DailySunnahGame"));
-const IslamKnowledgeRaceGame = lazy(() => import("../components/games/IslamKnowledgeRaceGame"));
-const IslamicCrosswordGame = lazy(() => import("../components/games/IslamicCrosswordGame"));
-const IslamicMoralsMazeGame = lazy(() => import("../components/games/IslamicMoralsMazeGame"));
-const ProphetStoriesGame = lazy(() => import("../components/games/ProphetStoriesGame"));
-const QuranMemoryMatchGame = lazy(() => import("../components/games/QuranMemoryMatchGame"));
-const QuranQuestGame = lazy(() => import("../components/games/QuranQuestGame"));
-const SacredSitesJigsaw = lazy(() => import("../components/games/SacredSitesJigsaw"));
-const SahabahStoriesGame = lazy(() => import("../components/games/SahabahStoriesGame"));
-const SeerahAdventureGame = lazy(() => import("../components/games/SeerahAdventureGame"));
-const SpinToWinWheel = lazy(() => import("../components/games/SpinToWinWheel"));
-const TriviaGame = lazy(() => import("../components/games/TriviaGame"));
+// Curated advanced working titles
+const KidsQuiz = lazy(() => import("../components/games/KidsQuiz"));
+const MissingWordGame = lazy(() => import("../components/games/MissingWordGame"));
+const MatchPairsGame = lazy(() => import("../components/games/MatchPairsGame"));
+const FlashcardsGame = lazy(() => import("../components/games/FlashcardsGame"));
+const WordSearchKids = lazy(() => import("../components/games/WordSearchKids"));
+const SurahOrderGame = lazy(() => import("../components/games/SurahOrderGame"));
+const WuduStepsGame = lazy(() => import("../components/games/WuduStepsGame"));
+const HajjUmrahSimulator = lazy(() => import("../components/games/HajjUmrahSimulator"));
 
 const gamesList = [
   {
-    id: "word_scramble",
-    title: "🔤 Word Scramble Challenge",
-    description: "Unscramble Islamic words - Easy, Medium & Hard!",
-    emoji: "🔤",
-    difficulty: "All Levels",
-    points: "10 pts per game",
-    allowPoints: true,
-    allowPrizes: false,
-    component: WordScrambleGame
-  },
-  {
-    id: "matching_pairs_iman",
-    title: "🧩 Matching Pairs of Iman",
-    description: "Match Islamic concepts and terms to strengthen your Iman!",
-    emoji: "🧩",
-    difficulty: "All Levels",
-    points: "10 pts per game",
-    allowPoints: true,
-    allowPrizes: false,
-    component: MatchingPairsOfIman
-  },
-  {
-    id: "ayat_explorer",
-    title: "📚 Ayat Explorer",
-    description: "Explore Quranic knowledge through puzzles!",
-    emoji: "📚",
-    difficulty: "Medium",
-    points: "10 pts per game",
-    component: AyatExplorer
-  },
-  {
-    id: "islamic_quiz",
-    title: "🧠 Islamic Knowledge Quiz",
-    description: "Test your knowledge of Quran, Hadith, Seerah & more!",
+    id: "kids_quiz",
+    title: "🧠 Islamic Kids Quiz",
+    description: "2 points per correct, randomized questions",
     emoji: "🧠",
-    difficulty: "All Levels",
-    points: "10 pts per game",
-    component: IslamicQuizGame
+    difficulty: "Medium",
+    component: KidsQuiz
+  },
+  {
+    id: "missing_word",
+    title: "✍️ Fill in the Missing Word",
+    description: "Seerah, Prophets, Quran prompts",
+    emoji: "✍️",
+    difficulty: "Easy",
+    component: MissingWordGame
+  },
+  {
+    id: "match_pairs",
+    title: "🧩 Match the Pairs",
+    description: "Prophet to miracle pairs",
+    emoji: "🧩",
+    difficulty: "Easy",
+    component: MatchPairsGame
+  },
+  {
+    id: "flashcards",
+    title: "📇 Flashcards",
+    description: "Learn and earn by marking known",
+    emoji: "📇",
+    difficulty: "Easy",
+    component: FlashcardsGame
   },
   {
     id: "word_search",
-    title: "🔍 Islamic Word Search",
-    description: "Find Islamic words hidden in the grid",
-    emoji: "🔍",
-    difficulty: "All Levels",
-    points: "10 pts per game",
-    component: IslamicWordSearchGame
+    title: "🔎 Word Search",
+    description: "Prophets, Quran, Seerah, Akhlaq words",
+    emoji: "🔎",
+    difficulty: "Easy",
+    component: WordSearchKids
   },
   {
-    id: "seerah_game",
-    title: "📖 Seerah Quiz",
-    description: "Learn about the life of Prophet Muhammad ﷺ",
-    emoji: "📖",
-    difficulty: "All Levels",
-    points: "10 pts per game",
-    component: SeerahGame
-  },
-  {
-    id: "quran_game",
-    title: "📚 Quran Quiz",
-    description: "Test your knowledge of the Holy Quran",
-    emoji: "📚",
-    difficulty: "All Levels",
-    points: "10 pts per game",
-    component: QuranGame
-  },
-  {
-    id: "hadith_game",
-    title: "📜 Hadith Match",
-    description: "Learn authentic sayings of Prophet ﷺ",
+    id: "surah_order",
+    title: "📜 Surah Order Game",
+    description: "Arrange surahs in correct order",
     emoji: "📜",
-    difficulty: "All Levels",
-    points: "10 pts per game",
-    component: HadithGame
+    difficulty: "Medium",
+    component: SurahOrderGame
   },
   {
-    id: "trivia",
-    title: "❓ Islamic Trivia Challenge",
-    description: "Answer more questions across easy, medium, hard modes",
-    emoji: "❓",
-    difficulty: "Easy/Medium/Hard",
-    points: "10–20 pts per game",
-    component: TriviaGame
+    id: "wudu_steps",
+    title: "💧 Wudu Steps Game",
+    description: "Arrange the steps of Wudu",
+    emoji: "💧",
+    difficulty: "Easy",
+    component: WuduStepsGame
   },
   {
-    id: "fiqh_game",
-    title: "🕌 Fiqh Challenge",
-    description: "Learn Islamic rulings and practices",
-    emoji: "🕌",
-    difficulty: "All Levels",
-    points: "10 pts per game",
-    component: FiqhGame
-  },
-  {
-    id: "memory_match",
-    title: "🎴 Islamic Memory Match",
-    description: "Match pairs of Islamic terms",
-    emoji: "🎴",
-    difficulty: "All Levels",
-    points: "10 pts per game",
-    component: MemoryMatchGame
+    id: "hajj_umrah",
+    title: "🕋 Hajj & Umrah Simulator",
+    description: "Interactive journey through key rites",
+    emoji: "🕋",
+    difficulty: "Hard",
+    component: HajjUmrahSimulator
   }
 ];
+
+// Removed basic titles: Dua Meaning, Word Scramble, Word Search, Memory Match
+
+// Removed builder and some legacy items to keep advanced set
 
 const GameLoader = () => (
   <div className="flex items-center justify-center py-12">
@@ -167,15 +117,11 @@ export default function Games() {
     let unsubscribe = () => {};
     (async () => {
       try { setBackendOnline(await checkPointsEndpointHealth()); } catch {}
+      try { checkAndResetMonthlyLeaderboardLocal(); } catch {}
       unsubscribe = watchAuth(async (fbUser) => {
         if (fbUser) {
           setIsAuthenticated(true);
-          try {
-            const profile = await getUserProfile(fbUser.uid);
-            setUser({ id: fbUser.uid, email: fbUser.email || '', points: Number(profile?.points || 0), full_name: profile?.fullName || 'Anonymous', badges: profile?.badges || [] });
-          } catch {
-            setUser({ id: fbUser.uid, email: fbUser.email || '', points: 0, full_name: 'Anonymous', badges: [] });
-          }
+          setUser({ id: fbUser.uid, email: fbUser.email || '', points: 0, full_name: fbUser.email || 'Anonymous', badges: [] });
         } else {
           const storedUser = localStorage.getItem('user');
           if (storedUser) {
@@ -195,35 +141,12 @@ export default function Games() {
   const { data: monthlyLeaderboard = [] } = useQuery({
     queryKey: ['monthly-leaderboard'],
     queryFn: async () => {
-      // Local-only leaderboard logic
-      const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      // Get scores from localStorage
-      const scores = JSON.parse(localStorage.getItem('gameScores') || '[]');
-      const monthlyScores = scores.filter(score => new Date(score.created_date) >= firstDayOfMonth);
-      const userScores = {};
-      monthlyScores.forEach(score => {
-        if (!userScores[score.user_id]) {
-          userScores[score.user_id] = { user_id: score.user_id, total_score: 0, games_played: 0 };
-        }
-        userScores[score.user_id].total_score += score.score || 0;
-        userScores[score.user_id].games_played += 1;
-      });
-      // Get user info from localStorage
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const userIds = Object.keys(userScores);
-      const usersWithMonthlyScores = userIds.map(userId => {
-        const userInfo = users.find(u => u.id === userId) || { id: userId, name: 'Guest' };
-        return {
-          ...userInfo,
-          monthly_score: userScores[userId].total_score,
-          monthly_games: userScores[userId].games_played
-        };
-      });
-      return usersWithMonthlyScores
-        .filter(u => u.monthly_score > 0)
-        .sort((a, b) => b.monthly_score - a.monthly_score)
-        .slice(0, 10);
+      const list = await usersApi.list();
+      return list
+        .filter(u => Number(u.points || 0) > 0)
+        .sort((a, b) => Number(b.points || 0) - Number(a.points || 0))
+        .slice(0, 10)
+        .map(u => ({ id: u.id, name: u.full_name || u.fullName || u.email || 'Anonymous', monthly_score: Number(u.points || 0) }));
     },
     enabled: isAuthenticated,
     initialData: [],
@@ -232,48 +155,85 @@ export default function Games() {
   const { data: leaderboardUsers = [] } = useQuery({
     queryKey: ['leaderboard'],
     queryFn: async () => {
-      // Local-only leaderboard logic
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      return users.filter(u => u.points > 0).sort((a, b) => b.points - a.points).slice(0, 10);
+      const list = await usersApi.list();
+      return list.sort((a, b) => Number(b.points || 0) - Number(a.points || 0)).slice(0, 10);
     },
     enabled: isAuthenticated,
     initialData: [],
   });
 
+  
+
   const handleGameSelect = (game) => {
     setSelectedGame(game);
+    try {
+      const scores = JSON.parse(localStorage.getItem('gameScores') || '[]');
+      scores.push({ game_id: game.id, user_id: user?.id || 'guest', score: 0, created_date: new Date().toISOString() });
+      localStorage.setItem('gameScores', JSON.stringify(scores));
+      const sessionKey = `${user?.id || 'guest'}:${game.id}:${Date.now()}`;
+      localStorage.setItem('current_game_award_key', sessionKey);
+    } catch {}
   };
 
-  const handleGameComplete = async (score) => {
-    const { auth } = getFirebase();
-    const fbUser = auth?.currentUser;
-    if (isAuthenticated && user && selectedGame) {
-      if (fbUser) {
-        setTimeout(async () => {
-          try {
-            const profile = await getUserProfile(fbUser.uid);
-            setUser(prev => ({ ...prev, points: Number(profile?.points || prev?.points || 0) }));
-          } catch {}
-        }, 1200);
-      } else {
+  const [earnedPoints, setEarnedPoints] = useState(0);
+  const [totalPoints, setTotalPoints] = useState(null);
+  const handleGameComplete = async (score = 0) => {
+    try {
+      const inc = Number(score || 0);
+      if (inc > 0) {
         try {
-          const gameScores = JSON.parse(localStorage.getItem('gameScores') || '[]');
-          gameScores.push({ user_id: user.id, game_type: selectedGame.id, score: score, created_date: new Date().toISOString() });
-          localStorage.setItem('gameScores', JSON.stringify(gameScores));
-          const users = JSON.parse(localStorage.getItem('users') || '[]');
-          const idx = users.findIndex(u => u.id === user.id);
-          let newTotalPoints = Math.min((user.points || 0) + score, 1500);
-          if (idx !== -1) {
-            users[idx].points = newTotalPoints;
-            localStorage.setItem('users', JSON.stringify(users));
-          }
-          setUser(prevUser => ({ ...prevUser, points: newTotalPoints }));
-        } catch (error) {
-          console.error("Error saving game score:", error);
+          const idKey = localStorage.getItem('current_game_award_key') || null;
+          await awardPointsForGame(user, selectedGame?.id || 'game', { fallbackScore: inc, idempotencyKey: idKey });
+          setEarnedPoints(inc);
+          emitPointsAwarded();
+          // Load latest total points from Supabase profile
+          try {
+            const { data: session } = await supabase.auth.getSession();
+            const uid = user?.id || user?.uid || session?.session?.user?.id || null;
+            if (uid) {
+              const { data, error } = await supabase.from('users').select('points, total_points').eq('id', uid).maybeSingle();
+              if (!error && data) {
+                const pts = Number((data.total_points != null ? data.total_points : data.points) || 0);
+                setTotalPoints(pts);
+                try { window.dispatchEvent(new CustomEvent('ikz_points_total', { detail: { points: pts } })); } catch {}
+              }
+            }
+          } catch {}
+        } catch {
+          try {
+            const raw = localStorage.getItem('users');
+            const arr = raw ? JSON.parse(raw) : [];
+            const id = user?.id || 'guest';
+            const idx = arr.findIndex(u => u.id === id);
+            if (idx >= 0) arr[idx].points = Number(arr[idx].points || 0) + inc; else arr.push({ id, name: 'Guest', points: inc });
+            localStorage.setItem('users', JSON.stringify(arr));
+            setEarnedPoints(inc);
+            const tot = Number((arr.find(u=>u.id===id)?.points) || inc);
+            setTotalPoints(tot);
+            try { window.dispatchEvent(new CustomEvent('ikz_points_total', { detail: { points: tot } })); } catch {}
+          } catch {}
         }
       }
+    } finally {
+      try { localStorage.removeItem('current_game_award_key'); } catch {}
+      setTimeout(() => {
+        setSelectedGame(null);
+        try { navigate(createPageUrl('Games')); } catch {}
+      }, 1200);
     }
-    setTimeout(() => setSelectedGame(null), 3000);
+  };
+
+  const testSupabaseConnection = async () => {
+    try {
+      const { error } = await supabase.from('users').select('id').limit(1);
+      if (error) {
+        alert(`Supabase NOT connected: ${error.message}`);
+      } else {
+        alert('Supabase connected ✓');
+      }
+    } catch (e) {
+      alert(`Supabase NOT connected: ${e?.message || e}`);
+    }
   };
 
   if (isLoading) {
@@ -303,7 +263,12 @@ export default function Games() {
             Back to Games
           </Button>
           <Suspense fallback={<GameLoader />}>
-            {GameComponent && <GameComponent onComplete={handleGameComplete} />}
+            {earnedPoints > 0 ? (
+              <div className="mb-4 p-3 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-900 text-sm">
+                You earned <strong>{earnedPoints}</strong> points!{typeof totalPoints === 'number' ? ` Total: ${totalPoints}` : ''}
+              </div>
+            ) : null}
+            {GameComponent && <GameComponent onComplete={handleGameComplete} user={user} />}
           </Suspense>
         </div>
       </div>
@@ -330,48 +295,28 @@ export default function Games() {
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Play fun games and test your Islamic knowledge!
-            {isAuthenticated 
-              ? " Each game earns you 10 points." 
-              : " Email us at imediac786@gmail.com to create your account and track your progress!"}
           </p>
           <div className="mt-2 text-sm text-gray-500">
             Backend: {backendOnline ? <span className="text-green-600 font-semibold">Online</span> : <span className="text-red-600 font-semibold">Offline</span>}
           </div>
         </motion.div>
 
-        {/* Guest User Prompt - Encourage signup */}
-        {!isAuthenticated && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8 max-w-2xl mx-auto"
+        <div className="flex justify-center mb-8">
+          <a
+            href="https://studio--studio-653801381-47983.us-central1.hosted.app/news"
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            <Card className="border-2 border-blue-300 shadow-lg bg-gradient-to-br from-blue-50 to-purple-50">
-              <CardContent className="p-6 text-center">
-                <Trophy className="w-12 h-12 mx-auto mb-4 text-blue-600" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  🎉 Playing as Guest
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  You can play all games for free! Email us to create your account, track your progress, earn points, and compete on the leaderboard.
-                </p>
-                <div className="flex gap-3 justify-center">
-                  <Button
-                    onClick={() => {
-                      const subject = encodeURIComponent("Access Request - Islam Kids Zone");
-                      const body = encodeURIComponent("Hi, I'd like to create an account for Islam Kids Zone. My name is ____ and my contact details are ____.");
-                      window.location.href = `mailto:imediac786@gmail.com?subject=${subject}&body=${body}`;
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold shadow hover:scale-105 transition-transform"
-                  >
-                    <Mail className="w-4 h-4 mr-2" />
-                    Request Access via Email
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+            <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white shadow-lg">
+              latest updates click on here
+            </Button>
+          </a>
+          <Button onClick={testSupabaseConnection} className="ml-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white shadow-lg">
+            TEST SUPABASE
+          </Button>
+        </div>
+
+        
 
         {/* Show leaderboard and monthly champions only for authenticated users */}
         {isAuthenticated && (
@@ -479,6 +424,20 @@ export default function Games() {
           </Card>
         </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <Card className="border-2 border-red-300 bg-red-50">
+            <CardContent className="p-4">
+              <p className="text-red-800 font-semibold text-center">
+                Our competitions are not live. Will update with details on here soon
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {leaderboardUsers.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -544,89 +503,152 @@ export default function Games() {
           </motion.div>
         )}
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl p-6 mb-12 text-white shadow-2xl"
-        >
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <Gamepad2 className="w-8 h-8 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{gamesList.length}</div>
-              <div className="text-sm text-blue-100">Games</div>
-            </div>
-            <div>
-              <Star className="w-8 h-8 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{Number(user?.points || 0)}</div>
-              <div className="text-sm text-blue-100">Your Points</div>
-            </div>
-            <div>
-              <Trophy className="w-8 h-8 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{user?.badges?.length || 0}</div>
-              <div className="text-sm text-blue-100">Badges</div>
+        
+
+        <div className="space-y-8 max-w-6xl mx-auto">
+          <div>
+            <h2 className="text-2xl font-bold text-blue-800 mb-3">Easy</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {gamesList.filter(g => g.difficulty === 'Easy').map((game, index) => (
+                  <motion.div
+                    key={game.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ y: -5 }}
+                  >
+                    <Card className="h-full border-2 hover:border-blue-300 hover:shadow-2xl transition-all duration-300 cursor-pointer group">
+                      <CardHeader className="bg-gradient-to-br from-blue-50 to-purple-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <motion.div 
+                            className="text-5xl"
+                            whileHover={{ scale: 1.2, rotate: [0, -10, 10, -10, 0] }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            {game.emoji}
+                          </motion.div>
+                        </div>
+                        <CardTitle className="text-xl group-hover:text-blue-600 transition-colors">
+                          {game.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-3">
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{game.description}</p>
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <Badge variant="outline" className="text-xs">{game.difficulty}</Badge>
+                          <Button
+                            onClick={() => handleGameSelect(game)}
+                            className="bg-blue-600 hover:bg-blue-700"
+                            size="sm"
+                          >
+                            Play Now
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           </div>
-          
-          {isAuthenticated && (
-            <div className="mt-4 p-3 bg-white/20 rounded-lg backdrop-blur-sm">
-              <p className="text-sm font-semibold mb-2 flex items-center justify-center gap-2">
-                <Gift className="w-4 h-4" />
-                Daily Challenge: Complete all {gamesList.length} games for +10 bonus points!
-              </p>
-              <div className="text-xs text-blue-100 text-center">
-                Perfect score on any game = +5 bonus points 🌟
-              </div>
+          <div>
+            <h2 className="text-2xl font-bold text-amber-800 mb-3">Medium</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {gamesList.filter(g => g.difficulty === 'Medium').map((game, index) => (
+                  <motion.div
+                    key={game.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ y: -5 }}
+                  >
+                    <Card className="h-full border-2 hover:border-amber-300 hover:shadow-2xl transition-all duration-300 cursor-pointer group">
+                      <CardHeader className="bg-gradient-to-br from-amber-50 to-yellow-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <motion.div 
+                            className="text-5xl"
+                            whileHover={{ scale: 1.2, rotate: [0, -10, 10, -10, 0] }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            {game.emoji}
+                          </motion.div>
+                        </div>
+                        <CardTitle className="text-xl group-hover:text-amber-600 transition-colors">
+                          {game.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-3">
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{game.description}</p>
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <Badge variant="outline" className="text-xs">{game.difficulty}</Badge>
+                          <Button
+                            onClick={() => handleGameSelect(game)}
+                            className="bg-amber-600 hover:bg-amber-700"
+                            size="sm"
+                          >
+                            Play Now
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
-          )}
-        </motion.div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          <AnimatePresence>
-            {gamesList.map((game, index) => (
-              <motion.div
-                key={game.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ y: -5 }}
-              >
-                <Card className="h-full border-2 hover:border-blue-300 hover:shadow-2xl transition-all duration-300 cursor-pointer group">
-                  <CardHeader className="bg-gradient-to-br from-blue-50 to-purple-50">
-                    <div className="flex justify-between items-start mb-2">
-                      <motion.div 
-                        className="text-5xl"
-                        whileHover={{ scale: 1.2, rotate: [0, -10, 10, -10, 0] }}
-                        transition={{ duration: 0.5 }}
-                      >
-                        {game.emoji}
-                      </motion.div>
-                      <Badge className="bg-amber-500 hover:bg-amber-600">
-                        {game.points}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-xl group-hover:text-blue-600 transition-colors">
-                      {game.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-3">
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{game.description}</p>
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <Badge variant="outline" className="text-xs">{game.difficulty}</Badge>
-                      <Button
-                        onClick={() => handleGameSelect(game)}
-                        className="bg-blue-600 hover:bg-blue-700"
-                        size="sm"
-                      >
-                        Play Now
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-purple-800 mb-3">Hard</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <AnimatePresence>
+                {gamesList.filter(g => g.difficulty === 'Hard').map((game, index) => (
+                  <motion.div
+                    key={game.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ y: -5 }}
+                  >
+                    <Card className="h-full border-2 hover:border-purple-300 hover:shadow-2xl transition-all duration-300 cursor-pointer group">
+                      <CardHeader className="bg-gradient-to-br from-purple-50 to-pink-50">
+                        <div className="flex justify-between items-start mb-2">
+                          <motion.div 
+                            className="text-5xl"
+                            whileHover={{ scale: 1.2, rotate: [0, -10, 10, -10, 0] }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            {game.emoji}
+                          </motion.div>
+                        </div>
+                        <CardTitle className="text-xl group-hover:text-purple-600 transition-colors">
+                          {game.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-3">
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{game.description}</p>
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <Badge variant="outline" className="text-xs">{game.difficulty}</Badge>
+                          <Button
+                            onClick={() => handleGameSelect(game)}
+                            className="bg-purple-600 hover:bg-purple-700"
+                            size="sm"
+                          >
+                            Play Now
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+  const emitPointsAwarded = () => {
+    try { window.dispatchEvent(new CustomEvent('ikz_points_awarded')); } catch {}
+  };

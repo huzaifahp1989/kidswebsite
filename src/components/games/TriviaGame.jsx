@@ -4,9 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, XCircle, Trophy, Star, Heart, Zap } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Star, Heart, Zap, Timer } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { awardPointsForGame } from "@/api/points";
 
 // Expanded question bank with MORE questions
 const allQuestions = {
@@ -90,6 +89,7 @@ const allQuestions = {
     },
     {
       id: "easy_12",
+      type: "multiple",
       question: "What is the Islamic greeting?",
       options: ["Hello", "As-salamu alaikum", "Good morning", "Hi"],
       correct: 1,
@@ -97,9 +97,10 @@ const allQuestions = {
     },
     {
       id: "easy_13",
-      question: "What is Zakat?",
-      options: ["Prayer", "Fasting", "Charity", "Pilgrimage"],
-      correct: 2,
+      type: "true_false",
+      question: "Zakat is obligatory charity.",
+      options: ["True", "False"],
+      correct: 0,
       points: 2
     },
     {
@@ -120,6 +121,7 @@ const allQuestions = {
   medium: [
     {
       id: "medium_1",
+      type: "multiple",
       question: "Who is considered the last prophet in Islam?",
       options: ["Musa (Moses)", "Isa (Jesus)", "Muhammad ﷺ", "Ibrahim (Abraham)"],
       correct: 2,
@@ -353,6 +355,10 @@ export default function TriviaGame({ onComplete }) {
   const [correctIndex, setCorrectIndex] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [userProgress, setUserProgress] = useState(null);
+  const [questionStartTs, setQuestionStartTs] = useState(null);
+  const [streak, setStreak] = useState(0);
+  const [fillText, setFillText] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const difficulties = [
     { id: "easy", name: "Easy", icon: "🌱", color: "from-green-500 to-green-600", description: "5 questions, 3 lives", lives: 3, count: 5 },
@@ -376,8 +382,23 @@ export default function TriviaGame({ onComplete }) {
       const { shuffled, newCorrectIndex } = shuffleOptions(question.options, question.correct);
       setShuffledOptions(shuffled);
       setCorrectIndex(newCorrectIndex);
+      setQuestionStartTs(Date.now());
+      setFillText("");
     }
   }, [currentQuestion, questions]);
+
+  useEffect(() => {
+    let t;
+    if (questionStartTs && !showResult) {
+      setElapsedSeconds(0);
+      t = setInterval(() => {
+        setElapsedSeconds(Math.floor((Date.now() - questionStartTs) / 1000));
+      }, 250);
+    }
+    return () => {
+      if (t) clearInterval(t);
+    };
+  }, [questionStartTs, showResult]);
 
   const loadUser = async () => {
     try {
@@ -441,18 +462,32 @@ export default function TriviaGame({ onComplete }) {
     setLives(diffConfig.lives);
   };
 
-  const handleAnswer = (answerIndex) => {
-    setSelectedAnswer(answerIndex);
+  const handleAnswer = (answerIndexOrText) => {
+    setSelectedAnswer(answerIndexOrText);
     setShowResult(true);
     
     const currentQuestionData = questions[currentQuestion];
-    const isCorrect = answerIndex === correctIndex;
+    let isCorrect = false;
+    if (currentQuestionData.type === "fill_blank") {
+      const txt = String(answerIndexOrText || "").trim().toLowerCase();
+      const expected = String(currentQuestionData.answer || "").trim().toLowerCase();
+      isCorrect = !!txt && txt === expected;
+    } else {
+      isCorrect = answerIndexOrText === correctIndex;
+    }
     
     if (isCorrect) {
-      setScore(score + currentQuestionData.points);
+      const base = difficulty === "easy" ? 5 : difficulty === "medium" ? 10 : 15;
+      const elapsed = questionStartTs ? (Date.now() - questionStartTs) / 1000 : 999;
+      const timeBonus = elapsed <= 5 ? 5 : elapsed <= 10 ? 3 : 0;
+      const streakMultiplier = 1 + Math.min(Math.max(streak - 1, 0) * 0.2, 1);
+      const earned = Math.round((base + timeBonus) * streakMultiplier);
+      setScore(score + earned);
+      setStreak(s => s + 1);
     } else {
       const newLives = lives - 1;
       setLives(newLives);
+      setStreak(0);
       
       if (newLives <= 0) {
         setTimeout(() => {
@@ -492,9 +527,6 @@ export default function TriviaGame({ onComplete }) {
           total_games_played: (userProgress.total_games_played || 0) + 1,
           best_score: Math.max(score, userProgress.best_score || 0)
         });
-
-        // Award points via centralized helper with fallback to local score
-        await awardPointsForGame(user, "trivia", { fallbackScore: score });
       } catch (error) {
         console.error("Error saving game score:", error);
       }
@@ -649,6 +681,16 @@ export default function TriviaGame({ onComplete }) {
             <span className="capitalize">{difficulty} Mode</span>
           </div>
           <Progress value={progress} className="bg-white/30" />
+          <div className="flex justify-between text-xs mt-2 text-white">
+            <span className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full border border-white/30">
+              <Zap className="w-4 h-4" />
+              Streak: {streak}
+            </span>
+            <span className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full border border-white/30">
+              <Timer className="w-4 h-4" />
+              Time: {elapsedSeconds}s
+            </span>
+          </div>
         </div>
       </CardHeader>
       
@@ -663,35 +705,54 @@ export default function TriviaGame({ onComplete }) {
             <h3 className="text-base md:text-2xl font-bold text-gray-900 mb-4 md:mb-8 leading-snug px-2">
               {question.question}
             </h3>
-            
-            <div className="grid gap-2 md:gap-4">
-              {shuffledOptions.map((option, index) => {
-                const isCorrect = index === correctIndex;
-                const isSelected = index === selectedAnswer;
-                const showCorrect = showResult && isCorrect;
-                const showWrong = showResult && isSelected && !isCorrect;
-                
-                return (
-                  <Button
-                    key={index}
-                    onClick={() => !showResult && handleAnswer(index)}
-                    disabled={showResult}
-                    className={`h-auto py-3 md:py-4 px-3 md:px-4 text-sm md:text-lg justify-start transition-all duration-300 ${
-                      showCorrect
-                        ? "bg-green-500 hover:bg-green-600 text-white"
-                        : showWrong
-                        ? "bg-red-500 hover:bg-red-600 text-white"
-                        : "bg-white hover:bg-blue-50 text-gray-900 border-2"
-                    }`}
-                    variant={showResult ? "default" : "outline"}
-                  >
-                    <span className="flex-1 text-left leading-snug break-words">{option}</span>
-                    {showCorrect && <CheckCircle2 className="w-4 md:w-6 h-4 md:h-6 ml-2 flex-shrink-0" />}
-                    {showWrong && <XCircle className="w-4 md:w-6 h-4 md:h-6 ml-2 flex-shrink-0" />}
-                  </Button>
-                );
-              })}
-            </div>
+            {question.type === "fill_blank" ? (
+              <div className="grid gap-3">
+                <input
+                  type="text"
+                  value={fillText}
+                  onChange={(e) => setFillText(e.target.value)}
+                  className="w-full p-3 border-2 rounded"
+                  placeholder="Type your answer"
+                  disabled={showResult}
+                />
+                <Button
+                  onClick={() => !showResult && handleAnswer(fillText)}
+                  disabled={showResult}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Submit Answer
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-2 md:gap-4">
+                {shuffledOptions.map((option, index) => {
+                  const isCorrect = index === correctIndex;
+                  const isSelected = index === selectedAnswer;
+                  const showCorrect = showResult && isCorrect;
+                  const showWrong = showResult && isSelected && !isCorrect;
+                  
+                  return (
+                    <Button
+                      key={index}
+                      onClick={() => !showResult && handleAnswer(index)}
+                      disabled={showResult}
+                      className={`h-auto py-3 md:py-4 px-3 md:px-4 text-sm md:text-lg justify-start transition-all duration-300 ${
+                        showCorrect
+                          ? "bg-green-500 hover:bg-green-600 text-white"
+                          : showWrong
+                          ? "bg-red-500 hover:bg-red-600 text-white"
+                          : "bg-white hover:bg-blue-50 text-gray-900 border-2"
+                      }`}
+                      variant={showResult ? "default" : "outline"}
+                    >
+                      <span className="flex-1 text-left leading-snug break-words">{option}</span>
+                      {showCorrect && <CheckCircle2 className="w-4 md:w-6 h-4 md:h-6 ml-2 flex-shrink-0" />}
+                      {showWrong && <XCircle className="w-4 md:w-6 h-4 md:h-6 ml-2 flex-shrink-0" />}
+                    </Button>
+                  );
+                })}
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
       </CardContent>

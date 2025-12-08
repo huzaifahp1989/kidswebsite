@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, XCircle, Trophy, Star, Sparkles, Brain } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Star, Sparkles, Brain, Zap, Timer } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { awardPointsForGame } from "@/api/points";
 import PropTypes from 'prop-types'; // Import PropTypes
@@ -27,6 +27,7 @@ const questionBank = {
     {
       id: "easy_1",
       category: "Quran",
+      type: "multiple",
       question: "What is the first Surah in the Quran?",
       options: ["Al-Baqarah", "Al-Fatiha", "An-Nas", "Al-Ikhlas"],
       correct: 1,
@@ -35,6 +36,7 @@ const questionBank = {
     {
       id: "easy_2",
       category: "Quran",
+      type: "multiple",
       question: "How many Surahs are in the Quran?",
       options: ["100", "114", "120", "99"],
       correct: 1,
@@ -43,6 +45,7 @@ const questionBank = {
     {
       id: "easy_3",
       category: "Prophets",
+      type: "multiple",
       question: "Who was the last Prophet sent by Allah?",
       options: ["Prophet Musa", "Prophet Isa", "Prophet Muhammad ﷺ", "Prophet Ibrahim"],
       correct: 2,
@@ -51,6 +54,7 @@ const questionBank = {
     {
       id: "easy_4",
       category: "Fiqh",
+      type: "multiple",
       question: "How many times a day do Muslims pray?",
       options: ["3", "4", "5", "6"],
       correct: 2,
@@ -59,6 +63,7 @@ const questionBank = {
     {
       id: "easy_5",
       category: "Fiqh",
+      type: "multiple",
       question: "What must you do before praying?",
       options: ["Sleep", "Eat", "Wudu", "Run"],
       correct: 2,
@@ -67,6 +72,7 @@ const questionBank = {
     {
       id: "easy_6",
       category: "Fiqh",
+      type: "multiple",
       question: "In which month do Muslims fast?",
       options: ["Shawwal", "Ramadan", "Dhul Hijjah", "Rajab"],
       correct: 1,
@@ -75,6 +81,7 @@ const questionBank = {
     {
       id: "easy_7",
       category: "Akhlaq",
+      type: "multiple",
       question: "What should you say before eating?",
       options: ["Alhamdulillah", "Bismillah", "Masha'Allah", "Subhanallah"],
       correct: 1,
@@ -83,6 +90,7 @@ const questionBank = {
     {
       id: "easy_8",
       category: "Akhlaq",
+      type: "multiple",
       question: "What is the Islamic greeting?",
       options: ["Hello", "As-salamu alaikum", "Good morning", "Hi"],
       correct: 1,
@@ -91,6 +99,7 @@ const questionBank = {
     {
       id: "easy_9",
       category: "History",
+      type: "multiple",
       question: "Where is the Kaaba located?",
       options: ["Madinah", "Jerusalem", "Makkah", "Egypt"],
       correct: 2,
@@ -99,6 +108,7 @@ const questionBank = {
     {
       id: "easy_10",
       category: "Arabic",
+      type: "multiple",
       question: "What does 'Alhamdulillah' mean?",
       options: ["God is Great", "All praise is for Allah", "Peace be upon you", "In the name of Allah"],
       correct: 1,
@@ -107,14 +117,16 @@ const questionBank = {
     {
       id: "easy_11",
       category: "Prophets",
-      question: "Which prophet was swallowed by a whale?",
-      options: ["Prophet Musa", "Prophet Yunus", "Prophet Nuh", "Prophet Yusuf"],
-      correct: 1,
+      type: "true_false",
+      question: "Prophet Yunus was swallowed by a whale.",
+      options: ["True", "False"],
+      correct: 0,
       explanation: "Prophet Yunus (Jonah) was swallowed by a whale and prayed inside it."
     },
     {
       id: "easy_12",
       category: "Quran",
+      type: "multiple",
       question: "Which Surah is known as the 'Heart of the Quran'?",
       options: ["Al-Fatiha", "Yasin", "Al-Ikhlas", "Al-Mulk"],
       correct: 1,
@@ -123,6 +135,7 @@ const questionBank = {
     {
       id: "easy_13",
       category: "Beliefs",
+      type: "multiple",
       question: "How many angels are mentioned by name in the Quran?",
       options: ["2", "4", "6", "10"],
       correct: 0,
@@ -131,6 +144,7 @@ const questionBank = {
     {
       id: "easy_14",
       category: "History",
+      type: "multiple",
       question: "What was the first masjid built in Islam?",
       options: ["Al-Aqsa", "Al-Haram", "Quba", "Nabawi"],
       correct: 2,
@@ -139,9 +153,11 @@ const questionBank = {
     {
       id: "easy_15",
       category: "Akhlaq",
-      question: "What should you say after sneezing?",
-      options: ["Masha'Allah", "Alhamdulillah", "Subhanallah", "Astaghfirullah"],
-      correct: 1,
+      type: "fill_blank",
+      question: "Type the phrase you should say after sneezing:",
+      answer: "alhamdulillah",
+      options: [],
+      correct: null,
       explanation: "We say 'Alhamdulillah' after sneezing to thank Allah."
     }
   ],
@@ -414,6 +430,12 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
   const [challenge, setChallenge] = useState(null);
   const [isChallengeMode, setIsChallengeMode] = useState(false);
   const [usedQuestionIds, setUsedQuestionIds] = useState([]);
+  const [questionStartTs, setQuestionStartTs] = useState(null);
+  const [streak, setStreak] = useState(0);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [fillText, setFillText] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const difficulties = [
     { id: "easy", name: "Easy", icon: "🌱", color: "from-green-500 to-green-600", count: 5 },
@@ -427,6 +449,19 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
       loadChallenge();
     }
   }, [challengeId]);
+
+  useEffect(() => {
+    let t;
+    if (questionStartTs && !showResult) {
+      setElapsedSeconds(0);
+      t = setInterval(() => {
+        setElapsedSeconds(Math.floor((Date.now() - questionStartTs) / 1000));
+      }, 250);
+    }
+    return () => {
+      if (t) clearInterval(t);
+    };
+  }, [questionStartTs, showResult]);
 
   useEffect(() => {
     if (difficulty && user) { // Ensure user is loaded to fetch user-specific game progress
@@ -514,16 +549,36 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
     
     setQuestions(selected);
     setUsedQuestionIds(selected.map(q => q.id));
+    setCurrentQuestion(0);
+    setQuestionStartTs(Date.now());
+    setStreak(0);
+    setFillText("");
   };
 
-  const handleAnswer = (answerIndex) => {
-    setSelectedAnswer(answerIndex);
+  const handleAnswer = (answerIndexOrText) => {
+    setSelectedAnswer(answerIndexOrText);
     setShowResult(true);
     
-    const isCorrect = answerIndex === questions[currentQuestion].correct;
+    const q = questions[currentQuestion];
+    let isCorrect = false;
+    if (q.type === "multiple" || q.type === "true_false") {
+      isCorrect = answerIndexOrText === q.correct;
+    } else if (q.type === "fill_blank") {
+      const txt = String(answerIndexOrText || "").trim().toLowerCase();
+      const expected = String(q.answer || "").trim().toLowerCase();
+      isCorrect = !!txt && txt === expected;
+    }
     if (isCorrect) {
-      setScore(prevScore => prevScore + 2); // Raw points for display in current game progress
+      const diffBase = difficulty === "easy" ? 5 : difficulty === "medium" ? 10 : 15;
+      const elapsed = questionStartTs ? (Date.now() - questionStartTs) / 1000 : 999;
+      const timeBonus = elapsed <= 5 ? 5 : elapsed <= 10 ? 3 : 0;
+      const streakMultiplier = 1 + Math.min(Math.max(streak - 1, 0) * 0.2, 1);
+      const earned = Math.round((diffBase + timeBonus) * streakMultiplier);
+      setScore(prevScore => prevScore + earned);
+      setStreak(s => s + 1);
       setCorrectAnswersCount(prev => prev + 1); // Track count of correct answers
+    } else {
+      setStreak(0);
     }
 
     setTimeout(() => {
@@ -537,6 +592,8 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
       setSelectedAnswer(null);
       setShowResult(false);
       setShowExplanation(false);
+      setQuestionStartTs(Date.now());
+      setFillText("");
     } else {
       completeGame();
     }
@@ -587,12 +644,10 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
     setGameCompleted(true);
     setStatusMessage("");
     setErrorMessage("");
-    // Always award 10 points regardless of performance
-    const finalAwardedPoints = 10;
+    const finalAwardedPoints = Math.max(0, Number(score || 0));
     if (user) {
       try {
-        await awardPointsForGame(user, "islamic_quiz", { fallbackScore: finalAwardedPoints });
-        setStatusMessage("Points awarded successfully! Your profile and leaderboard will update shortly.");
+        setStatusMessage("Game complete. Saving progress…");
         // Update user progress with used questions
         const existingProgress = await base44.entities.UserGameProgress.filter({ 
           user_id: user.id, 
@@ -609,7 +664,7 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
           await base44.entities.UserGameProgress.update(existingProgress[0].id, {
             completed_questions: finalCompleted,
             total_games_played: (existingProgress[0].total_games_played || 0) + 1,
-            best_score: Math.max(existingProgress[0].best_score || 0, finalAwardedPoints) // Use finalAwardedPoints
+            best_score: Math.max(existingProgress[0].best_score || 0, finalAwardedPoints)
           });
         } else {
           await base44.entities.UserGameProgress.create({
@@ -617,7 +672,7 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
             game_type: "islamic_quiz",
             completed_questions: usedQuestionIds,
             total_games_played: 1,
-            best_score: finalAwardedPoints // Use finalAwardedPoints
+            best_score: finalAwardedPoints
           });
         }
         
@@ -652,7 +707,7 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
         // Check for daily completion bonus
         await checkDailyCompletionBonus(user.id);
         
-        // Set the component's score state to the final score for display
+        // Ensure state reflects final points
         setScore(finalAwardedPoints);
       } catch (error) {
         setErrorMessage("Failed to award points or save progress. Please check your permissions or try again later.");
@@ -697,8 +752,8 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
   }
 
   if (gameCompleted) {
-    // 'score' state at this point holds the final awarded 10 points
-    // 'correctAnswersCount' holds the actual count of correctly answered questions
+    // 'score' holds the final awarded points
+    // 'correctAnswersCount' tracks correct answers
     const percentage = Math.round((correctAnswersCount / questions.length) * 100);
 
     return (
@@ -714,7 +769,7 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
               Masha'Allah! 🎉
             </h2>
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-6">
-              <p className="text-5xl font-bold text-blue-600 mb-2">10 points</p>
+              <p className="text-5xl font-bold text-blue-600 mb-2">{score} points</p>
               <p className="text-lg text-gray-700">
                 You got {correctAnswersCount} out of {questions.length} correct!
               </p>
@@ -786,6 +841,16 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
             <Badge className="bg-white/20">{question.category}</Badge>
           </div>
           <Progress value={progress} className="bg-white/20" />
+          <div className="flex justify-between text-xs mt-2">
+            <span className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+              <Zap className="w-4 h-4" />
+              Streak: {streak}
+            </span>
+            <span className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+              <Timer className="w-4 h-4" />
+              Time: {elapsedSeconds}s
+            </span>
+          </div>
         </div>
       </CardHeader>
       
@@ -799,35 +864,55 @@ export default function IslamicQuizGame({ onComplete, challengeId }) {
               exit={{ opacity: 0, x: -20 }}
             >
               <h3 className="text-2xl font-bold text-gray-900 mb-8">{question.question}</h3>
-              
-              <div className="grid gap-4">
-                {question.options.map((option, index) => {
-                  const isCorrect = index === question.correct;
-                  const isSelected = index === selectedAnswer;
-                  const showCorrect = showResult && isCorrect;
-                  const showWrong = showResult && isSelected && !isCorrect;
-                  
-                  return (
-                    <Button
-                      key={index}
-                      onClick={() => !showResult && handleAnswer(index)}
-                      disabled={showResult}
-                      className={`h-auto py-4 px-6 text-lg justify-start ${
-                        showCorrect
-                          ? "bg-green-500 hover:bg-green-600 text-white"
-                          : showWrong
-                          ? "bg-red-500 hover:bg-red-600 text-white"
-                          : "bg-white hover:bg-blue-50 text-gray-900 border-2"
-                      }`}
-                      variant={showResult ? "default" : "outline"}
-                    >
-                      <span className="flex-1 text-left">{option}</span>
-                      {showCorrect && <CheckCircle2 className="w-6 h-6 ml-2" />}
-                      {showWrong && <XCircle className="w-6 h-6 ml-2" />}
-                    </Button>
-                  );
-                })}
-              </div>
+
+              {question.type === "fill_blank" ? (
+                <div className="grid gap-4">
+                  <input
+                    type="text"
+                    value={fillText}
+                    onChange={(e) => setFillText(e.target.value)}
+                    className="w-full p-3 border-2 rounded"
+                    placeholder="Type your answer"
+                    disabled={showResult}
+                  />
+                  <Button
+                    onClick={() => !showResult && handleAnswer(fillText)}
+                    disabled={showResult}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    Submit Answer
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {question.options.map((option, index) => {
+                    const isCorrect = index === question.correct;
+                    const isSelected = index === selectedAnswer;
+                    const showCorrect = showResult && isCorrect;
+                    const showWrong = showResult && isSelected && !isCorrect;
+                    
+                    return (
+                      <Button
+                        key={index}
+                        onClick={() => !showResult && handleAnswer(index)}
+                        disabled={showResult}
+                        className={`h-auto py-4 px-6 text-lg justify-start ${
+                          showCorrect
+                            ? "bg-green-500 hover:bg-green-600 text-white"
+                            : showWrong
+                            ? "bg-red-500 hover:bg-red-600 text-white"
+                            : "bg-white hover:bg-blue-50 text-gray-900 border-2"
+                        }`}
+                        variant={showResult ? "default" : "outline"}
+                      >
+                        <span className="flex-1 text-left">{option}</span>
+                        {showCorrect && <CheckCircle2 className="w-6 h-6 ml-2" />}
+                        {showWrong && <XCircle className="w-6 h-6 ml-2" />}
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
         ) : (
@@ -863,4 +948,3 @@ IslamicQuizGame.propTypes = {
   onComplete: PropTypes.func,
   challengeId: PropTypes.string
 };
-

@@ -8,15 +8,6 @@ import { createPageUrl } from "@/utils";
 
 const creativeActivities = [
   {
-    id: "coloring",
-    title: "Colouring Pages",
-    description: "Print or colour online: mosques, Ka'bah, Islamic patterns",
-    icon: Palette,
-    color: "from-pink-500 to-rose-500",
-    emoji: "🎨",
-    link: "ColoringPages"
-  },
-  {
     id: "drawing",
     title: "Islamic Art Board",
     description: "Digital drawing pad for Islamic art and calligraphy",

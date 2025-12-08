@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signIn, getFirebase, getUserProfile } from "@/api/firebase";
-import { sendPasswordResetEmail } from "firebase/auth";
+import { signIn, resetPassword } from "@/api/firebase";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -16,22 +15,7 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await signIn(email, password);
-      try {
-        const { db } = getFirebase();
-        if (db && user?.uid) {
-          const profile = await getUserProfile(user.uid);
-          const missing = !profile?.fullName || !profile?.age || !profile?.city || !profile?.madrasah;
-          if (missing) {
-            navigate("/CompleteProfile");
-          } else {
-            navigate("/Games");
-          }
-        } else {
-          navigate("/Games");
-        }
-      } catch (_) {
-        navigate("/Games");
-      }
+      navigate("/Games");
     } catch (err) {
       const code = err?.code || "";
       let msg = err?.message || "Login failed";
@@ -65,10 +49,8 @@ export default function Login() {
             onClick={async () => {
               setError("");
               try {
-                const { auth } = getFirebase();
-                if (!auth) throw new Error("Firebase not configured");
                 if (!email) throw new Error("Enter your email above, then click reset.");
-                await sendPasswordResetEmail(auth, email);
+                await resetPassword(email);
                 setError("Password reset email sent. Check your inbox.");
               } catch (err) {
                 const code = err?.code || "";
@@ -87,7 +69,7 @@ export default function Login() {
         </button>
         <div className="mt-4 text-center">
           <span>Don't have an account? </span>
-          <a href="/Signup" className="text-blue-600 font-semibold">Sign up</a>
+          <a href="/QuizSignup" className="text-blue-600 font-semibold">Sign up</a>
         </div>
       </form>
     </div>

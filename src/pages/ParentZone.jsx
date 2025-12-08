@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Shield, Heart, BookOpen, MessageSquare } from "lucide-react";
+import { Shield, Heart, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 
 const articles = [
@@ -26,6 +26,11 @@ const articles = [
 ];
 
 export default function ParentZone() {
+  const [openIndex, setOpenIndex] = useState(null);
+
+  
+
+  
   return (
     <div className="min-h-screen py-12 px-4">
       <div className="max-w-4xl mx-auto">
@@ -89,7 +94,21 @@ export default function ParentZone() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <Button variant="outline">Read More</Button>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={() => setOpenIndex(openIndex === index ? null : index)}>
+                          {openIndex === index ? "Hide Details" : "Read More"}
+                        </Button>
+                      </div>
+                      {openIndex === index && (
+                        <div className="mt-4 text-sm text-gray-700 leading-relaxed">
+                          <p className="mb-2">This article provides practical guidance for parents. Full articles will be published soon. For now, here are key takeaways:</p>
+                          <ul className="list-disc ml-5">
+                            <li>Make learning joyful and consistent.</li>
+                            <li>Use stories and activities rooted in Islamic values.</li>
+                            <li>Encourage questions and model good conduct.</li>
+                          </ul>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </motion.div>
@@ -98,30 +117,7 @@ export default function ParentZone() {
           </div>
         </div>
 
-        {/* Feedback Form */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card className="shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="w-6 h-6" />
-                Send Us Your Feedback
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <p className="text-gray-600 mb-6">
-                We'd love to hear your thoughts, suggestions, or concerns about Islam Kids Zone. 
-                Your feedback helps us create a better experience for your children.
-              </p>
-              <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Share Your Feedback
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
+        
       </div>
     </div>
   );

@@ -8,6 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Mic, Square, Play, Upload } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { awardPointsForGame } from "@/api/points";
+import { watchAuth } from "@/api/firebase";
 
 export default function KidsRecordingStudio() {
   const [fullName, setFullName] = useState("");
@@ -21,6 +23,7 @@ export default function KidsRecordingStudio() {
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [user, setUser] = useState(null);
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -80,6 +83,11 @@ export default function KidsRecordingStudio() {
     chunksRef.current = [];
   };
 
+  useEffect(() => {
+    const stop = watchAuth((u) => setUser(u));
+    return () => { try { stop?.(); } catch {} };
+  }, []);
+
   const validate = () => {
     const a = Number(age || 0);
     if (!fullName || !a || !category) {
@@ -130,6 +138,7 @@ export default function KidsRecordingStudio() {
         `,
       });
       toast.success("Submitted successfully");
+      try { await awardPointsForGame(user, 'kids_recording', { fallbackScore: 5 }); } catch {}
       resetRecording();
       setFullName("");
       setAge("");

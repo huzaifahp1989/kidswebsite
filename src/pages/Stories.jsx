@@ -227,7 +227,7 @@ export default function Stories() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {authenticStories.map((s) => (
                   <Card key={s.id} className="border hover:shadow-lg transition-shadow">
                     <CardHeader>
@@ -303,7 +303,7 @@ export default function Stories() {
             <p className="text-gray-600">No stories available in this category yet.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredStories.map((story, index) => (
               <motion.div
                 key={story.id}

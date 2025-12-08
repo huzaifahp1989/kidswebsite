@@ -19,7 +19,6 @@ import {
   MessageSquare, // Added new icon
   Gamepad2, // Added new icon
   BarChart3, // Added new icon
-  Brain
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -49,14 +48,6 @@ export default function AdminDashboard() {
   // }, []);
 
   const adminSections = [
-    {
-      title: "AI Agent / ChatGPT",
-      description: "Ask questions or get admin edit suggestions",
-      icon: Brain,
-      path: "Assistant",
-      color: "from-purple-600 to-blue-600",
-      stats: "Admin-only"
-    },
     {
       title: "Users Management",
       description: "Manage users, view profiles, reset points",

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { ArrowLeft, Upload, Image as ImageIcon, Copy, Check, X, Search, Trash2, Brain } from "lucide-react";
+import { ArrowLeft, Upload, Image as ImageIcon, Copy, Check, X, Search, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function AdminMedia() {
@@ -143,12 +143,6 @@ export default function AdminMedia() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Link to={createPageUrl("Assistant")}>
-              <Button variant="outline">
-                <Brain className="w-4 h-4 mr-2" />
-                Open AI Agent
-              </Button>
-            </Link>
             {selectedFiles.length > 0 && (
               <Button onClick={deleteSelected} variant="destructive">
                 <Trash2 className="w-4 h-4 mr-2" />

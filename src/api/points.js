@@ -1,158 +1,200 @@
-import { base44 } from "@/api/base44Client";
-import { getFirebase } from "@/api/firebase";
-import { supabase } from "@/api/supabaseClient";
-
 // Centralized helper to award points based on backend GameSettings
 // Usage: await awardPointsForGame(user, gameType, { isPerfect, fallbackScore })
+import { supabase } from '@/api/supabaseClient'
+
 export async function awardPointsForGame(user, gameType, opts = {}) {
-  const { isPerfect = false, fallbackScore = 10, metadata = {} } = opts;
-
+  const { fallbackScore = 0, idempotencyKey: providedKey, isPerfect = false, metadata = {} } = opts;
+  const inc = Number(fallbackScore || 0);
+  if (!inc) return 0;
+  let key = null;
+  try { key = providedKey || localStorage.getItem('current_game_award_key') || null; } catch {}
+  if (key) {
+    try {
+      const rawKeys = localStorage.getItem('awarded_keys');
+      const keys = rawKeys ? JSON.parse(rawKeys) : [];
+      if (keys.includes(key)) return 0;
+    } catch {}
+  }
   try {
-    console.log('awardPointsForGame called:', { user, gameType, opts });
-    
-    // Load setting for this game; fall back if none or inactive
-    const settings = await base44.entities.GameSettings.filter({ game_id: gameType });
-    const setting = settings && settings.length > 0 ? settings[0] : null;
-
-    const isActive = setting ? setting.is_active !== false : true;
-    const basePoints = setting ? Number(setting.points_per_game ?? fallbackScore) : fallbackScore;
-    const bonus = setting ? Number(setting.perfect_score_bonus ?? 0) : 0;
-    const min = setting ? Number(setting.min_points ?? 0) : 0;
-    const max = setting ? Number(setting.max_points ?? 99999) : 99999;
-
-    // If game is deactivated, award 0 but still record completion
-    let awarded = isActive ? basePoints + (isPerfect ? bonus : 0) : 0;
-    // Clamp within configured bounds
-    awarded = Math.max(min, Math.min(awarded, max));
-
-    console.log('Points calculated:', { awarded, isActive, basePoints, bonus });
-
-    // Get user ID from the user object passed by the game
-    const userId = user?.id || user?.uid;
-    if (!userId) {
-      console.log('No user ID available in user object:', user);
-      return awarded;
-    }
-
-    // Try to get session token for backend call
-    let token = null;
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      token = session?.session?.access_token;
-      console.log('Session token:', token ? 'Available' : 'Not available');
-    } catch (sessionError) {
-      console.error('Session error:', sessionError);
-    }
-
-    // Check if backend is enabled
-    const useBackend = String(import.meta.env.VITE_USE_BACKEND || '').toLowerCase() === 'true' || String(import.meta.env.VITE_USE_BACKEND || '') === '1';
-    
-    // Try backend first if enabled and token is available
-    if (useBackend && token) {
-      const endpoint = import.meta.env?.DEV ? '/.netlify/functions/updatePoints' : '/api/updatePoints';
-      try {
-        console.log('Calling updatePoints endpoint:', endpoint);
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ game_type: gameType, points_awarded: awarded, isPerfect, metadata }),
-        });
-        console.log('UpdatePoints response:', res.status, res.statusText);
-        if (res.ok) {
-          console.log('Points updated successfully via backend');
-          return awarded;
-        } else {
-          console.log('Backend update failed, falling back to client-side');
-        }
-      } catch (e) {
-        console.error('Backend call failed:', e);
+    const { data: session } = await supabase.auth.getSession();
+    const uid = user?.uid || user?.id || session?.session?.user?.id || null;
+    if (!uid) {
+      const raw = localStorage.getItem('users');
+      const arr = raw ? JSON.parse(raw) : [];
+      const guest = { id: 'guest', name: 'Guest', points: 0 };
+      const idx = arr.findIndex(u => u.id === guest.id);
+      if (idx >= 0) arr[idx].points = Number(arr[idx].points || 0) + inc; else arr.push({ ...guest, points: inc });
+      localStorage.setItem('users', JSON.stringify(arr));
+      if (key) {
+        try {
+          const rawKeys = localStorage.getItem('awarded_keys');
+          const keys = rawKeys ? JSON.parse(rawKeys) : [];
+          keys.push(key);
+          while (keys.length > 200) keys.shift();
+          localStorage.setItem('awarded_keys', JSON.stringify(keys));
+        } catch {}
       }
+      return inc;
+    }
+    const { data, error } = await supabase
+      .from('users')
+      .select('total_points, full_name, email')
+      .eq('id', uid)
+      .maybeSingle();
+    if (error) throw error;
+    let next = inc;
+    const sessionEmail = session?.session?.user?.email || user?.email || null;
+    const defaultName = sessionEmail ? String(sessionEmail).split('@')[0] : null;
+    if (!data) {
+      const { error: upsertErr } = await supabase
+        .from('users')
+        .upsert({ id: uid, email: sessionEmail, full_name: defaultName, total_points: inc, points: inc, last_award: new Date().toISOString() });
+      if (upsertErr) throw upsertErr;
     } else {
-      console.log(useBackend ? 'No token available' : 'Backend disabled', ', using client-side fallback');
+      const current = Number(data?.total_points || 0);
+      next = current + inc;
+      const patch = { total_points: next, points: next, last_award: new Date().toISOString() };
+      if (!data.full_name && defaultName) patch.full_name = defaultName;
+      if (!data.email && sessionEmail) patch.email = sessionEmail;
+      const { error: upErr } = await supabase
+        .from('users')
+        .update(patch)
+        .eq('id', uid);
+      if (upErr) throw upErr;
     }
-
-    // Fallback: update Supabase client-side
-    console.log('Using Supabase client-side fallback for user:', userId);
     try {
-      // Get current points
-      const { data: userData, error: fetchError } = await supabase.from('users')
-        .select('points')
-        .eq('id', userId)
-        .single();
-      
-      if (fetchError) {
-        console.error('Error fetching user data:', fetchError);
-        return awarded;
-      }
-      
-      const currentPoints = userData?.points || 0;
-      const maxCap = 1500;
-      const newTotal = Math.min(currentPoints + awarded, maxCap);
-      
-      console.log('Points update:', { currentPoints, awarded, newTotal });
-      
-      // Update user points
-      const { error: updateError } = await supabase.from('users')
-        .update({ 
-          points: newTotal,
-          last_award: {
-            game_type: gameType || null,
-            points_awarded: awarded,
-            perfect: isPerfect,
-            at: new Date().toISOString(),
-          },
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-      
-      if (updateError) {
-        console.error('Error updating user points:', updateError);
-        return awarded;
-      }
-      
-      console.log('User points updated successfully');
-      
-      // Record game score
-      if (gameType) {
-        console.log('Recording game score');
-        const { error: scoreError } = await supabase.from('game_scores').insert({
-          user_id: userId,
-          game_type: gameType,
-          points_awarded: awarded,
-          perfect: isPerfect,
-          at: new Date().toISOString(),
-          meta: metadata,
-        });
-        
-        if (scoreError) {
-          console.error('Error recording game score:', scoreError);
-        } else {
-          console.log('Game score recorded successfully');
-        }
-      }
-      
-      return awarded;
-    } catch (fallbackError) {
-      console.error('Supabase fallback failed:', fallbackError);
+      await supabase.from('game_scores').insert({
+        user_id: uid,
+        game_type: String(gameType || 'game'),
+        points_awarded: inc,
+        perfect: !!isPerfect,
+        at: new Date().toISOString(),
+        meta: metadata,
+      });
+    } catch {}
+    try {
+      await supabase
+        .from('leaderboard')
+        .upsert({ user_id: uid, points: next });
+    } catch {}
+    if (key) {
+      try {
+        const rawKeys = localStorage.getItem('awarded_keys');
+        const keys = rawKeys ? JSON.parse(rawKeys) : [];
+        keys.push(key);
+        while (keys.length > 200) keys.shift();
+        localStorage.setItem('awarded_keys', JSON.stringify(keys));
+      } catch {}
     }
-
-    console.log('Points update failed completely');
-    return awarded;
-  } catch (error) {
-    console.error("awardPointsForGame error:", error);
-    // Fall back to local awarding on error
-    return fallbackScore;
+    try { window.dispatchEvent(new CustomEvent('ikz_points_total', { detail: { points: next } })); } catch {}
+    return inc;
+  } catch {
+    try {
+      const raw = localStorage.getItem('users');
+      const arr = raw ? JSON.parse(raw) : [];
+      const id = user?.uid || user?.id || 'guest';
+      const idx = arr.findIndex(u => u.id === id);
+      if (idx >= 0) arr[idx].points = Number(arr[idx].points || 0) + inc; else arr.push({ id, name: 'Guest', points: inc });
+      localStorage.setItem('users', JSON.stringify(arr));
+      if (key) {
+        try {
+          const rawKeys = localStorage.getItem('awarded_keys');
+          const keys = rawKeys ? JSON.parse(rawKeys) : [];
+          keys.push(key);
+          while (keys.length > 200) keys.shift();
+          localStorage.setItem('awarded_keys', JSON.stringify(keys));
+        } catch {}
+      }
+      return inc;
+    } catch {}
+    return 0;
   }
 }
 
 export async function checkPointsEndpointHealth() {
   try {
-    const endpoint = import.meta.env?.DEV ? '/.netlify/functions/updatePoints' : '/api/updatePoints';
-    const res = await fetch(endpoint, { method: 'OPTIONS' });
-    if (res.ok) return true;
-    if (res.status === 405) return true;
-    return false;
+    const { data: session } = await supabase.auth.getSession();
+    return !!session?.session?.user?.id;
   } catch {
     return false;
+  }
+}
+
+export function checkAndResetMonthlyLeaderboardLocal() {
+  try {
+    const now = new Date();
+    const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const last = localStorage.getItem('last_reset_month');
+    if (last === key) return;
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    localStorage.setItem(`leaderboard_archive_${key}`, JSON.stringify(users));
+    const resetUsers = users.map(u => ({ ...u, points: 0 }));
+    localStorage.setItem('users', JSON.stringify(resetUsers));
+    const scores = JSON.parse(localStorage.getItem('gameScores') || '[]');
+    localStorage.setItem(`gameScores_archive_${key}`, JSON.stringify(scores));
+    localStorage.setItem('gameScores', JSON.stringify([]));
+    localStorage.setItem('last_reset_month', key);
+  } catch {}
+}
+
+// Convenience API matching the requested shape
+export async function saveGameScore(userId, gameName, points) {
+  try {
+    const payload = {
+      user_id: userId,
+      game_type: String(gameName || 'game'),
+      points_awarded: Number(points || 0),
+      at: new Date().toISOString(),
+    };
+    const { data, error } = await supabase.from('game_scores').insert(payload);
+    return { data, error };
+  } catch (e) {
+    return { error: e };
+  }
+}
+
+export async function updateUserPoints(userId, newTotal) {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ total_points: Number(newTotal || 0), points: Number(newTotal || 0), last_award: new Date().toISOString() })
+      .eq('id', userId);
+    return { data, error };
+  } catch (e) {
+    return { error: e };
+  }
+}
+
+// Leaderboard is driven off users.points; keep this for compatibility
+export async function updateLeaderboard(userId, newTotal) {
+  try {
+    const { data, error } = await supabase
+      .from('leaderboard')
+      .upsert({ user_id: userId, points: Number(newTotal || 0) });
+    return { data, error };
+  } catch (e) {
+    return { error: e };
+  }
+}
+
+export async function addPoints(userId, gameName, points) {
+  const inc = Number(points || 0);
+  if (!inc) return 0;
+  try {
+    const { data: current, error } = await supabase
+      .from('users')
+      .select('total_points')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) throw error;
+    const currentTotal = Number(current?.total_points || 0);
+    const newTotal = currentTotal + inc;
+    await saveGameScore(userId, gameName, inc);
+    await updateUserPoints(userId, newTotal);
+    await updateLeaderboard(userId, newTotal);
+    try { window.dispatchEvent(new CustomEvent('ikz_points_total', { detail: { points: newTotal } })); } catch {}
+    return newTotal;
+  } catch (e) {
+    return 0;
   }
 }

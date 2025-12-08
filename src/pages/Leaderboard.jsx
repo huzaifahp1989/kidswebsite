@@ -1,16 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usersApi, watchAuth, getUserProfile } from "@/api/firebase";
+import { supabase } from "@/api/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trophy, Medal, Star, TrendingUp, LogIn } from "lucide-react";
+import { Link } from 'react-router-dom'
+import { createPageUrl } from '@/utils'
 import { motion } from "framer-motion";
 
 export default function Leaderboard() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const queryClient = useQueryClient();
 
   // Watch Firebase auth and load current user's profile
   useEffect(() => {
@@ -31,12 +35,56 @@ export default function Leaderboard() {
     return () => { try { stop?.(); } catch {} };
   }, []);
 
+  useEffect(() => {
+    try {
+      const channel = supabase.channel('lb_users_changes').on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'users' },
+        () => {
+          try { queryClient.invalidateQueries({ queryKey: ['leaderboard-users'] }); } catch {}
+        }
+      );
+      channel.subscribe();
+      const handler = () => { try { queryClient.invalidateQueries({ queryKey: ['leaderboard-users'] }); } catch {} };
+      window.addEventListener('ikz_points_awarded', handler);
+      return () => { try { channel.unsubscribe(); } catch {}; try { window.removeEventListener('ikz_points_awarded', handler); } catch {} };
+    } catch {}
+  }, [queryClient]);
+
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['leaderboard-users'],
     queryFn: async () => {
       try {
+        const { data: lbData, error: lbErr } = await supabase
+          .from('leaderboard')
+          .select('user_id, points')
+          .order('points', { ascending: false });
+        if (!lbErr && Array.isArray(lbData) && lbData.length > 0) {
+          const ids = lbData.map(r => r.user_id).filter(Boolean);
+          let infoMap = {};
+          if (ids.length > 0) {
+            const { data: userRows } = await supabase
+              .from('users')
+              .select('id, full_name, avatar')
+              .in('id', ids);
+            if (Array.isArray(userRows)) {
+              infoMap = Object.fromEntries(userRows.map(u => [u.id, u]));
+            }
+          }
+          return lbData.map((row) => {
+            const info = infoMap[row.user_id] || null;
+            return {
+              id: row.user_id,
+              uid: row.user_id,
+              fullName: info?.full_name || row.user_id,
+              full_name: info?.full_name || row.user_id,
+              points: Math.max(0, Number.isFinite(Number(row.points)) ? Math.floor(Number(row.points)) : 0),
+              avatar: info?.avatar || '👤',
+            };
+          });
+        }
+        // Fallback to users API
         const list = await usersApi.list();
-        // Sort by points descending
         return list.sort((a, b) => (Number(b.points || 0) - Number(a.points || 0)));
       } catch {
         return [];
@@ -106,17 +154,12 @@ export default function Leaderboard() {
                 <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4 px-2">
                   Join Islam Kids Zone to earn points, compete with friends, and climb the leaderboard!
                 </p>
-                <Button
-                  onClick={() => {
-                    const subject = encodeURIComponent("Access Request - Islam Kids Zone");
-                    const body = encodeURIComponent("Hi, I'd like to create an account to join the leaderboard. My name is ____ and my contact details are ____");
-                    window.location.href = `mailto:imediac786@gmail.com?subject=${subject}&body=${body}`;
-                  }}
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-                >
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Request Access via Email
-                </Button>
+                <Link to={createPageUrl('QuizSignup')}>
+                  <Button className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600">
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Sign Up
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </motion.div>
@@ -146,17 +189,20 @@ export default function Leaderboard() {
                     transition={{ delay: index * 0.05 }}
                     className="p-4 sm:p-6 hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex items-center gap-3 sm:gap-4 justify-center">
-                      {/* Rank Icon */}
+                    <div className="flex items-center gap-3 sm:gap-4">
                       <div className="w-12 sm:w-16 flex justify-center flex-shrink-0">
                         {getRankIcon(index)}
                       </div>
-
-                      {/* Avatar Only */}
-                      <div className="flex items-center gap-3 sm:gap-4">
-                        <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${getRankBg(index)} flex items-center justify-center text-xl sm:text-2xl shadow-lg flex-shrink-0`}>
-                          {user.avatar || "👤"}
-                        </div>
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br ${getRankBg(index)} flex items-center justify-center text-xl sm:text-2xl shadow-lg flex-shrink-0`}>
+                        {user.avatar || '👤'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-gray-900 truncate">{user.full_name || user.fullName || user.email || 'Anonymous'}</div>
+                        <div className="text-xs text-gray-500 truncate">{user.city || ''}</div>
+                      </div>
+                      <div className="flex items-center gap-1 bg-amber-100 px-2 py-1 rounded-full">
+                        <Star className="w-4 h-4 text-amber-600 fill-amber-600" />
+                        <span className="font-bold text-sm text-amber-900">{Number(user.points || 0)}</span>
                       </div>
                     </div>
                   </motion.div>
