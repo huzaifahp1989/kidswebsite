@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import { Trophy, Star, CheckCircle2 } from "lucide-react";
+import { Trophy, CheckCircle2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { awardPointsForGame } from "@/api/points";
+import PropTypes from 'prop-types';
 
 const words = ["SALAH", "HAJJ", "ZAKAT", "QURAN", "ISLAM"];
 const gridSize = 10;
@@ -68,7 +69,7 @@ export default function WordSearchGame({ onComplete }) {
         const userData = await base44.auth.me();
         setUser(userData);
       }
-    } catch (error) {
+    } catch {
       console.log("User not authenticated");
     }
   };
@@ -77,9 +78,9 @@ export default function WordSearchGame({ onComplete }) {
     if (found.length === words.length) {
       completeGame();
     }
-  }, [found]);
+  }, [found, completeGame]);
 
-  const completeGame = async () => {
+  const completeGame = useCallback(async () => {
     const fallbackScore = 20; // previous fixed score
     let awarded = fallbackScore;
     
@@ -92,7 +93,7 @@ export default function WordSearchGame({ onComplete }) {
     }
     
     setTimeout(() => onComplete(awarded), 2000);
-  };
+  }, [user, onComplete]);
 
   const startSelection = (row, col) => {
     setSelecting(true);
@@ -240,12 +241,12 @@ export default function WordSearchGame({ onComplete }) {
                 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className={`aspect-square rounded-lg font-bold text-sm md:text-base transition-all duration-200 cursor-pointer ${
+                className={`aspect-square rounded-md font-bold text-base md:text-xl transition-all duration-200 cursor-pointer border-2 ${
                   isCellInFoundWord(rowIndex, colIndex)
-                    ? "bg-green-500 text-white shadow-lg"
+                    ? "bg-green-600 text-white shadow-lg border-green-600"
                     : isCellSelected(rowIndex, colIndex)
-                    ? "bg-blue-500 text-white scale-105"
-                    : "bg-gray-100 hover:bg-gray-200 text-gray-800"
+                    ? "bg-blue-600 text-white scale-105 border-blue-600"
+                    : "bg-white hover:bg-blue-50 text-gray-900 border-gray-300"
                 }`}
               >
                 {letter}
@@ -275,3 +276,7 @@ export default function WordSearchGame({ onComplete }) {
     </Card>
   );
 }
+
+WordSearchGame.propTypes = {
+  onComplete: PropTypes.func,
+};

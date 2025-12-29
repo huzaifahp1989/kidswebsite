@@ -2,7 +2,8 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usersApi } from "@/api/firebase";
-import { supabase } from "@/api/supabase";
+// Optional Supabase import - won't break if Supabase is not configured
+import { supabase as supabaseClient, isSupabaseConfigured as checkSupabaseConfig } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Trophy, Star, Medal, Crown, ArrowLeft, Gamepad2, Users, Gift, LogIn, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { watchAuth } from "@/api/firebase";
 import { awardPointsForGame } from "@/api/points";
 import { checkPointsEndpointHealth, checkAndResetMonthlyLeaderboardLocal } from "@/api/points";
+import NoticeBanner from "@/components/NoticeBanner";
 
 // Curated advanced working titles
 const KidsQuiz = lazy(() => import("../components/games/KidsQuiz"));
@@ -113,11 +115,47 @@ export default function Games() {
   const [backendOnline, setBackendOnline] = useState(false);
   const [showMonthlyLeaderboard, setShowMonthlyLeaderboard] = useState(false);
 
+  const emitPointsAwarded = () => {
+    try { window.dispatchEvent(new CustomEvent('ikz_points_awarded')); } catch {}
+  };
+
+  const testSupabaseConnection = async () => {
+    if (!checkSupabaseConfig() || !supabaseClient) {
+      alert('Supabase is not configured. Please check your environment variables.');
+      return;
+    }
+    
+    try {
+      // Test connection by fetching the current session
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
+      if (error) {
+        alert(`Supabase connection error: ${error.message}`);
+        return;
+      }
+      
+      // Test database connection by making a simple query
+      const { data, error: dbError } = await supabaseClient
+        .from('users')
+        .select('count')
+        .limit(1);
+      
+      if (dbError && dbError.code !== 'PGRST116') { // PGRST116 is "relation does not exist" which is fine for testing
+        alert(`Supabase database connection: ${dbError.message}`);
+        return;
+      }
+      
+      alert(`✅ Supabase connection successful!\n\nSession: ${session ? 'Authenticated' : 'Not authenticated'}\nDatabase: Connected`);
+    } catch (error) {
+      alert(`Supabase connection failed: ${error.message}`);
+    }
+  };
+
   useEffect(() => {
     let unsubscribe = () => {};
     (async () => {
       try { setBackendOnline(await checkPointsEndpointHealth()); } catch {}
       try { checkAndResetMonthlyLeaderboardLocal(); } catch {}
+      
       unsubscribe = watchAuth(async (fbUser) => {
         if (fbUser) {
           setIsAuthenticated(true);
@@ -186,19 +224,7 @@ export default function Games() {
           await awardPointsForGame(user, selectedGame?.id || 'game', { fallbackScore: inc, idempotencyKey: idKey });
           setEarnedPoints(inc);
           emitPointsAwarded();
-          // Load latest total points from Supabase profile
-          try {
-            const { data: session } = await supabase.auth.getSession();
-            const uid = user?.id || user?.uid || session?.session?.user?.id || null;
-            if (uid) {
-              const { data, error } = await supabase.from('users').select('points, total_points').eq('id', uid).maybeSingle();
-              if (!error && data) {
-                const pts = Number((data.total_points != null ? data.total_points : data.points) || 0);
-                setTotalPoints(pts);
-                try { window.dispatchEvent(new CustomEvent('ikz_points_total', { detail: { points: pts } })); } catch {}
-              }
-            }
-          } catch {}
+          // Supabase profile refresh removed
         } catch {
           try {
             const raw = localStorage.getItem('users');
@@ -223,18 +249,7 @@ export default function Games() {
     }
   };
 
-  const testSupabaseConnection = async () => {
-    try {
-      const { error } = await supabase.from('users').select('id').limit(1);
-      if (error) {
-        alert(`Supabase NOT connected: ${error.message}`);
-      } else {
-        alert('Supabase connected ✓');
-      }
-    } catch (e) {
-      alert(`Supabase NOT connected: ${e?.message || e}`);
-    }
-  };
+  // Supabase connection test removed
 
   if (isLoading) {
     return (
@@ -278,6 +293,7 @@ export default function Games() {
   return (
     <div className="min-h-screen py-8 px-4 bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100">
       <div className="max-w-7xl mx-auto">
+        <NoticeBanner storageKey="notice_leaderboard_points_unavailable" />
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -649,6 +665,3 @@ export default function Games() {
     </div>
   );
 }
-  const emitPointsAwarded = () => {
-    try { window.dispatchEvent(new CustomEvent('ikz_points_awarded')); } catch {}
-  };

@@ -14,7 +14,6 @@ import PropTypes from 'prop-types';
 import { fetchSajdaList, TRANSLATIONS as CLOUD_TRANSLATIONS, getAudioEdition as cloudAudioEdition } from '@/api/quranCloud.js';
 import { setSurahCache, getSurahCache, setJuzCache, getJuzCache } from '@/api/quranOfflineDb.js';
 import { getQuarterStart } from '@/api/juzQuarterMap.js';
-import { supabase } from '@/api/supabaseClient'
 
 const defaultReciters = [
   { id: "alafasy", name: "Mishary Rashid Alafasy", url: "https://server8.mp3quran.net/afs/", flag: "🇰🇼" },
@@ -269,28 +268,7 @@ export default function FullQuran() {
     };
   }, []);
 
-  // Load available reciters from Supabase (if configured)
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const { data, error } = await supabase.from('quran_reciters').select('*').eq('active', true);
-        if (!mounted || error || !Array.isArray(data) || data.length === 0) return;
-        const rows = data.map(r => ({
-          id: r.id,
-          name: r.name,
-          url: r.base_url,
-          flag: r.flag || '🎧',
-          supportsVerseAudio: !!r.supports_verse_audio,
-          verseEditionId: r.verse_edition_id || null,
-        }));
-        setReciters(rows);
-        const current = rows.find(x => x.id === selectedReciter?.id) || rows[0];
-        if (current) setSelectedReciter(current);
-      } catch {}
-    })();
-    return () => { mounted = false };
-  }, []);
+  
 
   // Load Sajda list once
   useEffect(() => {

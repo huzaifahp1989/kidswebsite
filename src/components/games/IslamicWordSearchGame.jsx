@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -174,7 +174,7 @@ export default function IslamicWordSearchGame({ onComplete }) {
     }
   }, [level, category]);
 
-  const checkDailyCompletionBonus = async (userId) => {
+  const checkDailyCompletionBonus = useCallback(async (userId) => {
     try {
       const today = new Date().toISOString().split('T')[0];
       const todaysScores = await base44.entities.GameScore.filter({
@@ -210,7 +210,7 @@ export default function IslamicWordSearchGame({ onComplete }) {
     } catch (error) {
       console.log("Error checking daily bonus:", error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (level && category && words.length > 0 && found.length === words.length && !gameCompleted) {
@@ -237,7 +237,7 @@ export default function IslamicWordSearchGame({ onComplete }) {
       
       completeGameAsync();
     }
-  }, [found, level, category, words, gameCompleted, user, onComplete, checkDailyCompletionBonus]);
+  }, [found, level, category, words, gameCompleted, user, onComplete, checkDailyCompletionBonus, score]);
 
   const startSelection = (row, col) => {
     setSelecting(true);
@@ -467,8 +467,8 @@ export default function IslamicWordSearchGame({ onComplete }) {
     );
   }
 
-  const cellSize = level === 'easy' ? 'w-8 h-8 md:w-10 md:h-10' : level === 'medium' ? 'w-7 h-7 md:w-9 md:h-9' : 'w-6 h-6 md:w-8 md:h-8';
-  const fontSize = level === 'easy' ? 'text-sm md:text-base' : level === 'medium' ? 'text-xs md:text-sm' : 'text-xs';
+  const cellSize = level === 'easy' ? 'w-10 h-10 md:w-12 md:h-12' : level === 'medium' ? 'w-9 h-9 md:w-11 md:h-11' : 'w-8 h-8 md:w-10 md:h-10';
+  const fontSize = level === 'easy' ? 'text-base md:text-lg' : level === 'medium' ? 'text-sm md:text-base' : 'text-sm';
 
   return (
     <Card className="max-w-4xl mx-auto shadow-lg">
@@ -536,12 +536,12 @@ export default function IslamicWordSearchGame({ onComplete }) {
                   }}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
-                  className={`${cellSize} ${fontSize} rounded-lg font-bold transition-all duration-200 cursor-pointer flex items-center justify-center ${
+                  className={`${cellSize} ${fontSize} rounded-md font-bold transition-all duration-200 cursor-pointer flex items-center justify-center border-2 ${
                     isCellInFoundWord(rowIndex, colIndex)
-                      ? "bg-green-500 text-white shadow-lg"
+                      ? "bg-green-600 text-white shadow-lg border-green-600"
                       : isCellSelected(rowIndex, colIndex)
-                      ? "bg-blue-500 text-white scale-105"
-                      : "bg-gray-100 hover:bg-gray-200 text-gray-800"
+                      ? "bg-blue-600 text-white scale-105 border-blue-600"
+                      : "bg-white hover:bg-blue-50 text-gray-900 border-gray-300"
                   }`}
                 >
                   {letter}

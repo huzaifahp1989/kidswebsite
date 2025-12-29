@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Trophy, BookOpen, Palette, Sparkles, GraduationCap, Video, Radio, Target, Gamepad2, Star, Shield, Gift, Bell, Moon, Heart, Book, Megaphone, Mic, Play, Lightbulb } from "lucide-react";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { watchAuth, getUserProfile } from "@/api/firebase";
@@ -18,12 +19,13 @@ import Worksheets from "./Worksheets";
 import KidsRecordingStudio from "./KidsRecordingStudio";
 import FullQuran from "./FullQuran";
 import Quizzes from "./Quizzes";
+import NoticeBanner from "@/components/NoticeBanner";
 
 
 export default function KidsZone() {
+  const MotionLink = motion(Link);
   const [fbUser, setFbUser] = useState(null);
   const [points, setPoints] = useState(0);
-  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     const stop = watchAuth(async (u) => {
@@ -39,19 +41,13 @@ export default function KidsZone() {
     return () => { if (typeof stop === 'function') { stop(); } };
   }, []);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('daily_streak');
-      setStreak(Number(raw || 0));
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   return (
-    <div className="relative max-w-7xl mx-auto p-4 sm:p-6">
+    <div className="relative w-full max-w-7xl mx-auto p-4 sm:p-6 overflow-hidden">
       <div className="pointer-events-none absolute -top-10 -right-10 w-40 h-40 rounded-full bg-blue-200/40 blur-2xl" />
       <div className="pointer-events-none absolute top-32 -left-10 w-48 h-48 rounded-full bg-purple-200/40 blur-2xl" />
+
+      <NoticeBanner storageKey="notice_leaderboard_points_unavailable" />
 
       <Card className="mb-6 overflow-hidden shadow-xl">
         <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
@@ -71,7 +67,7 @@ export default function KidsZone() {
           </div>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
-          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
             <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-sm">
               <Star className="w-4 h-4 text-amber-500" />
               <div className="text-xs sm:text-sm font-semibold">Points</div>
@@ -91,9 +87,21 @@ export default function KidsZone() {
         </CardContent>
       </Card>
 
+      <div className="mb-6">
+        <Link to={createPageUrl("Competition")} className="block rounded-2xl border-2 border-white/30 bg-gradient-to-r from-blue-600 to-purple-600 p-4 sm:p-5 text-white shadow hover:shadow-lg transition">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+            <Trophy className="w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="sm:flex-1 min-w-0 text-center sm:text-left">
+              <div className="text-sm sm:text-base font-semibold">Enter the competition to win amazing prizes</div>
+              <div className="text-xs text-white/85">Competition is live till Feb 2026</div>
+            </div>
+            <Button className="w-full sm:w-auto sm:ml-auto mt-2 sm:mt-0 bg-white text-purple-700 hover:bg-blue-50">Enter Now</Button>
+          </div>
+        </Link>
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:gap-4 mb-6">
-        <Link to={createPageUrl("LearningPaths")} className="block">
-        <motion.div whileTap={{ scale: 0.98 }} className="w-full text-left rounded-2xl overflow-hidden shadow-lg">
+        <MotionLink to={createPageUrl("kidszone/aqeedah")} whileTap={{ scale: 0.98 }} className="block w-full text-left rounded-2xl overflow-hidden shadow-lg">
           <div className="bg-gradient-to-r from-emerald-500 to-green-600 p-5 sm:p-6 text-white">
             <div className="flex items-center gap-3">
               <Star className="w-6 h-6" />
@@ -104,11 +112,9 @@ export default function KidsZone() {
               <Sparkles className="ml-auto w-5 h-5 opacity-70" />
             </div>
           </div>
-        </motion.div>
-        </Link>
+        </MotionLink>
 
-        <Link to={createPageUrl("LearningPaths")} className="block">
-        <motion.div whileTap={{ scale: 0.98 }} className="w-full text-left rounded-2xl overflow-hidden shadow-lg">
+        <MotionLink to={createPageUrl("kidszone/akhlaq")} whileTap={{ scale: 0.98 }} className="block w-full text-left rounded-2xl overflow-hidden shadow-lg">
           <div className="bg-gradient-to-r from-teal-400 to-emerald-500 p-5 sm:p-6 text-white">
             <div className="flex items-center gap-3">
               <Heart className="w-6 h-6" />
@@ -119,38 +125,71 @@ export default function KidsZone() {
               <Sparkles className="ml-auto w-5 h-5 opacity-70" />
             </div>
           </div>
-        </motion.div>
-        </Link>
-
-        <Link to={createPageUrl("Duas")} className="block">
-        <motion.div whileTap={{ scale: 0.98 }} className="w-full text-left rounded-2xl overflow-hidden shadow-lg">
+        </MotionLink>
+        <MotionLink to={createPageUrl("kidszone/seerah")} whileTap={{ scale: 0.98 }} className="block w-full text-left rounded-2xl overflow-hidden shadow-lg">
           <div className="bg-gradient-to-r from-sky-500 to-blue-600 p-5 sm:p-6 text-white">
             <div className="flex items-center gap-3">
-              <Sparkles className="w-6 h-6" />
+              <Book className="w-6 h-6" />
               <div>
-                <div className="text-xl font-bold">Duʿāʾs</div>
+                <div className="text-xl font-bold">Seerah</div>
                 <div className="text-sm text-white/85">Next lesson: 2</div>
               </div>
               <Sparkles className="ml-auto w-5 h-5 opacity-70" />
             </div>
           </div>
-        </motion.div>
-        </Link>
+        </MotionLink>
 
-        <Link to={createPageUrl("LearningPaths")} className="block">
-        <motion.div whileTap={{ scale: 0.98 }} className="w-full text-left rounded-2xl overflow-hidden shadow-lg">
+        <MotionLink to={createPageUrl("kidszone/salah")} whileTap={{ scale: 0.98 }} className="block w-full text-left rounded-2xl overflow-hidden shadow-lg">
           <div className="bg-gradient-to-r from-violet-500 to-purple-600 p-5 sm:p-6 text-white">
             <div className="flex items-center gap-3">
               <Book className="w-6 h-6" />
               <div>
-                <div className="text-xl font-bold">Fiqh</div>
+                <div className="text-xl font-bold">Salah</div>
                 <div className="text-sm text-white/85">Next lesson: 1</div>
               </div>
               <Sparkles className="ml-auto w-5 h-5 opacity-70" />
             </div>
           </div>
-        </motion.div>
-        </Link>
+        </MotionLink>
+
+        <MotionLink to={createPageUrl("kidszone/quran")} whileTap={{ scale: 0.98 }} className="block w-full text-left rounded-2xl overflow-hidden shadow-lg">
+          <div className="bg-gradient-to-r from-indigo-500 to-blue-600 p-5 sm:p-6 text-white">
+            <div className="flex items-center gap-3">
+              <BookOpen className="w-6 h-6" />
+              <div>
+                <div className="text-xl font-bold">Qur’an</div>
+                <div className="text-sm text-white/85">Next lesson: 4</div>
+              </div>
+              <Sparkles className="ml-auto w-5 h-5 opacity-70" />
+            </div>
+          </div>
+        </MotionLink>
+
+        <MotionLink to={createPageUrl("kidszone/prophets")} whileTap={{ scale: 0.98 }} className="block w-full text-left rounded-2xl overflow-hidden shadow-lg">
+          <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-5 sm:p-6 text-white">
+            <div className="flex items-center gap-3">
+              <Star className="w-6 h-6" />
+              <div>
+                <div className="text-xl font-bold">Prophets</div>
+                <div className="text-sm text-white/85">Next lesson: 3</div>
+              </div>
+              <Sparkles className="ml-auto w-5 h-5 opacity-70" />
+            </div>
+          </div>
+        </MotionLink>
+
+        <MotionLink to={createPageUrl("kidszone/tawheed")} whileTap={{ scale: 0.98 }} className="block w-full text-left rounded-2xl overflow-hidden shadow-lg">
+          <div className="bg-gradient-to-r from-rose-500 to-red-600 p-5 sm:p-6 text-white">
+            <div className="flex items-center gap-3">
+              <Shield className="w-6 h-6" />
+              <div>
+                <div className="text-xl font-bold">Tawheed</div>
+                <div className="text-sm text-white/85">Next lesson: 2</div>
+              </div>
+              <Sparkles className="ml-auto w-5 h-5 opacity-70" />
+            </div>
+          </div>
+        </MotionLink>
       </div>
 
       <div className="mb-8">
@@ -193,7 +232,7 @@ export default function KidsZone() {
             <div className="mt-3 text-sm sm:text-base font-semibold text-gray-800">Ilm</div>
           </Link>
 
-          <Link to={createPageUrl("Stories")} className="group flex flex-col items-center">
+          <Link to={createPageUrl("kidszone/stories")} className="group flex flex-col items-center">
             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-indigo-100 shadow-md flex items-center justify-center transition-transform group-hover:scale-[1.03]">
               <BookOpen className="w-10 h-10 sm:w-12 sm:h-12 text-indigo-600" />
             </div>
@@ -245,6 +284,7 @@ export default function KidsZone() {
           </div>
         </div>
       </div>
+
 
       <Tabs defaultValue="quizzes" className="mt-2">
         <TabsList className="flex gap-2 p-2 mb-2 sm:mb-4 overflow-x-auto whitespace-nowrap">

@@ -67,9 +67,8 @@ export default function Login() {
         <button type="submit" className="w-full py-2 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded hover:scale-105 transition-transform" disabled={loading}>
           {loading ? "Signing in…" : "Login"}
         </button>
-        <div className="mt-4 text-center">
-          <span>Don't have an account? </span>
-          <a href="/QuizSignup" className="text-blue-600 font-semibold">Sign up</a>
+        <div className="mt-4 text-center text-gray-600">
+          Account creation is disabled. You can use the app without signing up.
         </div>
       </form>
     </div>

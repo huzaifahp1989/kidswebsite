@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Star, RefreshCw, TrendingUp, Trophy } from "lucide-react";
-import { Link } from "react-router-dom";
 import { watchAuth, getUserProfile } from "@/api/firebase";
-import { supabase } from "@/api/supabaseClient";
+import { db } from "../lib/firebase";
+import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 
 export default function MyPoints() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -27,16 +27,17 @@ export default function MyPoints() {
       }
       const p = await getUserProfile(u.uid);
       setProfile(p ? { id: u.uid, email: u.email, ...p } : { id: u.uid, email: u.email, points: 0 });
-      // Load recent awards history from Supabase
+      // Load recent awards history from Firestore
       try {
-        const { data, error } = await supabase
-          .from('game_scores')
-          .select('id, game_type, points_awarded, perfect, at')
-          .eq('user_id', u.uid)
-          .order('at', { ascending: false })
-          .limit(10)
-        if (!error) setScores(data || [])
-      } catch (_) {}
+        const qy = query(
+          collection(db, 'game_scores'),
+          where('user_id', '==', u.uid),
+          orderBy('at', 'desc'),
+          limit(10)
+        );
+        const snap = await getDocs(qy);
+        setScores(snap.docs.map(d => ({ id: d.id, ...d.data() })) || []);
+      } catch { void 0; }
     } catch (e) {
       setStatus(`Failed to load profile: ${e?.message || e}`);
     } finally {
@@ -44,12 +45,14 @@ export default function MyPoints() {
     }
   };
 
+  // Removed Supabase realtime subscription
+
   useEffect(() => {
     const stop = watchAuth(async (u) => {
       setCurrentUser(u || null);
       await load(u);
     });
-    return () => { try { stop?.(); } catch {} };
+    return () => { try { stop?.(); } catch { void 0; } };
   }, []);
 
   const cap = 1500;
@@ -72,9 +75,8 @@ export default function MyPoints() {
             )}
             {!currentUser ? (
               <div className="text-center text-gray-600">
-                <p className="mb-3">You’re not signed in.</p>
-                <p className="mb-4">Sign in to track your points and awards.</p>
-                <Link to="/QuizSignup"><Button className="bg-blue-600 hover:bg-blue-700">Sign in / Signup</Button></Link>
+                <p className="mb-3">Guest mode active.</p>
+                <p className="mb-4">Play games to earn points. Signing up is disabled.</p>
               </div>
             ) : loading ? (
               <div className="text-center text-gray-500">Loading your points…</div>
@@ -90,9 +92,9 @@ export default function MyPoints() {
                     <Button variant="outline" onClick={() => load(currentUser)}>
                       <RefreshCw className="w-4 h-4 mr-2" /> Refresh
                     </Button>
-                    <Link to="/Leaderboard"><Button>
+                    <a href="/Leaderboard"><Button>
                       <Trophy className="w-4 h-4 mr-2" /> Leaderboard
-                    </Button></Link>
+                    </Button></a>
                   </div>
                 </div>
                 <div className="mb-4">

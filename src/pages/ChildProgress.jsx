@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { addChildProgressLog, listChildProgressLogs } from '@/api/progress'
-import { supabase } from '@/api/supabaseClient'
+import { getFirebase } from '@/api/firebase'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 export default function ChildProgress() {
@@ -11,13 +11,13 @@ export default function ChildProgress() {
   const [logs, setLogs] = useState([])
 
   useEffect(() => {
+    const { auth } = getFirebase()
+    const u = auth?.currentUser || null
     const init = async () => {
-      const { data } = await supabase.auth.getUser()
-      const u = data?.user || null
       setUser(u)
       if (u) {
         try {
-          const items = await listChildProgressLogs(u.id, { limit: 14 })
+          const items = await listChildProgressLogs(u.uid, { limit: 14 })
           setLogs(items)
         } catch (e) {
           setError(e?.message || 'Failed to load progress')
@@ -35,7 +35,7 @@ export default function ChildProgress() {
     setSaving(true); setError('')
     try {
       await addChildProgressLog({
-        userId: user.id,
+        userId: user.uid,
         quran: form.quran,
         salah: form.salah,
         tasbeeh: form.tasbeeh,
@@ -43,7 +43,7 @@ export default function ChildProgress() {
         helping_parents: form.helping_parents,
         notes: form.notes,
       })
-      const items = await listChildProgressLogs(user.id, { limit: 14 })
+      const items = await listChildProgressLogs(user.uid, { limit: 14 })
       setLogs(items)
       setForm({ quran: '', salah: '', tasbeeh: '', durood: '', helping_parents: '', notes: '' })
     } catch (e2) {
@@ -98,4 +98,3 @@ export default function ChildProgress() {
     </div>
   )
 }
-

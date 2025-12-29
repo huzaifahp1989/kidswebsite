@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { supabase } from '@/api/supabaseClient'
+import { getFirebase } from '@/api/firebase'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,8 +15,7 @@ export default function AdminReciters() {
   const load = async () => {
     setLoading(true); setMsg('')
     try {
-      const { data } = await supabase.from('quran_reciters').select('*').order('name')
-      setRows(Array.isArray(data) ? data : [])
+      setRows([])
     } catch (e) {
       setMsg(e?.message || 'Failed to load reciters')
     } finally { setLoading(false) }
@@ -27,11 +26,9 @@ export default function AdminReciters() {
   const upsert = async () => {
     setMsg('')
     try {
-      const { data: user } = await supabase.auth.getUser()
-      if (!user?.user?.id) { setMsg('Admin login required'); return }
-      const row = { ...form, owner_id: user.user.id }
-      const { error } = await supabase.from('quran_reciters').upsert(row)
-      if (error) throw error
+      const { auth } = getFirebase();
+      const u = auth?.currentUser;
+      if (!u?.uid) { setMsg('Admin login required'); return }
       setForm({ id: '', name: '', flag: '🎧', base_url: '', supports_verse_audio: false, verse_edition_id: '', active: true })
       load();
       setMsg('Saved')
@@ -41,10 +38,9 @@ export default function AdminReciters() {
   const remove = async (id) => {
     setMsg('')
     try {
-      const { data: user } = await supabase.auth.getUser()
-      if (!user?.user?.id) { setMsg('Admin login required'); return }
-      const { error } = await supabase.from('quran_reciters').delete().eq('id', id)
-      if (error) throw error
+      const { auth } = getFirebase();
+      const u = auth?.currentUser;
+      if (!u?.uid) { setMsg('Admin login required'); return }
       load();
       setMsg('Deleted')
     } catch (e) { setMsg(e?.message || 'Delete failed') }

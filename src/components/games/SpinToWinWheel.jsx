@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Gift, Star, Sparkles, Zap } from "lucide-react";
-import { base44 } from "@/api/base44Client";
 import { addPoints } from "@/api/points";
 import PropTypes from 'prop-types';
 
@@ -68,33 +67,18 @@ export default function SpinToWinWheel({ user, onReward }) {
       setSelectedReward(wonReward);
       setIsSpinning(false);
 
-      // Save reward
-      try {
-        await base44.entities.SpinReward.create({
-          user_id: user.id,
-          reward_type: wonReward.type,
-          reward_value: wonReward.type === "points" ? wonReward.value.toString() : wonReward.value,
-          claimed: false
-        });
-        try { localStorage.setItem(`spin_last_date_${user.id}`, new Date().toISOString()); } catch {}
+      // Mark spin time locally
+      try { localStorage.setItem(`spin_last_date_${user.id}`, new Date().toISOString()); } catch {}
 
-        // Apply reward
-        if (wonReward.type === "points") {
-          try { await addPoints(user.id, "spin_to_win", Number(wonReward.value || 0)); } catch {}
-        } else if (wonReward.type === "badge") {
-          const badges = user.badges || [];
-          if (!badges.includes(wonReward.value)) {
-            await base44.auth.updateMe({ badges: [...badges, wonReward.value] });
-          }
-        }
-
-        setCanSpin(false);
-        checkSpinAvailability();
-
-        if (onReward) onReward(wonReward);
-      } catch (error) {
-        console.error("Error saving reward:", error);
+      // Apply reward
+      if (wonReward.type === "points") {
+        try { await addPoints(Number(wonReward.value || 0)); } catch (e) { console.warn(e); }
       }
+
+      setCanSpin(false);
+      checkSpinAvailability();
+
+      if (onReward) onReward(wonReward);
     }, 4000);
   };
 

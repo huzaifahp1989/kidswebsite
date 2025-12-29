@@ -15,8 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import PropTypes from 'prop-types';
-import { watchAuth, getUserProfile } from "@/api/firebase";
-import { supabase } from "@/api/supabaseClient";
+import { watchAuth, getUserProfile, getFirebase } from "@/api/firebase";
 // Base44 auth removed from public UI; email-only access in place
 
 // Create Radio Context
@@ -80,6 +79,8 @@ export default function Layout({ children, currentPageName }) {
     } catch {}
   }, []);
 
+  // Realtime subscription removed; points shown in dedicated pages/components
+
   useEffect(() => {
     if (siteSettings.darkModeDefault) {
       document.documentElement.classList.add("dark");
@@ -140,8 +141,8 @@ export default function Layout({ children, currentPageName }) {
       try {
         if (user?.uid) {
           const p = await getUserProfile(user.uid);
-          const next = Number((p?.total_points != null ? p.total_points : p?.points) || prev?.points || 0);
-          setUser(prev => prev ? { ...prev, points: next } : prev);
+          const nextPoints = Number((p?.total_points != null ? p.total_points : p?.points) || 0);
+          setUser(prev => prev ? { ...prev, points: nextPoints } : prev);
         }
       } catch {}
     };
@@ -150,19 +151,11 @@ export default function Layout({ children, currentPageName }) {
       try { const pts = Number(e?.detail?.points || NaN); if (!Number.isNaN(pts)) setUser(prev => prev ? { ...prev, points: pts } : prev); } catch {}
     };
     window.addEventListener('ikz_points_total', directHandler);
-    let channel;
-    try {
-      channel = supabase.channel('layout_users_changes').on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'users' },
-        handler
-      );
-      channel.subscribe();
-    } catch {}
-    return () => { try { window.removeEventListener('ikz_points_awarded', handler); } catch {}; try { window.removeEventListener('ikz_points_total', directHandler); } catch {}; try { channel?.unsubscribe?.(); } catch {} };
+    return () => { try { window.removeEventListener('ikz_points_awarded', handler); } catch {}; try { window.removeEventListener('ikz_points_total', directHandler); } catch {} };
   }, [user?.uid]);
 
   const handleLogout = () => {
+    try { const { auth } = getFirebase(); auth?.signOut?.(); } catch { void 0; }
     setIsAuthenticated(false);
     setUser(null);
   };
@@ -199,10 +192,8 @@ export default function Layout({ children, currentPageName }) {
   };
 
   const baseNavItems = [
-    { name: "Sign Up", icon: UserPlus, path: "Signup" },
-    { name: "Sign In", icon: LogIn, path: "Login" },
     { name: "Kids Home", icon: Home, path: "Home" },
-    { name: "Kids Zone", icon: Star, path: "KidsZone" },
+    { name: "Kids Zone", icon: Star, external: true, url: "https://kidsquiz2.vercel.app/" },
     { name: "Games", icon: Gamepad2, path: "Games" },
     { name: "Daily Missions", icon: Target, path: "DailyMissions" },
     { name: "My Rewards", icon: Trophy, path: "MyRewards" },
@@ -263,22 +254,21 @@ export default function Layout({ children, currentPageName }) {
   const kidsNames = ["Kids Home", "Kids Zone", "Games", "Stories", "Videos", "Leaderboard"];
   const quranItem = navItemsWithPrivacy.find((i) => i.name === "Quran");
   const learnItem = navItemsWithPrivacy.find((i) => i.name === "Learn");
-  const baseLinks = navItemsWithPrivacy.filter((i) => !i.dropdown && !i.external && i.name !== "Quran" && i.name !== "Learn");
-  const kidsLinks = baseLinks.filter((i) => kidsNames.includes(i.name));
-  const moreLinks = baseLinks.filter((i) => !kidsNames.includes(i.name));
-  const externalLinks = navItemsWithPrivacy.filter((i) => i.external);
+  const allItems = navItemsWithPrivacy.filter((i) => !i.dropdown && i.name !== "Quran" && i.name !== "Learn");
+  const kidsLinks = allItems.filter((i) => kidsNames.includes(i.name));
+  const moreLinks = allItems.filter((i) => !kidsNames.includes(i.name));
+
   const groups = [
     { title: "Kids", entries: kidsLinks },
     { title: "Quran", entries: quranItem?.dropdown || [] },
     { title: "Learn", entries: learnItem?.dropdown || [] },
-    { title: "More", entries: [...moreLinks, ...externalLinks] },
+    { title: "More", entries: moreLinks },
   ];
   const flatEntries = [
     ...kidsLinks,
     ...((quranItem?.dropdown || []).map((e) => ({ ...e, _isSub: true }))),
     ...((learnItem?.dropdown || []).map((e) => ({ ...e, _isSub: true }))),
     ...moreLinks,
-    ...externalLinks,
   ];
 
   const radioContextValue = {
@@ -345,14 +335,6 @@ export default function Layout({ children, currentPageName }) {
                       <Home className="w-4 h-4" />
                       Home
                     </Link>
-                    <Link to={createPageUrl("Signup")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-blue-700 bg-white border-2 border-blue-600 hover:bg-blue-50 shadow">
-                      <UserPlus className="w-4 h-4" />
-                      Sign Up
-                    </Link>
-                    <Link to={createPageUrl("Login")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow">
-                      <LogIn className="w-4 h-4" />
-                      Sign In
-                    </Link>
                   </>
                 ) : (
                   <>
@@ -371,6 +353,10 @@ export default function Layout({ children, currentPageName }) {
                       <BarChart2 className="w-4 h-4" />
                       Leaderboard
                     </Link>
+                    <button type="button" onClick={handleLogout} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 shadow">
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </button>
                   </>
                 )}
               </div>
@@ -442,6 +428,21 @@ export default function Layout({ children, currentPageName }) {
                   );
                 }
                 
+                if (item.external && item.url) {
+                  return (
+                    <a
+                      key={item.name}
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg whitespace-nowrap transition-all flex-shrink-0 text-gray-700 hover:bg-gray-100"
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="text-sm font-medium">{item.name}</span>
+                    </a>
+                  );
+                }
+                
                 return (
                   <Link
                     key={item.path}
@@ -495,18 +496,7 @@ export default function Layout({ children, currentPageName }) {
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="mb-4 flex items-center gap-2">
-                    <Link to={createPageUrl("Signup")} onClick={handleMobileLinkClick} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow">
-                      <UserPlus className="w-4 h-4" />
-                      Sign Up
-                    </Link>
-                    <Link to={createPageUrl("Login")} onClick={handleMobileLinkClick} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-blue-700 bg-white border-2 border-blue-600 hover:bg-blue-50 shadow">
-                      <LogIn className="w-4 h-4" />
-                      Sign In
-                    </Link>
-                  </div>
-                )}
+                ) : null}
 
                 <div className="mb-3">
                   <Input

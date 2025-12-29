@@ -19,7 +19,7 @@ export default function CompleteProfile() {
         const { auth, db } = getFirebase();
         const user = auth?.currentUser;
         if (!user) {
-          navigate(createPageUrl("Login"));
+          navigate(createPageUrl("Home"));
           return;
         }
         if (!db) {
@@ -55,7 +55,7 @@ export default function CompleteProfile() {
       const { auth, db } = getFirebase();
       const user = auth?.currentUser;
       if (!user) {
-        navigate(createPageUrl("Login"));
+        navigate(createPageUrl("Home"));
         return;
       }
       if (!db) {
@@ -120,4 +120,3 @@ export default function CompleteProfile() {
     </div>
   );
 }
-

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { awardPointsForGame } from "@/api/points";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,11 +22,9 @@ import {
   Clock,
   Target,
   Sparkles,
-  ArrowRight,
-  X,
-  LogIn
+  X
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 
 const categoryColors = {
@@ -54,21 +52,6 @@ const moduleIcons = {
   reading: BookOpen
 };
 
-// Map resource IDs to actual game/page routes
-const resourceRoutes = {
-  islamic_quiz: "Games",
-  seerah_game: "Games",
-  quran_game: "Games",
-  word_search: "Games",
-  ayat_explorer: "Games",
-  memory_match: "Games",
-  hadith_game: "Games",
-  sahabah_arena: "Games",
-  fiqh_game: "Games",
-  matching_pairs_iman: "Games",
-  maze_of_guidance: "Games",
-  quest_for_ilm: "Games",
-};
 
 export default function LearningPaths() {
   const [user, setUser] = useState(null);
@@ -77,6 +60,106 @@ export default function LearningPaths() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const userKey = user?.id ? String(user.id) : "guest";
+
+  const localPaths = [
+    {
+      id: "lp_quran_basics",
+      title: "Quran Basics",
+      description: "Learn essential Quran knowledge",
+      category: "quran",
+      difficulty_level: "beginner",
+      estimated_duration: "20 min",
+      completion_points: 50,
+      completion_badge: "Quran Starter",
+      icon: "📖",
+      modules: [
+        { id: "m_qb_reading", type: "reading", title: "What is the Quran?", description: "Introduction" },
+        { id: "m_qb_video", type: "video", title: "Short Video", description: "Overview" },
+        { id: "m_qb_quiz", type: "quiz", title: "Quick Quiz", description: "Test your knowledge" }
+      ]
+    },
+    {
+      id: "lp_hadith_essentials",
+      title: "Hadith Essentials",
+      description: "Core hadith concepts",
+      category: "hadith",
+      difficulty_level: "beginner",
+      estimated_duration: "20 min",
+      completion_points: 50,
+      completion_badge: "Hadith Starter",
+      icon: "📜",
+      modules: [
+        { id: "m_he_reading", type: "reading", title: "What are Hadith?", description: "Basics" },
+        { id: "m_he_audio", type: "audio", title: "Listen & Learn", description: "Key terms" },
+        { id: "m_he_quiz", type: "quiz", title: "Quick Quiz", description: "Test yourself" }
+      ]
+    },
+    {
+      id: "lp_seerah_highlights",
+      title: "Seerah Highlights",
+      description: "Life of the Prophet ﷺ",
+      category: "seerah",
+      difficulty_level: "beginner",
+      estimated_duration: "25 min",
+      completion_points: 60,
+      completion_badge: "Seerah Explorer",
+      icon: "🕌",
+      modules: [
+        { id: "m_sh_reading", type: "reading", title: "Early Life", description: "Key events" },
+        { id: "m_sh_video", type: "video", title: "Migration (Hijrah)", description: "Timeline" },
+        { id: "m_sh_quiz", type: "quiz", title: "Quick Quiz", description: "Check learning" }
+      ]
+    },
+    {
+      id: "lp_fiqh_basics",
+      title: "Fiqh Basics",
+      description: "Foundations of worship",
+      category: "fiqh",
+      difficulty_level: "beginner",
+      estimated_duration: "20 min",
+      completion_points: 50,
+      completion_badge: "Fiqh Starter",
+      icon: "🤲",
+      modules: [
+        { id: "m_fb_reading", type: "reading", title: "The Five Prayers", description: "Overview" },
+        { id: "m_fb_audio", type: "audio", title: "Wudu Steps", description: "Practice" },
+        { id: "m_fb_quiz", type: "quiz", title: "Quick Quiz", description: "Verify" }
+      ]
+    },
+    {
+      id: "lp_akhlaq_manners",
+      title: "Akhlaq & Manners",
+      description: "Character building",
+      category: "akhlaq",
+      difficulty_level: "beginner",
+      estimated_duration: "20 min",
+      completion_points: 50,
+      completion_badge: "Good Character",
+      icon: "💎",
+      modules: [
+        { id: "m_am_reading", type: "reading", title: "Truthfulness", description: "Value" },
+        { id: "m_am_video", type: "video", title: "Helping Others", description: "Examples" },
+        { id: "m_am_quiz", type: "quiz", title: "Quick Quiz", description: "Assess" }
+      ]
+    },
+    {
+      id: "lp_prophets_of_allah",
+      title: "Prophets of Allah",
+      description: "Stories and lessons",
+      category: "prophets",
+      difficulty_level: "beginner",
+      estimated_duration: "25 min",
+      completion_points: 60,
+      completion_badge: "Stories Learner",
+      icon: "✨",
+      modules: [
+        { id: "m_pa_reading", type: "reading", title: "Prophet Ibrahim", description: "Key story" },
+        { id: "m_pa_audio", type: "audio", title: "Prophet Musa", description: "Highlights" },
+        { id: "m_pa_quiz", type: "quiz", title: "Quick Quiz", description: "Recap" }
+      ]
+    }
+  ];
 
   useEffect(() => {
     loadUser();
@@ -90,8 +173,7 @@ export default function LearningPaths() {
         const userData = await base44.auth.me();
         setUser(userData);
       }
-    } catch (error) {
-      console.log("User not authenticated");
+    } catch {
       setIsAuthenticated(false);
     }
   };
@@ -100,8 +182,11 @@ export default function LearningPaths() {
   const { data: paths = [], isLoading: pathsLoading } = useQuery({
     queryKey: ['learning-paths'],
     queryFn: async () => {
-      const allPaths = await base44.entities.LearningPath.list('order');
-      return allPaths;
+      try {
+        const allPaths = await base44.entities.LearningPath.list('order');
+        if (Array.isArray(allPaths) && allPaths.length) return allPaths;
+      } catch { void 0; }
+      return localPaths;
     },
     initialData: [],
   });
@@ -157,7 +242,7 @@ export default function LearningPaths() {
       if (isCompleted && user) {
         try {
           await awardPointsForGame(user, 'learning_path', { fallbackScore: path.completion_points || 50, metadata: { path_id: path.id } });
-        } catch {}
+        } catch { void 0; }
       }
 
       return { isCompleted, completionPercentage };
@@ -168,67 +253,104 @@ export default function LearningPaths() {
     }
   });
 
+  const getLocalProgressMap = () => {
+    try {
+      const raw = localStorage.getItem(`lp_progress_${userKey}`);
+      const obj = raw ? JSON.parse(raw) : {};
+      return obj && typeof obj === 'object' ? obj : {};
+    } catch {
+      return {};
+    }
+  };
+  const setLocalProgressMap = (next) => {
+    try {
+      localStorage.setItem(`lp_progress_${userKey}`, JSON.stringify(next || {}));
+    } catch { void 0; }
+  };
   const getPathProgress = (pathId) => {
-    return userProgress.find(p => p.path_id === pathId);
+    if (isAuthenticated) return userProgress.find(p => p.path_id === pathId);
+    const map = getLocalProgressMap();
+    const p = map[pathId];
+    if (!p) return undefined;
+    return p;
   };
 
   const handleStartPath = async (path) => {
     if (!isAuthenticated) {
-      const subject = encodeURIComponent("Access Request - Learning Paths");
-      const body = encodeURIComponent("Hi, I'd like to access Learning Paths on Islam Kids Zone. My name is ____ and my contact details are ____.");
-      window.location.href = `mailto:imediac786@gmail.com?subject=${subject}&body=${body}`;
+      const map = getLocalProgressMap();
+      if (!map[path.id]) {
+        map[path.id] = {
+          path_id: path.id,
+          status: "in_progress",
+          started_date: new Date().toISOString(),
+          completed_modules: [],
+          completion_percentage: 0,
+          current_module_index: 0
+        };
+        setLocalProgressMap(map);
+      }
+      setSelectedPath(path);
       return;
     }
-
     const progress = getPathProgress(path.id);
-    if (!progress) {
-      await startPathMutation.mutateAsync(path.id);
-    }
+    if (!progress) await startPathMutation.mutateAsync(path.id);
     setSelectedPath(path);
   };
 
-  const handleModuleClick = (module, path) => {
-    // Simply navigate to Games page - all games are accessible there
-    navigate(createPageUrl("Games"));
+  const handleModuleClick = (module) => {
+    const type = String(module?.type || '').toLowerCase();
+    if (type === 'quiz') {
+      navigate(createPageUrl('Quizzes'));
+    } else {
+      navigate(createPageUrl('Games'));
+    }
   };
 
   const handleMarkModuleComplete = async (module, path) => {
     if (!isAuthenticated) {
-      const subject = encodeURIComponent("Access Request - Learning Paths");
-      const body = encodeURIComponent("Hi, I'd like to enable progress tracking in Learning Paths. My name is ____ and my contact details are ____.");
-      window.location.href = `mailto:imediac786@gmail.com?subject=${subject}&body=${body}`;
+      const map = getLocalProgressMap();
+      const p = map[path.id] || {
+        path_id: path.id,
+        status: "in_progress",
+        started_date: new Date().toISOString(),
+        completed_modules: [],
+        completion_percentage: 0,
+        current_module_index: 0
+      };
+      if (p.completed_modules.includes(module.id)) return;
+      const completed = [...p.completed_modules, module.id];
+      const total = (path.modules || []).length;
+      const pct = Math.round((completed.length / Math.max(1, total)) * 100);
+      const done = pct === 100;
+      const next = {
+        ...p,
+        completed_modules: completed,
+        completion_percentage: pct,
+        current_module_index: completed.length,
+        status: done ? "completed" : "in_progress",
+        ...(done ? { completed_date: new Date().toISOString() } : {})
+      };
+      map[path.id] = next;
+      setLocalProgressMap(map);
+      if (done && user) {
+        try {
+          await awardPointsForGame(user, 'learning_path', { fallbackScore: path.completion_points || 50, metadata: { path_id: path.id } });
+        } catch { void 0; }
+      }
       return;
     }
-    
     const progress = getPathProgress(path.id);
     if (!progress) {
-      // Need to start the path first
       await startPathMutation.mutateAsync(path.id);
-      // Wait for query cache to update and then find the new progress, or refetch
-      // Invalidate queries to ensure `userProgress` is fresh
       await queryClient.invalidateQueries({ queryKey: ['user-path-progress'] });
-      // Re-fetch progress to get the newly created entry
-      const updatedUserProgress = await base44.entities.UserPathProgress.filter({ 
-        user_id: user.id, 
-        path_id: path.id 
-      });
+      const updatedUserProgress = await base44.entities.UserPathProgress.filter({ user_id: user.id, path_id: path.id });
       if (updatedUserProgress.length === 0) return;
-      
-      await completeModuleMutation.mutateAsync({
-        progressId: updatedUserProgress[0].id,
-        moduleId: module.id,
-        path: path
-      });
-    } else {
-      const isAlreadyCompleted = progress.completed_modules?.includes(module.id);
-      if (isAlreadyCompleted) return;
-
-      await completeModuleMutation.mutateAsync({
-        progressId: progress.id,
-        moduleId: module.id,
-        path: path
-      });
+      await completeModuleMutation.mutateAsync({ progressId: updatedUserProgress[0].id, moduleId: module.id, path });
+      return;
     }
+    const isAlreadyCompleted = progress.completed_modules?.includes(module.id);
+    if (isAlreadyCompleted) return;
+    await completeModuleMutation.mutateAsync({ progressId: progress.id, moduleId: module.id, path });
   };
 
   const categories = [
@@ -275,36 +397,7 @@ export default function LearningPaths() {
           </p>
         </motion.div>
 
-        {/* Access Prompt for Guests */}
-        {!isAuthenticated && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mb-8"
-          >
-            <Card className="border-2 border-blue-300 shadow-lg bg-gradient-to-br from-blue-50 to-purple-50">
-              <CardContent className="p-6 text-center">
-                <LogIn className="w-12 h-12 mx-auto mb-4 text-blue-600" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Request Access to Track Your Learning
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Email us to enable progress tracking, earn badges, and unlock achievements!
-                </p>
-                <Button
-                  onClick={() => {
-                    const subject = encodeURIComponent("Access Request - Learning Paths");
-                    const body = encodeURIComponent("Hi, I'd like to enable Learning Paths tracking on Islam Kids Zone. My name is ____ and my contact details are ____.");
-                    window.location.href = `mailto:imediac786@gmail.com?subject=${subject}&body=${body}`;
-                  }}
-                  className="bg-gradient-to-r from-blue-500 to-purple-500"
-                >
-                  Request Access via Email
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+        {null}
 
         {/* User Stats */}
         {isAuthenticated && user && (

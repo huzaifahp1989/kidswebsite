@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { WORDS, pickRandom } from "@/data/kids_bank";
+import PropTypes from 'prop-types';
 
 export default function WordSearchKids({ onComplete }) {
   const [category, setCategory] = useState(null);
@@ -60,7 +61,7 @@ export default function WordSearchKids({ onComplete }) {
     );
   }
 
-  const size = grid.length;
+  
   const progress = words.length ? (found.length / words.length) * 100 : 0;
 
   return (
@@ -73,9 +74,15 @@ export default function WordSearchKids({ onComplete }) {
         <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden"><div style={{ width: `${progress}%` }} className="h-2 bg-white/70" /></div>
       </CardHeader>
       <CardContent className="p-6">
-        <div className="grid grid-cols-12 gap-1 mb-4">
+        <div className="grid grid-cols-12 gap-1.5 mb-4">
           {grid.map((row, rIdx) => row.map((ch, cIdx) => (
-            <Button key={`${rIdx}-${cIdx}`} onClick={() => clickCell(ch)} className="h-8 w-8 p-0 text-xs bg-white border-2 hover:bg-blue-50">{ch}</Button>
+            <Button
+              key={`${rIdx}-${cIdx}`}
+              onClick={() => clickCell(ch)}
+              className="h-10 w-10 md:h-12 md:w-12 p-0 text-base md:text-lg font-semibold bg-white text-gray-900 border-2 border-gray-300 hover:bg-blue-50 rounded-md shadow-sm"
+            >
+              {ch}
+            </Button>
           )))}
         </div>
         <div className="mb-3 text-sm">Find: {words.map(w => (<span key={w} className={`inline-block mr-2 ${found.includes(w) ? 'line-through text-green-600' : 'text-gray-700'}`}>{w}</span>))}</div>
@@ -86,3 +93,7 @@ export default function WordSearchKids({ onComplete }) {
     </Card>
   );
 }
+
+WordSearchKids.propTypes = {
+  onComplete: PropTypes.func,
+};

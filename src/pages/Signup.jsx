@@ -65,7 +65,7 @@ export default function Signup() {
     setSubmitting(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      const user = await signUp(normalizedEmail, password.trim());
+      const user = await signUp(normalizedEmail, password.trim(), { full_name: fullName.trim() });
       // Try sending a verification email to the new user (optional)
       try { await sendVerification(); setVerificationSent(true); } catch {}
 

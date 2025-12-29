@@ -3,12 +3,11 @@ import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Gamepad2, BookOpen, Headphones, Video, Trophy, Star, Sparkles, Heart, Shield, MessageCircle, ExternalLink, Palette, Newspaper, Target, Award, Users, UserPlus, User, Moon, Play } from "lucide-react";
+import { Gamepad2, BookOpen, Headphones, Video, Trophy, Star, Sparkles, Heart, Shield, MessageCircle, ExternalLink, Palette, Newspaper, Target, Award, Users, UserPlus, User, Moon, Play, Radio, Bell, GraduationCap, Book, BarChart2, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 // import WordPressFeed from "@/components/WordPressFeed";
 import { useState, useEffect } from "react";
 import { sponsorsApi } from "/src/api/firebase";
-import { signUp, saveUserProfile } from "/src/api/firebase";
 import React from "react";
 
 class ErrorBoundary extends React.Component {
@@ -100,6 +99,45 @@ const islamicValues = [
     title: "Safety & Security",
     description: "A safe environment for children",
     color: "text-blue-500"
+  }
+];
+
+const navGroups = [
+  {
+    title: "Fun & Play",
+    items: [
+      { name: "Kids Zone", icon: Star, external: true, url: "https://kidsquiz2.vercel.app/", color: "bg-amber-100 text-amber-600" },
+      { name: "Games", icon: Gamepad2, path: "Games", color: "bg-blue-100 text-blue-600" },
+      { name: "Daily Missions", icon: Target, path: "DailyMissions", color: "bg-green-100 text-green-600" },
+      { name: "Competition", icon: Trophy, path: "Competition", color: "bg-purple-100 text-purple-600" },
+    ]
+  },
+  {
+    title: "Learn & Watch",
+    items: [
+      { name: "Stories", icon: BookOpen, path: "Stories", color: "bg-rose-100 text-rose-600" },
+      { name: "Videos", icon: Video, path: "Videos", color: "bg-indigo-100 text-indigo-600" },
+      { name: "Recording Studio", icon: Radio, path: "KidsRecordingStudio", color: "bg-pink-100 text-pink-600" },
+      { name: "99 Names", icon: Star, path: "LearningLibrary", color: "bg-teal-100 text-teal-600" },
+    ]
+  },
+  {
+    title: "Quran & Deen",
+    items: [
+      { name: "Full Quran", icon: Book, path: "FullQuran", color: "bg-emerald-100 text-emerald-600" },
+      { name: "Learn Quran", icon: BookOpen, path: "Quran", color: "bg-cyan-100 text-cyan-600" },
+      { name: "Hadith", icon: Newspaper, path: "Hadith", color: "bg-orange-100 text-orange-600" },
+      { name: "Hifz", icon: BarChart2, path: "HifzDashboard", color: "bg-lime-100 text-lime-600" },
+    ]
+  },
+  {
+    title: "Community",
+    items: [
+      { name: "Leaderboard", icon: Trophy, path: "Leaderboard", color: "bg-yellow-100 text-yellow-600" },
+      { name: "My Rewards", icon: Award, path: "MyRewards", color: "bg-fuchsia-100 text-fuchsia-600" },
+      { name: "Parents Zone", icon: Users, path: "ParentZone", color: "bg-slate-100 text-slate-600" },
+      { name: "WhatsApp", icon: MessageCircle, path: "WhatsAppChannel", color: "bg-green-100 text-green-600" },
+    ]
   }
 ];
 
@@ -248,123 +286,11 @@ export default function Home() {
     );
   }
 
-  function InlineSignupForm() {
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
-    const [terms, setTerms] = useState(false);
-    const [honeypot, setHoneypot] = useState("");
-    const [submitting, setSubmitting] = useState(false);
-    const [success, setSuccess] = useState(false);
-    const [errorMsg, setErrorMsg] = useState("");
-
-    const sanitizeEmail = (v) => String(v || "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim().toLowerCase();
-    const validateEmail = (v) => {
-      const s = sanitizeEmail(v);
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
-    };
-    const validatePassword = (v) => {
-      const s = String(v || "");
-      if (s.length < 8) return false;
-      if (!/[A-Z]/.test(s)) return false;
-      if (!/[a-z]/.test(s)) return false;
-      if (!/[0-9]/.test(s)) return false;
-      if (!/[!@#$%^&*(),.?":{}|<>\-_/]/.test(s)) return false;
-      return true;
-    };
-    const validate = () => {
-      const errs = [];
-      if (!firstName.trim()) errs.push("First name is required");
-      if (!lastName.trim()) errs.push("Last name is required");
-      if (!email.trim() || !validateEmail(email)) errs.push("Enter a valid email address");
-      if (!password || !validatePassword(password)) errs.push("Password must be 8+ chars with upper, lower, number, symbol");
-      if (password !== confirmPassword) errs.push("Passwords do not match");
-      if (!terms) errs.push("You must accept the terms and conditions");
-      if (honeypot) errs.push("Invalid form submission");
-      return errs;
-    };
-
-    const onSubmit = async (e) => {
-      e.preventDefault();
-      setErrorMsg("");
-      const errs = validate();
-      if (errs.length) { setErrorMsg(errs[0]); return; }
-      setSubmitting(true);
-      try {
-        const normalizedEmail = sanitizeEmail(email);
-        const user = await signUp(normalizedEmail, password);
-        try { await saveUserProfile(user.id, { full_name: `${firstName.trim()} ${lastName.trim()}`.trim(), email: normalizedEmail }); } catch {}
-        try {
-          const endpoint = import.meta.env?.DEV ? '/.netlify/functions/signupNotify' : '/api/signupNotify';
-          await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: normalizedEmail, honeypot }),
-          });
-        } catch (_) {}
-        setSuccess(true);
-      } catch (e) {
-        const m = String(e?.message || e || "");
-        if (m.toLowerCase().includes("already") || m.toLowerCase().includes("exists") || m.toLowerCase().includes("registered")) {
-          setErrorMsg("This email is already registered");
-        } else {
-          setErrorMsg("Failed to sign up. Please try again");
-        }
-      } finally {
-        setSubmitting(false);
-      }
-    };
-
-    return (
-      <form onSubmit={onSubmit} noValidate className="bg-white rounded-2xl border-2 border-blue-200 p-6 shadow">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">First name</label>
-            <input id="firstName" type="text" value={firstName} onChange={(e)=>setFirstName(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring" required />
-          </div>
-          <div>
-            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">Last name</label>
-            <input id="lastName" type="text" value={lastName} onChange={(e)=>setLastName(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring" required />
-          </div>
-        </div>
-        <div className="mt-4">
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email address</label>
-        <input id="email" type="email" inputMode="email" autoComplete="email" autoCorrect="off" autoCapitalize="none" value={email} onChange={(e)=>setEmail(e.target.value)} onBlur={(e)=>setEmail(sanitizeEmail(e.target.value))} className="mt-1 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring" required />
-        </div>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-            <input id="password" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring" required />
-            <div className="mt-1 text-xs text-gray-500">Use 8+ chars with upper, lower, number, symbol</div>
-          </div>
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">Confirm password</label>
-            <input id="confirmPassword" type="password" value={confirmPassword} onChange={(e)=>setConfirmPassword(e.target.value)} className="mt-1 w-full rounded-md border px-3 py-2 focus:outline-none focus:ring" required />
-          </div>
-        </div>
-        <div className="mt-4">
-          <label htmlFor="terms" className="inline-flex items-center gap-2 text-sm text-gray-700">
-            <input id="terms" type="checkbox" checked={terms} onChange={(e)=>setTerms(e.target.checked)} className="rounded" />
-            I agree to the Terms & Conditions
-          </label>
-        </div>
-        <input aria-hidden="true" tabIndex="-1" type="text" value={honeypot} onChange={(e)=>setHoneypot(e.target.value)} className="hidden" />
-        {errorMsg ? <div className="mt-4 text-sm text-red-600">{errorMsg}</div> : null}
-      {success ? <div className="mt-4 text-sm text-green-600">Registration successful. A confirmation has been sent, and the admin has been notified.</div> : null}
-        <div className="mt-6">
-          <Button type="submit" disabled={submitting} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700">
-            {submitting ? "Signing up..." : "Sign Up"}
-          </Button>
-        </div>
-      </form>
-    );
-  }
 
   return (
     <ErrorBoundary>
     <div className="min-h-screen bg-white">
+      
       {/* WhatsApp Chat Button */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -395,6 +321,18 @@ export default function Home() {
             <div className="mt-4 text-base md:text-lg text-gray-600 max-w-3xl mx-auto">
               Explore interactive Islamic games, stories, quizzes, and fun learning activities designed just for kids.
             </div>
+            <div className="mt-5 w-full max-w-2xl mx-auto">
+              <a href={createPageUrl("Competition")} className="block rounded-2xl border-2 border-white/30 bg-gradient-to-r from-blue-600 to-purple-600 p-4 md:p-5 text-white shadow hover:shadow-lg transition">
+                <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+                  <Trophy className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <div className="sm:flex-1 min-w-0 text-center sm:text-left">
+                    <div className="text-sm sm:text-base font-semibold">Enter the competition to win amazing prizes</div>
+                    <div className="text-xs text-white/85">Competition is live till Feb 2026</div>
+                  </div>
+                  <Button className="w-full sm:w-auto sm:ml-auto mt-2 sm:mt-0 bg-white text-purple-700 hover:bg-blue-50">Enter Now</Button>
+                </div>
+              </a>
+            </div>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <a href={createPageUrl("Games")}><Button className="rounded-full px-6 bg-blue-600 hover:bg-blue-700">Play Games</Button></a>
               <a href={createPageUrl("Stories")}><Button className="rounded-full px-6 bg-purple-600 hover:bg-purple-700">Read Stories</Button></a>
@@ -414,32 +352,46 @@ export default function Home() {
       
       <section className="px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-4">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Quick Access</h2>
+          <div className="text-center mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Explore Kids Zone</h2>
+            <p className="text-gray-600 mt-2">Find everything you need to learn and play</p>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:gap-6 justify-center">
-            <a href={createPageUrl("KidsZone")} className="group flex flex-col items-center">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-amber-100 shadow-md flex items-center justify-center transition-transform group-hover:scale-[1.03]">
-                <Moon className="w-10 h-10 sm:w-12 sm:h-12 text-amber-600" />
+          
+          <div className="space-y-8">
+            {navGroups.map((group, groupIndex) => (
+              <div key={groupIndex}>
+                <h3 className="text-xl font-bold text-gray-800 mb-4 px-2">{group.title}</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {group.items.map((item, index) => (
+                    <div key={index} className="h-full">
+                      {item.external ? (
+                        <a 
+                          href={item.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="group flex flex-col items-center p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-full"
+                        >
+                          <div className={`w-14 h-14 rounded-2xl ${item.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                            <item.icon className="w-7 h-7" />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-800 text-center">{item.name}</span>
+                        </a>
+                      ) : (
+                        <a 
+                          href={createPageUrl(item.path)}
+                          className="group flex flex-col items-center p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 h-full"
+                        >
+                          <div className={`w-14 h-14 rounded-2xl ${item.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                            <item.icon className="w-7 h-7" />
+                          </div>
+                          <span className="text-sm font-semibold text-gray-800 text-center">{item.name}</span>
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="mt-3 text-sm sm:text-base font-semibold text-gray-800">Kids Zone</div>
-            </a>
-
-            <a href={createPageUrl("Videos")} className="group flex flex-col items-center">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-purple-100 shadow-md flex items-center justify-center transition-transform group-hover:scale-[1.03]">
-                <Play className="w-10 h-10 sm:w-12 sm:h-12 text-purple-600" />
-              </div>
-              <div className="mt-3 text-sm sm:text-base font-semibold text-gray-800">Videos</div>
-            </a>
-          </div>
-
-          <div className="mt-6 flex items-center justify-center gap-3 sm:gap-4">
-            <a href={createPageUrl("Signup")}>
-              <Button className="rounded-full px-6 bg-blue-600 hover:bg-blue-700">Sign Up</Button>
-            </a>
-            <a href={createPageUrl("Login")}>
-              <Button className="rounded-full px-6 bg-purple-600 hover:bg-purple-700">Sign In</Button>
-            </a>
+            ))}
           </div>
         </div>
       </section>
@@ -623,7 +575,7 @@ export default function Home() {
               Start Your Islamic Learning Journey Today
             </h2>
             <p className="text-lg md:text-xl text-blue-100 mb-8">
-              Join thousands of children learning about Islam through our engaging platform
+              Explore games, stories, and quizzes — no sign-up required
             </p>
             <a href={createPageUrl("Games")}>
               <Button size="lg" className="bg-white text-purple-600 hover:bg-blue-50 text-base md:text-lg px-8 md:px-12 py-4 md:py-6 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
@@ -634,18 +586,7 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-      <section className="py-12 px-4 bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="max-w-3xl mx-auto">
-          <div className="mb-6 text-center">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Create Your Account</h2>
-            <p className="text-sm text-gray-600">Join thousands of children learning about Islam through our engaging platform</p>
-          </div>
-          <noscript>
-            <div className="mb-4 p-3 rounded border bg-white text-sm text-gray-700">JavaScript is required to sign up. Please enable JavaScript in your browser.</div>
-          </noscript>
-          <InlineSignupForm />
-        </div>
-      </section>
+      
     </div>
     </ErrorBoundary>
   );

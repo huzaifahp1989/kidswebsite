@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { supabase } from '@/api/supabaseClient'
+import { getFirebase } from '@/api/firebase'
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 // import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,68 +72,25 @@ export default function AdminAudioContent() {
   const { data: audioContent = [], isLoading } = useQuery({
     queryKey: ['audio-content-storage'],
     queryFn: async () => {
-      let files = []
-      let rows = []
-      try {
-        const storage = await supabase.storage.from('audio').list('', { limit: 500 })
-        files = Array.isArray(storage?.data) ? storage.data : []
-      } catch {}
-      try {
-        const meta = await supabase.from('audio_content').select('*')
-        rows = Array.isArray(meta?.data) ? meta.data : []
-      } catch {}
       try {
         const raw = localStorage.getItem('audio_content_local')
         const localRows = raw ? JSON.parse(raw) : []
-        if (Array.isArray(localRows) && localRows.length) rows = [...rows, ...localRows]
-      } catch {}
-      const metaMap = new Map(rows.map(m => [m.slug || m.title, m]))
-      return files.map(f => {
-        const pub = supabase.storage.from('audio').getPublicUrl(f.name)?.data?.publicUrl || ''
-        const base = f.name.replace(/\.[^/.]+$/, '')
-        const m = metaMap.get(base) || {}
-        return {
-          id: m.id || `storage_${f.id || f.name}`,
-          title: m.title || base,
-          slug: base,
-          mp3_url: m.mp3_url || pub,
-          cover_image: m.cover_image || '',
-          description: m.description || '',
-          category: m.category || 'nasheed',
-          age_group: m.age_group || 'all',
-          status: 'active',
-          plays_count: m.plays_count || 0,
-          language: m.language || 'English',
-          duration: m.duration || '',
-          featured: !!m.featured,
-          subcategory: m.subcategory || '',
-        }
-      })
+        return Array.isArray(localRows) ? localRows : []
+      } catch { return [] }
     },
     initialData: [],
   });
   
   const createAudioMutation = useMutation({
     mutationFn: async (data) => {
-      try {
-        const { data: userData } = await supabase.auth.getUser()
-        const uid = userData?.user?.id
-        if (!uid) throw new Error('Admin login required')
-        const row = { ...data, owner_id: uid }
-        const { error } = await supabase.from('audio_content').insert(row)
-        if (error) throw error
-        return true
-      } catch (err) {
-        try {
-          const raw = localStorage.getItem('audio_content_local')
-          const arr = raw ? JSON.parse(raw) : []
-          const id = `local_${Date.now()}`
-          arr.push({ ...data, id })
-          localStorage.setItem('audio_content_local', JSON.stringify(arr))
-          return true
-        } catch {}
-        throw err
-      }
+      const { auth } = getFirebase();
+      if (!auth?.currentUser?.uid) throw new Error('Admin login required')
+      const raw = localStorage.getItem('audio_content_local')
+      const arr = raw ? JSON.parse(raw) : []
+      const id = `local_${Date.now()}`
+      arr.push({ ...data, id })
+      localStorage.setItem('audio_content_local', JSON.stringify(arr))
+      return true
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['audio-content-storage'] });
@@ -148,24 +105,13 @@ export default function AdminAudioContent() {
   
   const updateAudioMutation = useMutation({
     mutationFn: async ({ slug, data }) => {
-      try {
-        const { data: userData } = await supabase.auth.getUser()
-        const uid = userData?.user?.id
-        if (!uid) throw new Error('Admin login required')
-        const patch = { ...data, owner_id: uid, updated_at: new Date().toISOString() }
-        const { error } = await supabase.from('audio_content').update(patch).eq('slug', slug)
-        if (error) throw error
-        return true
-      } catch (err) {
-        try {
-          const raw = localStorage.getItem('audio_content_local')
-          const arr = raw ? JSON.parse(raw) : []
-          const next = arr.map(it => (it.slug === slug ? { ...it, ...data } : it))
-          localStorage.setItem('audio_content_local', JSON.stringify(next))
-          return true
-        } catch {}
-        throw err
-      }
+      const { auth } = getFirebase();
+      if (!auth?.currentUser?.uid) throw new Error('Admin login required')
+      const raw = localStorage.getItem('audio_content_local')
+      const arr = raw ? JSON.parse(raw) : []
+      const next = arr.map(it => (it.slug === slug ? { ...it, ...data } : it))
+      localStorage.setItem('audio_content_local', JSON.stringify(next))
+      return true
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['audio-content-storage'] });
@@ -181,23 +127,13 @@ export default function AdminAudioContent() {
   
   const deleteAudioMutation = useMutation({
     mutationFn: async (slug) => {
-      try {
-        const { data: userData } = await supabase.auth.getUser()
-        const uid = userData?.user?.id
-        if (!uid) throw new Error('Admin login required')
-        const { error } = await supabase.from('audio_content').delete().eq('slug', slug)
-        if (error) throw error
-        return true
-      } catch (err) {
-        try {
-          const raw = localStorage.getItem('audio_content_local')
-          const arr = raw ? JSON.parse(raw) : []
-          const next = arr.filter(it => it.slug !== slug)
-          localStorage.setItem('audio_content_local', JSON.stringify(next))
-          return true
-        } catch {}
-        throw err
-      }
+      const { auth } = getFirebase();
+      if (!auth?.currentUser?.uid) throw new Error('Admin login required')
+      const raw = localStorage.getItem('audio_content_local')
+      const arr = raw ? JSON.parse(raw) : []
+      const next = arr.filter(it => it.slug !== slug)
+      localStorage.setItem('audio_content_local', JSON.stringify(next))
+      return true
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['audio-content-storage'] });
@@ -220,16 +156,9 @@ export default function AdminAudioContent() {
       const base = (formData.slug || formData.title || file.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const ext = file.name.includes('.') ? file.name.split('.').pop() : 'mp3';
       const path = `${base}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('audio').upload(path, file, { contentType: file.type, upsert: true });
-      if (upErr) {
-        const url = URL.createObjectURL(file);
-        setFormData({ ...formData, mp3_url: url });
-        alert('Local preview set. Configure Supabase to persist uploads.');
-        return;
-      }
-      const pub = supabase.storage.from('audio').getPublicUrl(path)?.data?.publicUrl || '';
-      setFormData({ ...formData, mp3_url: pub, slug: base });
-      alert('Audio uploaded');
+      const url = URL.createObjectURL(file);
+      setFormData({ ...formData, mp3_url: url, slug: base });
+      alert('Audio preview ready');
     } catch {
       const url = URL.createObjectURL(file);
       setFormData({ ...formData, mp3_url: url });
@@ -251,16 +180,9 @@ export default function AdminAudioContent() {
       const base = (formData.slug || formData.title || file.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const ext = file.name.includes('.') ? file.name.split('.').pop() : 'jpg';
       const path = `${base}-cover.${ext}`;
-      const { error: upErr } = await supabase.storage.from('audio').upload(path, file, { contentType: file.type, upsert: true });
-      if (upErr) {
-        const url = URL.createObjectURL(file);
-        setFormData({ ...formData, cover_image: url });
-        alert('Local preview set. Configure Supabase to persist uploads.');
-        return;
-      }
-      const pub = supabase.storage.from('audio').getPublicUrl(path)?.data?.publicUrl || '';
-      setFormData({ ...formData, cover_image: pub, slug: base });
-      alert('Image uploaded');
+      const url = URL.createObjectURL(file);
+      setFormData({ ...formData, cover_image: url, slug: base });
+      alert('Image preview ready');
     } catch {
       const url = URL.createObjectURL(file);
       setFormData({ ...formData, cover_image: url });
@@ -395,23 +317,8 @@ export default function AdminAudioContent() {
           <div className="mt-4 flex justify-center gap-2">
             <Button
               variant="outline"
-              onClick={async () => {
-                try {
-                  const { data: files, error } = await supabase.storage.from('audio').list('', { limit: 500 })
-                  if (error) { alert('Storage list failed'); return }
-                  const rows = (files || []).map(f => {
-                    const pub = supabase.storage.from('audio').getPublicUrl(f.name)?.data?.publicUrl || ''
-                    const base = f.name.replace(/\.[^/.]+$/, '')
-                    return { title: base, slug: base, mp3_url: pub, category: 'nasheed', age_group: 'all', language: 'English' }
-                  })
-                  if (rows.length === 0) { alert('No files found'); return }
-                  const { error: upErr } = await supabase.from('audio_content').upsert(rows, { onConflict: 'slug' })
-                  if (upErr) { alert('Upsert failed'); return }
-                  alert('Synced storage files into audio_content')
-                  queryClient.invalidateQueries({ queryKey: ['audio-content-storage'] })
-                } catch {
-                  alert('Import failed');
-                }
+              onClick={() => {
+                alert('Supabase storage sync is disabled. Use local uploads or Firebase Storage.');
               }}
             >
               Sync From Supabase Storage

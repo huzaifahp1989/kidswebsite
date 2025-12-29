@@ -1,154 +1,108 @@
-import { supabase } from '@/api/supabaseClient'
+import { auth, db } from '../lib/firebase'
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth'
+import { doc, setDoc, getDoc, updateDoc, collection, addDoc, query, orderBy, getDocs, deleteDoc } from 'firebase/firestore'
 
-const useBackend = String(import.meta.env.VITE_USE_BACKEND || '').toLowerCase() === 'true' || String(import.meta.env.VITE_USE_BACKEND || '') === '1'
+ 
 
 export function getFirebase() {
-  const authWrapper = {
-    get currentUser() {
-      // This will be populated by the auth state listener
-      return null
-    }
-  }
-  return { app: true, auth: authWrapper, db: null }
+  return { app: true, auth, db }
 }
 
 export async function signIn(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) throw error
-  return data.user
+  const res = await signInWithEmailAndPassword(auth, email, password)
+  return { id: res.user.uid, uid: res.user.uid, email: res.user.email || '' }
 }
 
 export async function adminSignIn(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  if (error) throw error
-  return data.user
+  const res = await signInWithEmailAndPassword(auth, email, password)
+  return { id: res.user.uid, uid: res.user.uid, email: res.user.email || '' }
 }
 
 export async function adminSignOut() {
-  await supabase.auth.signOut()
+  await auth.signOut()
 }
 
-export async function signUp(email, password) {
-  const { data, error } = await supabase.auth.signUp({ email, password })
-  if (error) throw error
-  return data.user
+export async function signUp(email, password, metadata = {}) {
+  const res = await createUserWithEmailAndPassword(auth, email, password)
+  const user = res.user
+  const full_name = metadata?.full_name || (email ? String(email).split('@')[0] : '')
+  await setDoc(doc(db, 'users', user.uid), {
+    full_name,
+    email: user.email || email,
+    points: 0,
+    created_at: new Date()
+  })
+  return { id: user.uid, uid: user.uid, email: user.email || email }
 }
 
 export async function saveUserProfile(uid, profile) {
   const src = { ...(profile || {}) }
+  const full_name = src.full_name ?? src.fullName ?? (src.email ? String(src.email).split('@')[0] : '')
   const patch = {
-    id: uid,
-    full_name: src.full_name ?? src.fullName ?? (src.email ? String(src.email).split('@')[0] : ''),
+    full_name,
     email: src.email ?? '',
     age: (src.age != null ? Number(src.age) : null),
     city: src.city ?? null,
     madrasah_maktab: src.madrasah_maktab ?? src.madrasah ?? null,
     avatar: src.avatar ?? null,
     updated_at: new Date().toISOString(),
-    points: (src.points != null ? Number(src.points) : 0),
-    total_points: (src.total_points != null ? Number(src.total_points) : (src.points != null ? Number(src.points) : 0)),
+    points: (src.points != null ? Number(src.points) : undefined),
+    total_points: (src.total_points != null ? Number(src.total_points) : undefined),
   }
-  const { error } = await supabase.from('users').upsert(patch, { onConflict: 'id', ignoreDuplicates: true })
-  if (error) throw error
+  await setDoc(doc(db, 'users', uid), patch, { merge: true })
 }
 
 export async function getUserProfile(uid) {
-  try {
-    const { data, error } = await supabase.from('users').select('*').eq('id', uid).maybeSingle()
-    if (error) {
-      const name = String(error?.name || '')
-      const msg = String(error?.message || '').toLowerCase()
-      if (name === 'AbortError' || msg.includes('abort')) return null
-      throw error
-    }
-    return data
-  } catch (e) {
-    const name = String(e?.name || '')
-    const msg = String(e?.message || '').toLowerCase()
-    if (name === 'AbortError' || msg.includes('abort')) return null
-    throw e
+  const snap = await getDoc(doc(db, 'users', uid))
+  return snap.exists() ? snap.data() : null
+}
+
+export async function ensureUserProfile(uid, email = '') {
+  const ref = doc(db, 'users', uid)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) {
+    await setDoc(ref, { email: email || '', points: 0, created_at: new Date() }, { merge: true })
   }
 }
 
 export function watchAuth(callback) {
-  const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-    const u = session?.user || null
+  if (!auth) {
+    // If Firebase auth is not available, call callback with null immediately
+    callback(null);
+    return () => {}; // Return no-op unsubscribe function
+  }
+  
+  const unsub = onAuthStateChanged(auth, (u) => {
     if (u) {
-      callback({ uid: u.id, email: u.email || '' })
+      try { ensureUserProfile(u.uid, u.email || '') } catch {}
+      callback({ uid: u.uid, email: u.email || '' })
     } else {
       callback(null)
     }
   })
-  return () => { try { sub.subscription?.unsubscribe?.() } catch {} }
+  return () => { try { unsub?.() } catch (e) { console.warn(e) } }
 }
 
 export async function resetPassword(email) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email)
-  if (error) throw error
+  await sendPasswordResetEmail(auth, email)
 }
 
 export async function sendVerification() {
-  return
+  const u = auth.currentUser
+  if (u) {
+    await sendEmailVerification(u)
+  }
 }
 
 // Messages helpers
 export const messagesApi = {
-  async add(message) {
-    if (useBackend) {
-      try {
-        const { data: session } = await supabase.auth.getSession()
-        const token = session?.session?.access_token
-        const endpoint = import.meta.env?.DEV ? '/.netlify/functions/messages' : '/api/messages';
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ message }),
-        });
-        if (!res.ok) throw new Error(`Backend error: ${res.status}`);
-        const data = await res.json();
-        return data;
-      } catch (e) {
-        console.warn('Backend add failed, falling back to Firestore:', e?.message || e);
-      }
-    }
+  async add() {
     return { ok: false }
   },
   async list() {
-    if (useBackend) {
-      try {
-        const { data: session } = await supabase.auth.getSession()
-        const token = session?.session?.access_token
-        const endpoint = import.meta.env?.DEV ? '/.netlify/functions/messages' : '/api/messages';
-        const res = await fetch(endpoint, {
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        });
-        if (!res.ok) throw new Error(`Backend error: ${res.status}`);
-        const data = await res.json();
-        return data;
-      } catch (e) {
-        console.warn('Backend list failed, falling back to Firestore:', e?.message || e);
-      }
-    }
     return []
   },
-  async markRead(id, read = true) {
-    if (useBackend) {
-      try {
-        const { data: session } = await supabase.auth.getSession()
-        const token = session?.session?.access_token
-        const endpoint = import.meta.env?.DEV ? '/.netlify/functions/messages' : '/api/messages';
-        const res = await fetch(endpoint, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ id, read }),
-        });
-        if (!res.ok) throw new Error(`Backend error: ${res.status}`);
-        const data = await res.json();
-        return data;
-      } catch (e) {
-        console.warn('Backend markRead failed, falling back to Firestore:', e?.message || e);
-      }
-    }
+  async markRead() {
     return { ok: false }
   },
 };
@@ -156,61 +110,14 @@ export const messagesApi = {
 // Admin-backed users listing via Netlify function with Firestore fallback
 export const usersApi = {
   async list() {
-    // Try backend (requires VITE_USE_BACKEND and admin auth token)
-    if (useBackend) {
-      try {
-        const { data: session } = await supabase.auth.getSession()
-        const token = session?.session?.access_token
-        const endpoint = import.meta.env?.DEV ? '/.netlify/functions/users' : '/api/users';
-        const res = await fetch(endpoint, {
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        });
-        if (!res.ok) throw new Error(`Backend error: ${res.status}`);
-        const data = await res.json();
-        return data;
-      } catch (e) {
-        console.warn('Backend users list failed, falling back to Supabase:', e?.message || e);
-      }
-    }
-    
-    // Fallback: Fetch users directly from Supabase
     try {
-      console.log('Fetching users from Supabase for leaderboard');
-      
-      // Use raw SQL query to bypass PostgREST schema cache issues
-      const { data, error } = await supabase
-        .rpc('get_users_for_leaderboard');
-
-      if (error) {
-        const sel = await supabase
-          .from('users')
-          .select('id, full_name, email, role, points, total_points, last_award, madrasah_maktab, city, avatar')
-          .order('total_points', { ascending: false })
-          .limit(100);
-        if (sel.error) {
-          try {
-            const arr = JSON.parse(localStorage.getItem('users') || '[]');
-            return arr.map(u => ({
-              id: u.id,
-              uid: u.id,
-              fullName: u.full_name || u.fullName || (u.email || '').split('@')[0] || 'Anonymous',
-              full_name: u.full_name || u.fullName || '',
-              email: u.email || '',
-              role: u.role || 'user',
-              points: Number(u.points || 0),
-              lastAward: u.last_award || null,
-              last_award: u.last_award || null,
-              madrasah_maktab: u.madrasah_maktab || '',
-              city: u.city || '',
-              avatar: u.avatar || '👤',
-            }));
-          } catch {
-            return [];
-          }
-        }
-        const mappedDirect = (sel.data || []).map(u => ({
-          id: u.id,
-          uid: u.id,
+      const q = query(collection(db, 'users'), orderBy('points', 'desc'))
+      const snap = await getDocs(q)
+      return snap.docs.map(d => {
+        const u = d.data()
+        return {
+          id: d.id,
+          uid: d.id,
           fullName: u.full_name || '',
           full_name: u.full_name || '',
           email: u.email || '',
@@ -221,41 +128,26 @@ export const usersApi = {
           madrasah_maktab: u.madrasah_maktab || '',
           city: u.city || '',
           avatar: u.avatar || '👤',
-        }));
-        return mappedDirect;
-      }
-
-      // Map Supabase data to expected format
-      const mapped = (data || []).map(u => ({
-        id: u.id,
-        uid: u.id,
-        fullName: u.full_name || '',
-        full_name: u.full_name || '',
-        email: u.email || '',
-        role: u.role || 'user',
-        points: Number((u.total_points != null ? u.total_points : u.points) || 0),
-        lastAward: u.last_award || null,
-        last_award: u.last_award || null,
-        madrasah_maktab: u.madrasah_maktab || '',
-        city: u.city || '',
-        avatar: u.avatar || '👤',
-      }));
-      
-      console.log(`Fetched ${mapped.length} users from Supabase`);
-      return mapped;
+        }
+      })
     } catch (e) {
-      console.error('Supabase users fetch failed:', e);
-      return [];
+      console.warn('Users list failed:', e?.message || e)
+      return []
     }
   }
 };
+
+export async function getLeaderboard() {
+  const q = query(collection(db, 'users'), orderBy('points', 'desc'))
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
 
 // Quiz submission API
 export const quizApi = {
   async submit({ storyId, answers, score, meta = {} }) {
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      const userEmail = (userData?.user?.email || meta?.email || null)
+      const userEmail = meta?.email || null
       const payload = {
         story_id: storyId,
         answers,
@@ -264,9 +156,8 @@ export const quizApi = {
         meta,
         created_at: new Date().toISOString(),
       }
-      const { data, error } = await supabase.from('quiz_answers').insert(payload).select('id').maybeSingle()
-      if (error) throw error
-      return { id: data?.id || null }
+      const ref = await addDoc(collection(db, 'quiz_answers'), payload)
+      return { id: ref.id }
     } catch (e) {
       try {
         const raw = localStorage.getItem('quizAnswers')
@@ -274,108 +165,53 @@ export const quizApi = {
         arr.push({ storyId, answers, score, meta, id: `local-${Date.now()}` })
         localStorage.setItem('quizAnswers', JSON.stringify(arr))
         return { id: `local-${Date.now()}`, local: true }
-      } catch {}
+      } catch (ee) { console.warn(ee) }
       return { error: String(e?.message || e) }
     }
   }
 }
 
-// Sponsors/Ads helpers (Firestore-backed with localStorage fallback, no backend calls)
-function readLocalSponsors() {
-  try {
-    const raw = localStorage.getItem('local_sponsors');
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalSponsors(items) {
-  try {
-    localStorage.setItem('local_sponsors', JSON.stringify(items));
-  } catch {}
-}
-
-const genLocalId = () => (globalThis.crypto?.randomUUID?.() || `local_${Date.now()}`);
+// Sponsors/Ads helpers (Firestore-backed)
 
 export const sponsorsApi = {
   async add(sponsor) {
-    let db;
-    try {
-      db = getDb();
-    } catch (_) {}
-    if (!db) {
-      const items = readLocalSponsors();
-      const id = genLocalId();
-      const next = [...items, { ...sponsor, _localId: id }];
-      writeLocalSponsors(next);
-      return { id };
-    }
-    const col = collection(db, 'sponsors');
-    const ref = await addDoc(col, sponsor);
-    return { id: ref.id };
+    const ref = await addDoc(collection(db, 'sponsors'), sponsor)
+    return { id: ref.id }
   },
   async list() {
-    let db;
     try {
-      db = getDb();
-    } catch (_) {}
-    if (!db) {
-      return readLocalSponsors();
+      const col = collection(db, 'sponsors')
+      const qy = query(col, orderBy('order', 'asc'))
+      const snap = await getDocs(qy)
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    } catch (e) {
+      console.warn(e)
+      const snap = await getDocs(collection(db, 'sponsors'))
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
     }
-    const col = collection(db, 'sponsors');
-    let snap;
-    try {
-      const q = query(col, orderBy('order', 'asc'));
-      snap = await getDocs(q);
-    } catch {
-      snap = await getDocs(col);
-    }
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
   async update(id, patch) {
-    let db;
-    try {
-      db = getDb();
-    } catch (_) {}
-    if (!db) {
-      const items = readLocalSponsors();
-      const next = items.map(it => {
-        const match = it.id === id || it._localId === id;
-        return match ? { ...it, ...patch } : it;
-      });
-      writeLocalSponsors(next);
-      return { ok: true };
-    }
-    const ref = doc(db, 'sponsors', id);
-    await updateDoc(ref, patch);
+    const ref = doc(db, 'sponsors', id)
+    await updateDoc(ref, patch)
+    return { ok: true }
   },
   async remove(id) {
-    let db;
-    try {
-      db = getDb();
-    } catch (_) {}
-    if (!db) {
-      const items = readLocalSponsors().filter(it => (it.id !== id && it._localId !== id));
-      writeLocalSponsors(items);
-      return { ok: true };
-    }
-    const ref = doc(db, 'sponsors', id);
-    await deleteDoc(ref);
+    const ref = doc(db, 'sponsors', id)
+    await deleteDoc(ref)
+    return { ok: true }
   },
 };
 
 // Upload an image file to Firebase Storage and return a public download URL
-export async function uploadSponsorImage(file, name = '') {
+export async function uploadSponsorImage() {
   throw new Error('Not supported')
 }
 
 // Utility: check if current user is the admin email in env
 export async function isAdminUser() {
-  const { data: session } = await supabase.auth.getSession()
-  const user = session?.session?.user
-  if (!user) return false
-  const adminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
-  const email = String(user.email || '').toLowerCase();
+  const u = auth.currentUser
+  if (!u) return false
+  const adminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase()
+  const email = String(u.email || '').toLowerCase()
   return adminEmail ? email === adminEmail : true
 }

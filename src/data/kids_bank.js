@@ -60,7 +60,7 @@ export const BANK = {
 };
 
 export const WORDS = {
-  prophets: ["Nuh","Yunus","Musa","Ibrahim","Sulaiman","Dawud","Isa","Yusuf","Jibreel"],
+  prophets: ["Nuh","Yunus","Musa","Ibrahim","Sulaiman","Dawud","Isa","Yusuf"],
   quran: ["Fatihah","Baqarah","Yaseen","Kursi","Arabic","Ramadan","Falaq","Naas","Yusuf"],
   seerah: ["Makkah","Hijrah","Badr","Hudaybiyyah","Hira","Madinah","AbuTalib","AbuBakr"],
   akhlaq: ["Kindness","Honesty","Patience","Zakat","Sadaqah","Respect","Tawbah","Cleanliness"]

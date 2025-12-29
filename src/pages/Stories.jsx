@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Headphones, X, Sparkles, Play } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import InteractiveStoryPlayer from "@/components/stories/InteractiveStoryPlayer";
-import { supabase } from "@/api/supabaseClient";
+import { getFirebase } from "@/api/firebase";
 import { awardPointsForGame } from "@/api/points";
 
 const authenticStories = [
@@ -461,8 +461,9 @@ export default function Stories() {
                             const { quizApi } = await import('@/api/firebase')
                             await quizApi.submit({ storyId: 'masjid-smiled', answers: quizAnswers, score, meta: { title: 'The Day the Masjid Smiled' } })
                             try {
-                              const { data: userData } = await supabase.auth.getUser()
-                              const userObj = userData?.user ? { id: userData.user.id, email: userData.user.email } : null
+                              const { auth } = getFirebase();
+                              const u = auth?.currentUser;
+                              const userObj = u ? { id: u.uid, email: u.email || '' } : null;
                               await awardPointsForGame(userObj, 'story_quiz', { isPerfect: score === 10, fallbackScore: score, metadata: { storyId: 'masjid-smiled' } })
                             } catch {}
                             setQuizStatus(`Submitted! Score: ${score}/10`)
@@ -553,8 +554,9 @@ export default function Stories() {
                             const { quizApi } = await import('@/api/firebase')
                             await quizApi.submit({ storyId: 'guest-manners', answers: guestQuizAnswers, score, meta: { title: 'The Guest Who Taught Them Manners' } })
                             try {
-                              const { data: userData } = await supabase.auth.getUser()
-                              const userObj = userData?.user ? { id: userData.user.id, email: userData.user.email } : null
+                              const { auth } = getFirebase();
+                              const u = auth?.currentUser;
+                              const userObj = u ? { id: u.uid, email: u.email || '' } : null;
                               await awardPointsForGame(userObj, 'story_quiz', { isPerfect: score === 10, fallbackScore: score, metadata: { storyId: 'guest-manners' } })
                             } catch {}
                             setGuestQuizStatus(`Submitted! Score: ${score}/10`)

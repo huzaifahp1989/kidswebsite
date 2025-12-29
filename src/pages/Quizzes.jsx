@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import PropTypes from 'prop-types';
 import { awardPointsForGame } from "@/api/points";
 import { watchAuth, getUserProfile } from "@/api/firebase";
 import { useQueryClient } from "@tanstack/react-query";
@@ -7,11 +8,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Clock, Target, Star, CheckCircle2, XCircle, Award, Brain, BookOpen, Users, TrendingUp, Calendar } from "lucide-react";
-import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Clock, Target, Star, CheckCircle2, XCircle, Award, Brain, BookOpen } from "lucide-react";
+// Supabase removed
+ 
 
 const localQuizzes = [
+  {
+    id: "local_aqeedah_1",
+    title: "Aqeedah Basics",
+    description: "Core beliefs in Islam",
+    subject: "Aqeedah",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "🧠",
+    questions: [
+      { id: "aq22", category: "Aqeedah", question: "How many articles of faith are there in Islam?", options: ["4", "5", "6", "10"], correct_answer_index: 2, explanation: "Six articles of faith.", source: "Iman" },
+      { id: "aq23", category: "Aqeedah", question: "Which angel is responsible for blowing the trumpet?", options: ["Jibreel", "Mikail", "Israfeel", "Malik"], correct_answer_index: 2, explanation: "Israfeel blows the trumpet.", source: "Angels" },
+      { id: "aq24", category: "Aqeedah", question: "Belief in Qadr means:", options: ["Angels’ creation", "Fate and destiny", "Prophethood", "Books"], correct_answer_index: 1, explanation: "Belief in divine decree.", source: "Iman" },
+      { id: "aq25", category: "Aqeedah", question: "Who is the leader of all Prophets?", options: ["Musa", "Ibrahim", "Isa", "Muhammad ﷺ"], correct_answer_index: 3, explanation: "Prophet Muhammad ﷺ.", source: "Prophets" }
+    ]
+  },
   {
     id: "local_quran_1",
     title: "Quran Basics",
@@ -23,42 +41,11 @@ const localQuizzes = [
     is_featured: true,
     icon: "📖",
     questions: [
-      {
-        id: "q1",
-        category: "Quran",
-        question: "How many surahs are in the Qur'an?",
-        options: ["110", "112", "113", "114"],
-        correct_answer_index: 3,
-        explanation: "There are 114 surahs.",
-        source: "Basic Quran Facts"
-      },
-      {
-        id: "q2",
-        category: "Quran",
-        question: "Which surah is called The Opening?",
-        options: ["Al-Baqarah", "Al-Fatiha", "An-Nas", "Al-Ikhlas"],
-        correct_answer_index: 1,
-        explanation: "Al-Fatiha is The Opening.",
-        source: "Surah Names"
-      },
-      {
-        id: "q3",
-        category: "Quran",
-        question: "Which surah has Ayat al-Kursi?",
-        options: ["Al-Baqarah", "Al-Imran", "An-Nisa", "Al-Ma'idah"],
-        correct_answer_index: 0,
-        explanation: "Ayat al-Kursi is verse 255 of Al-Baqarah.",
-        source: "Surah Al-Baqarah"
-      },
-      {
-        id: "q4",
-        category: "Quran",
-        question: "Which surah is the shortest?",
-        options: ["Al-Kawthar", "Al-Ikhlas", "Al-Asr", "Al-Falaq"],
-        correct_answer_index: 0,
-        explanation: "Al-Kawthar has 3 verses.",
-        source: "Surah Al-Kawthar"
-      }
+      { id: "q1", category: "Quran", question: "Which Surah was the first revealed in the Qur’an?", options: ["Al-Fatiha", "Al-Muddathir", "Al-‘Alaq", "Al-Baqarah"], correct_answer_index: 2, explanation: "The first revelation was Surah Al-‘Alaq.", source: "Revelation" },
+      { id: "q2", category: "Quran", question: "How many Makki surahs are there?", options: ["86", "28", "100", "72"], correct_answer_index: 0, explanation: "There are 86 Makki surahs.", source: "Makki/Medinan" },
+      { id: "q3", category: "Quran", question: "Which Prophet is mentioned most in the Qur’an?", options: ["Musa", "Muhammad ﷺ", "Ibrahim", "Isa"], correct_answer_index: 0, explanation: "Prophet Musa is mentioned most.", source: "Quran" },
+      { id: "q4", category: "Quran", question: "What does the word “Qur’an” mean?", options: ["Recitation", "Reading", "Writing", "Message"], correct_answer_index: 0, explanation: "Qur’an means recitation.", source: "Definition" },
+      { id: "q5", category: "Quran", question: "Which Surah must be recited in every rak’ah of Salah?", options: ["Al-Falaq", "Al-Fatiha", "Al-Ikhlas", "Al-Kafirun"], correct_answer_index: 1, explanation: "Al-Fatiha is required in each rak’ah.", source: "Salah" }
     ]
   },
   {
@@ -71,42 +58,10 @@ const localQuizzes = [
     bonus_points: 10,
     icon: "📜",
     questions: [
-      {
-        id: "h1",
-        category: "Hadith",
-        question: "Which collection is by Imam Bukhari?",
-        options: ["Sahih Muslim", "Sahih Bukhari", "Sunan Abu Dawud", "Muwatta Malik"],
-        correct_answer_index: 1,
-        explanation: "Sahih Bukhari was compiled by Imam al-Bukhari.",
-        source: "Hadith Collections"
-      },
-      {
-        id: "h2",
-        category: "Hadith",
-        question: "What does 'Sahih' mean in hadith classification?",
-        options: ["Weak", "Sound", "Narration", "Chain"],
-        correct_answer_index: 1,
-        explanation: "Sahih means sound/ authentic.",
-        source: "Hadith Terms"
-      },
-      {
-        id: "h3",
-        category: "Hadith",
-        question: "Which companion narrated many hadiths?",
-        options: ["Abu Hurairah", "Bilal", "Umar", "Ali"],
-        correct_answer_index: 0,
-        explanation: "Abu Hurairah narrated a large number of hadiths.",
-        source: "Companions"
-      },
-      {
-        id: "h4",
-        category: "Hadith",
-        question: "Hadith are sayings of?",
-        options: ["Prophets", "Sahabah", "The Prophet Muhammad ﷺ", "Scholars"],
-        correct_answer_index: 2,
-        explanation: "Hadith are sayings, actions, approvals of the Prophet ﷺ.",
-        source: "Definition"
-      }
+      { id: "h6", category: "Hadith", question: "Which book is the most authentic after the Qur’an?", options: ["Sahih Muslim", "Sunan Abi Dawood", "Sahih Bukhari", "Muwatta Malik"], correct_answer_index: 2, explanation: "Sahih Bukhari is considered most authentic.", source: "Hadith Collections" },
+      { id: "h7", category: "Hadith", question: "The hadith “Actions are judged by intentions” is found in:", options: ["Bukhari & Muslim", "Abu Dawood", "Tirmidhi", "Nasai"], correct_answer_index: 0, explanation: "Reported by Bukhari and Muslim.", source: "Hadith" },
+      { id: "h8", category: "Hadith", question: "What did Prophet ﷺ say is the best charity?", options: ["Helping animals", "Giving secretly", "Sadaqah Jariyah", "Feeding birds"], correct_answer_index: 2, explanation: "Sadaqah Jariyah is ongoing charity.", source: "Charity" },
+      { id: "h9", category: "Hadith", question: "What does the Prophet ﷺ say cannot be removed from the heart once it enters?", options: ["Pride", "Love of Qur’an", "Brotherhood", "Hatred"], correct_answer_index: 0, explanation: "Pride remains unless repented.", source: "Character" }
     ]
   },
   {
@@ -119,10 +74,10 @@ const localQuizzes = [
     bonus_points: 10,
     icon: "🕌",
     questions: [
-      { id: "s1", category: "Seerah", question: "City of birth?", options: ["Medina", "Mecca", "Ta'if", "Jerusalem"], correct_answer_index: 1, explanation: "Born in Mecca.", source: "Seerah" },
-      { id: "s2", category: "Seerah", question: "First revelation surah?", options: ["Al-Alaq", "Al-Fatiha", "Al-Qadr", "Ad-Duha"], correct_answer_index: 0, explanation: "Read: Al-Alaq.", source: "Revelation" },
-      { id: "s3", category: "Seerah", question: "Migration year (Hijrah)?", options: ["610 CE", "622 CE", "630 CE", "632 CE"], correct_answer_index: 1, explanation: "Hijrah occurred in 622 CE.", source: "Timeline" },
-      { id: "s4", category: "Seerah", question: "Battle known for angels' support?", options: ["Uhud", "Badr", "Khandaq", "Hunayn"], correct_answer_index: 1, explanation: "Battle of Badr.", source: "Battles" }
+      { id: "s10", category: "Seerah", question: "How old was the Prophet ﷺ when his mother passed away?", options: ["4", "6", "8", "10"], correct_answer_index: 1, explanation: "Six years old.", source: "Seerah" },
+      { id: "s11", category: "Seerah", question: "Where did Hijrah take the Muslims?", options: ["Badr", "Uhud", "Madinah", "Taif"], correct_answer_index: 2, explanation: "To Madinah.", source: "Hijrah" },
+      { id: "s12", category: "Seerah", question: "What miracle happened during the Battle of the Trench?", options: ["Moon split", "Angels helping", "Rock breaking into sparks", "Water gushed from fingers"], correct_answer_index: 2, explanation: "Rock struck produced sparks and glad tidings.", source: "Trench" },
+      { id: "s13", category: "Seerah", question: "Who was the nurse of the Prophet ﷺ?", options: ["Halimah Sa’diyyah", "Fatimah bint Asad", "Maryah", "Asma bint Abi Bakr"], correct_answer_index: 0, explanation: "Halimah Sa’diyyah was his wet nurse.", source: "Seerah" }
     ]
   },
   {
@@ -135,10 +90,26 @@ const localQuizzes = [
     bonus_points: 10,
     icon: "⚖️",
     questions: [
-      { id: "f1", category: "Fiqh", question: "How many daily prayers?", options: ["3", "4", "5", "6"], correct_answer_index: 2, explanation: "Five daily prayers.", source: "Salah" },
-      { id: "f2", category: "Fiqh", question: "Wudu includes?", options: ["Wash face", "Comb hair", "Eat", "Sleep"], correct_answer_index: 0, explanation: "Wudu includes washing face.", source: "Wudu" },
-      { id: "f3", category: "Fiqh", question: "Month of fasting?", options: ["Muharram", "Rajab", "Ramadan", "Shawwal"], correct_answer_index: 2, explanation: "Fasting in Ramadan.", source: "Sawm" },
-      { id: "f4", category: "Fiqh", question: "Charity pillar?", options: ["Sadaqah", "Zakat", "Kaffarah", "Fitrah"], correct_answer_index: 1, explanation: "Zakat is a pillar.", source: "Zakat" }
+      { id: "f30", category: "Fiqh", question: "How many fard acts are in wudu?", options: ["2", "4", "6", "8"], correct_answer_index: 1, explanation: "There are four fard acts.", source: "Wudu" },
+      { id: "f31", category: "Fiqh", question: "Which direction must a Muslim face in Salah?", options: ["East", "Kaaba", "North", "South"], correct_answer_index: 1, explanation: "Face the Kaaba/Qibla.", source: "Salah" },
+      { id: "f32", category: "Fiqh", question: "Which prayer cannot be shortened while travelling?", options: ["Fajr", "Dhuhr", "Asr", "Isha"], correct_answer_index: 0, explanation: "Fajr stays two rak’ahs.", source: "Travel" },
+      { id: "f33", category: "Fiqh", question: "What breaks wudu?", options: ["Sleeping lightly", "Touching Kaaba cover", "Passing wind", "Drinking water"], correct_answer_index: 2, explanation: "Passing wind breaks wudu.", source: "Wudu" }
+    ]
+  },
+  {
+    id: "local_salah_1",
+    title: "Salah Basics",
+    description: "Prayer essentials",
+    subject: "Salah",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "🕋",
+    questions: [
+      { id: "sl1", category: "Salah", question: "How many daily prayers?", options: ["3", "4", "5", "6"], correct_answer_index: 2, explanation: "Five daily prayers.", source: "Salah" },
+      { id: "sl2", category: "Salah", question: "Which direction must a Muslim face in Salah?", options: ["East", "Kaaba", "North", "South"], correct_answer_index: 1, explanation: "Face the Kaaba/Qibla.", source: "Salah" },
+      { id: "sl3", category: "Salah", question: "Which prayer cannot be shortened while travelling?", options: ["Fajr", "Dhuhr", "Asr", "Isha"], correct_answer_index: 0, explanation: "Fajr stays two rak’ahs.", source: "Travel" },
+      { id: "sl4", category: "Salah", question: "What breaks wudu?", options: ["Sleeping lightly", "Touching Kaaba cover", "Passing wind", "Drinking water"], correct_answer_index: 2, explanation: "Passing wind breaks wudu.", source: "Wudu" }
     ]
   },
   {
@@ -151,10 +122,10 @@ const localQuizzes = [
     bonus_points: 10,
     icon: "⭐",
     questions: [
-      { id: "p1", category: "Prophets", question: "Prophet who built the Ka'bah?", options: ["Musa", "Isa", "Ibrahim", "Yusuf"], correct_answer_index: 2, explanation: "Ibrahim with his son Ismail.", source: "Ka'bah" },
-      { id: "p2", category: "Prophets", question: "Prophet swallowed by a fish?", options: ["Yunus", "Nuh", "Ayub", "Lut"], correct_answer_index: 0, explanation: "Prophet Yunus.", source: "Story" },
-      { id: "p3", category: "Prophets", question: "Prophet who received the Torah?", options: ["Dawud", "Musa", "Isa", "Muhammad"], correct_answer_index: 1, explanation: "Prophet Musa.", source: "Books" },
-      { id: "p4", category: "Prophets", question: "Prophet with the Psalms (Zabur)?", options: ["Dawud", "Isa", "Nuh", "Ishaq"], correct_answer_index: 0, explanation: "Prophet Dawud.", source: "Books" }
+      { id: "p14", category: "Prophets", question: "Which Prophet built the Kaaba with his son?", options: ["Musa & Harun", "Adam & Idris", "Ibrahim & Ismail", "Dawood & Sulaiman"], correct_answer_index: 2, explanation: "Ibrahim and Ismail.", source: "Ka'bah" },
+      { id: "p15", category: "Prophets", question: "Which Prophet was swallowed by a whale?", options: ["Yunus", "Isa", "Yusuf", "Nuh"], correct_answer_index: 0, explanation: "Prophet Yunus.", source: "Quran" },
+      { id: "p16", category: "Prophets", question: "Which Prophet spoke from the cradle as a baby?", options: ["Isa", "Musa", "Yahya", "Idris"], correct_answer_index: 0, explanation: "Prophet Isa.", source: "Quran" },
+      { id: "p17", category: "Prophets", question: "Which Prophet’s people were punished by stones from the sky?", options: ["Hud", "Salih", "Shu’ayb", "Lut"], correct_answer_index: 3, explanation: "People of Lut.", source: "Quran" }
     ]
   },
   {
@@ -183,11 +154,26 @@ const localQuizzes = [
     bonus_points: 10,
     icon: "💖",
     questions: [
-      { id: "ak1", category: "Akhlaq", question: "Greeting in Islam?", options: ["Hello", "Salam", "Hi", "Peace"], correct_answer_index: 1, explanation: "Assalamu Alaikum.", source: "Manners" },
-      { id: "ak2", category: "Akhlaq", question: "Best among you are those who?", options: ["Are strongest", "Are richest", "Learn and teach Qur'an", "Travel"], correct_answer_index: 2, explanation: "Hadith.", source: "Hadith" },
-      { id: "ak3", category: "Akhlaq", question: "Truthfulness is?", options: ["Bad", "Neutral", "A virtue", "Optional"], correct_answer_index: 2, explanation: "Truthfulness is a virtue.", source: "Values" },
-      { id: "ak4", category: "Akhlaq", question: "Helping others is?", options: ["Discouraged", "Recommended", "Forbidden", "Makruh"], correct_answer_index: 1, explanation: "Recommended (mustahabb).",
-        source: "Virtues" }
+      { id: "ak26", category: "Akhlaq", question: "If someone hurts you, what is the best Islamic response?", options: ["Hurt back", "Ignore them", "Make dua for them & forgive", "Argue"], correct_answer_index: 2, explanation: "Forgive and make dua.", source: "Manners" },
+      { id: "ak27", category: "Akhlaq", question: "Which act increases rizq (provision)?", options: ["Sleeping more", "Helping parents", "Eating more", "Complaining"], correct_answer_index: 1, explanation: "Helping parents increases rizq.", source: "Family" },
+      { id: "ak28", category: "Akhlaq", question: "A Muslim should speak:", options: ["Loudly always", "Only when angry", "Good or stay silent", "Rudely"], correct_answer_index: 2, explanation: "Speak good or remain silent.", source: "Manners" },
+      { id: "ak29", category: "Akhlaq", question: "What should you do if you break someone’s property?", options: ["Hide it", "Blame someone else", "Replace it or apologise", "Walk away"], correct_answer_index: 2, explanation: "Replace or apologise.", source: "Ethics" }
+    ]
+  },
+  {
+    id: "local_tawheed_1",
+    title: "Tawheed Basics",
+    description: "Oneness of Allah",
+    subject: "Tawheed",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "☝️",
+    questions: [
+      { id: "tw1", category: "Tawheed", question: "Tawheed means?", options: ["Oneness of Allah", "Many gods", "Following desires", "Worship angels"], correct_answer_index: 0, explanation: "Oneness of Allah in Lordship, Names/Attributes, Worship.", source: "Belief" },
+      { id: "tw2", category: "Tawheed", question: "Shirk is?", options: ["A minor error", "Associating partners with Allah", "Generosity", "Kindness"], correct_answer_index: 1, explanation: "Shirk is the gravest sin.", source: "Belief" },
+      { id: "tw3", category: "Tawheed", question: "Which pillar affirms Tawheed?", options: ["Salah", "Shahadah", "Zakat", "Hajj"], correct_answer_index: 1, explanation: "Shahadah affirms Allah's oneness and Muhammad's prophethood.", source: "Pillars" },
+      { id: "tw4", category: "Tawheed", question: "Acts of worship should be directed to?", options: ["Saints", "Prophets", "Allah alone", "Angels"], correct_answer_index: 2, explanation: "All worship is for Allah alone.", source: "Belief" }
     ]
   },
   {
@@ -207,6 +193,53 @@ const localQuizzes = [
     ]
   },
   {
+    id: "local_tajweed_1",
+    title: "Tajweed Basics",
+    description: "Rules of recitation",
+    subject: "Tajweed",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "🔤",
+    questions: [
+      { id: "tj18", category: "Tajweed", question: "What is Ikhfa?", options: ["Clear pronunciation", "Complete hiding", "Partial hiding of noon/ tanween", "Echoing sound"], correct_answer_index: 2, explanation: "Ikhfa is partial hiding.", source: "Rules" },
+      { id: "tj19", category: "Tajweed", question: "Qalqalah occurs with how many letters?", options: ["3", "4", "5", "6"], correct_answer_index: 2, explanation: "Five letters of qalqalah.", source: "Rules" },
+      { id: "tj20", category: "Tajweed", question: "What does Ghunnah mean?", options: ["Long vowel", "Nose sound", "Stopping", "Stretching"], correct_answer_index: 1, explanation: "A nasal sound.", source: "Rules" },
+      { id: "tj21", category: "Tajweed", question: "Madd means:", options: ["To stop", "To stretch", "To hide", "To echo"], correct_answer_index: 1, explanation: "Madd means lengthening.", source: "Rules" }
+    ]
+  },
+  {
+    id: "local_ramadan_1",
+    title: "Ramadan & Worship",
+    description: "Fasting and worship basics",
+    subject: "Ramadan",
+    duration_minutes: 5,
+    points_reward: 15,
+    bonus_points: 10,
+    icon: "🌙",
+    questions: [
+      { id: "rw34", category: "Ramadan", question: "Which night is better than 1,000 months?", options: ["Laylat al-Qadr", "15th Shaban", "Eid night", "Friday"], correct_answer_index: 0, explanation: "Laylat al-Qadr.", source: "Ramadan" },
+      { id: "rw35", category: "Ramadan", question: "What invalidates fasting?", options: ["Forgetful eating", "Intentional eating", "Smelling food", "Showering"], correct_answer_index: 1, explanation: "Intentional eating breaks the fast.", source: "Fasting" },
+      { id: "rw36", category: "Ramadan", question: "Who must pay Zakat?", options: ["Children always", "Anyone rich enough (Nisab)", "Only imams", "Only shop owners"], correct_answer_index: 1, explanation: "Those above nisab threshold.", source: "Zakat" }
+    ]
+  },
+  {
+    id: "local_dailylife_1",
+    title: "Daily Life Scenarios",
+    description: "Practical Islamic guidance",
+    subject: "DailyLife",
+    duration_minutes: 5,
+    points_reward: 20,
+    bonus_points: 10,
+    icon: "🧭",
+    questions: [
+      { id: "dl37", category: "DailyLife", question: "Your friend cheats in a school test. What is the Islamic teaching?", options: ["Encourage him", "Stay quiet", "Tell him cheating is haram", "Help him cheat"], correct_answer_index: 2, explanation: "Cheating is haram.", source: "Ethics" },
+      { id: "dl38", category: "DailyLife", question: "You see someone dropping rubbish in the masjid. What should you do?", options: ["Ignore it", "Throw more", "Pick it up for Allah", "Shout at them"], correct_answer_index: 2, explanation: "Maintain cleanliness.", source: "Masjid" },
+      { id: "dl39", category: "DailyLife", question: "Someone gives you a gift. What Sunnah should you follow?", options: ["Don’t say anything", "Say Alhamdulillah", "Say JazakAllah Khair & appreciate it", "Ask for a bigger gift"], correct_answer_index: 2, explanation: "Thank and appreciate.", source: "Sunnah" },
+      { id: "dl40", category: "DailyLife", question: "You are angry. What should you do?", options: ["Stay standing", "Shout loudly", "Make wudu or sit down", "Hit something"], correct_answer_index: 2, explanation: "Change state and make wudu.", source: "Anger" }
+    ]
+  },
+  {
     id: "local_mixed_1",
     title: "Mixed Knowledge",
     description: "A bit of everything",
@@ -218,15 +251,16 @@ const localQuizzes = [
     bonus_points: 10,
     icon: "🎯",
     questions: [
-      { id: "mx1", category: "Mixed", question: "How many pillars of Islam?", options: ["3", "4", "5", "6"], correct_answer_index: 2, explanation: "Five pillars.", source: "Basics" },
-      { id: "mx2", category: "Mixed", question: "City of the Prophet's Masjid?", options: ["Mecca", "Medina", "Ta'if", "Jerusalem"], correct_answer_index: 1, explanation: "Medina.", source: "Seerah" },
-      { id: "mx3", category: "Mixed", question: "Zakat is?", options: ["Optional", "Forbidden", "Pillar", "Makruh"], correct_answer_index: 2, explanation: "Zakat is a pillar.", source: "Fiqh" },
-      { id: "mx4", category: "Mixed", question: "Surah with Ikhlas?", options: ["112", "113", "114", "1"], correct_answer_index: 0, explanation: "Surah 112.", source: "Quran" }
+      { id: "mx41", category: "Mixed", question: "Which Sahabi was known as “The Sword of Allah”?", options: ["Abu Bakr", "Khalid ibn Waleed", "Umar", "Ali"], correct_answer_index: 1, explanation: "Khalid ibn Waleed.", source: "Sahabah" },
+      { id: "mx42", category: "Mixed", question: "Who was the first mu’adhin of Islam?", options: ["Bilal", "Abu Musa", "Sa’d", "Zaid"], correct_answer_index: 0, explanation: "Bilal ibn Rabah.", source: "Sahabah" },
+      { id: "mx43", category: "Mixed", question: "Which surah is equal to one-third of the Qur’an?", options: ["Al-Ikhlas", "Al-Falaq", "Al-Nas", "Al-Asr"], correct_answer_index: 0, explanation: "Surah Al-Ikhlas.", source: "Quran" },
+      { id: "mx44", category: "Mixed", question: "Which Prophet had control over jinn?", options: ["Yusuf", "Sulaiman", "Ismail", "Adam"], correct_answer_index: 1, explanation: "Prophet Sulaiman.", source: "Quran" },
+      { id: "mx45", category: "Mixed", question: "What is the biggest sin in Islam?", options: ["Backbiting", "Lying", "Shirk", "Anger"], correct_answer_index: 2, explanation: "Shirk is the gravest sin.", source: "Beliefs" }
     ]
   }
 ];
 
-export default function Quizzes() {
+export default function Quizzes({ initialSubject = "all" } = {}) {
   const [user, setUser] = useState(null);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -236,9 +270,10 @@ export default function Quizzes() {
   const [startTime, setStartTime] = useState(null);
   const [quizComplete, setQuizComplete] = useState(false);
   const [quizResults, setQuizResults] = useState(null);
-  const [filterSubject, setFilterSubject] = useState("all");
+  const [filterSubject, setFilterSubject] = useState(initialSubject);
   const [fbUser, setFbUser] = useState(null);
   const [totalPoints, setTotalPoints] = useState(null);
+  const [statusMessage, setStatusMessage] = useState("");
   const queryClient = useQueryClient();
 
   // Watch Firebase auth and mirror into local state for awarding
@@ -248,6 +283,7 @@ export default function Quizzes() {
       if (u) setUser({ id: u.uid, email: u.email || "" }); else setUser(null);
     });
     return () => unsub && unsub();
+    
   }, []);
 
   useEffect(() => {
@@ -257,7 +293,7 @@ export default function Quizzes() {
           const p = await getUserProfile(fbUser.uid);
           setTotalPoints(Number((p?.total_points != null ? p.total_points : p?.points) || 0));
         }
-      } catch {}
+      } catch { void 0; }
     })();
   }, [fbUser]);
 
@@ -311,6 +347,8 @@ export default function Quizzes() {
     }]);
     
     setShowResult(true);
+
+    // Immediate per-question awarding via Supabase removed
   };
 
   const handleNextQuestion = () => {
@@ -329,8 +367,19 @@ export default function Quizzes() {
     const totalQuestions = questions.length;
     const scorePercentage = Math.round((correctCount / totalQuestions) * 100);
     const passed = scorePercentage >= (selectedQuiz.passing_score || 70);
-    
-    const pointsEarned = (correctCount * 5) + (scorePercentage === 100 ? 10 : 0);
+    const baseEarned = (() => {
+      try {
+        const byId = Object.fromEntries((selectedQuiz?.questions || []).map(q => [q.id, q]));
+        const earnedFromAnswered = userAnswers.reduce((sum, a) => sum + (a.is_correct ? Number((byId[a.question_id]?.points) || 5) : 0), 0);
+        const current = questions[currentQuestionIndex];
+        const addCurrent = selectedAnswer === current?.correct_answer_index ? Number((current?.points) || 5) : 0;
+        return earnedFromAnswered + addCurrent;
+      } catch {
+        return correctCount * 5;
+      }
+    })();
+    const perfectBonus = scorePercentage === 100 ? 10 : 0;
+    const pointsEarned = baseEarned + perfectBonus;
     
     const results = {
       score: scorePercentage,
@@ -348,36 +397,40 @@ export default function Quizzes() {
       const version = String(selectedQuiz?.version || 1);
       try {
         localStorage.setItem(fullLockKey, version);
-      } catch (e) {}
+      } catch { void 0; }
     }
-    
-    // Removed Base44 attempt persistence
-    // Award points via unified Firebase-backed pipeline regardless of Base44 auth
     try {
-      await awardPointsForGame(user, 'quiz', {
-        isPerfect: scorePercentage === 100,
-        fallbackScore: pointsEarned,
-        metadata: {
-          quiz_id: selectedQuiz.id,
-          score_percentage: scorePercentage,
-          correct_answers: correctCount,
-          total_questions: totalQuestions,
-          time_taken_seconds: timeTaken,
-          passed,
-        }
-      });
+      setUserBestScore(selectedQuiz.id, scorePercentage);
+    } catch { void 0; }
+    
+    // Award only perfect bonus via unified pipeline; base points already added per question
+    try {
+      if (perfectBonus > 0) {
+        await awardPointsForGame(user, 'quiz', {
+          isPerfect: true,
+          fallbackScore: perfectBonus,
+          metadata: {
+            quiz_id: selectedQuiz.id,
+            score_percentage: scorePercentage,
+            correct_answers: correctCount,
+            total_questions: totalQuestions,
+            time_taken_seconds: timeTaken,
+            passed,
+          }
+        });
+      }
       window._lastEarnedPoints = pointsEarned;
       try {
         if (fbUser?.uid) {
           const p = await getUserProfile(fbUser.uid);
           setTotalPoints(Number(p?.points || 0));
         }
-      } catch {}
+      } catch { void 0; }
       try {
         queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
         queryClient.invalidateQueries({ queryKey: ['monthly-leaderboard'] });
         queryClient.invalidateQueries({ queryKey: ['leaderboard-users'] });
-      } catch {}
+      } catch { void 0; }
     } catch (e) {
       console.warn('awardPointsForGame failed:', e?.message || e);
     }
@@ -395,7 +448,7 @@ export default function Quizzes() {
 
   // Removed Base44 best-score computation
 
-  const subjects = ["all", "Quran", "Hadith", "Seerah", "Fiqh", "Prophets", "Sahabah", "Akhlaq", "History", "Mixed"];
+  const subjects = ["all", "Aqeedah", "Akhlaq", "Seerah", "Quran", "Prophets", "Tawheed", "Salah", "Fiqh", "Sahabah", "History", "Tajweed", "Ramadan", "DailyLife", "Mixed"];
   
   const filteredQuizzes = filterSubject === "all" 
     ? quizzes 
@@ -410,6 +463,28 @@ export default function Quizzes() {
     if (!isFullQuiz(q)) return false;
     const v = String(q?.version || 1);
     return String(localStorage.getItem(fullLockKey) || '') === v;
+  };
+
+  const bestKeyBase = `best_scores_${userKey}`;
+  const getUserBestScore = (quizId) => {
+    try {
+      const raw = localStorage.getItem(bestKeyBase);
+      const map = raw ? JSON.parse(raw) : {};
+      const v = map[quizId];
+      return typeof v === 'number' ? v : null;
+    } catch {
+      return null;
+    }
+  };
+  const setUserBestScore = (quizId, score) => {
+    try {
+      const raw = localStorage.getItem(bestKeyBase);
+      const map = raw ? JSON.parse(raw) : {};
+      const prev = typeof map[quizId] === 'number' ? map[quizId] : null;
+      const next = prev != null ? Math.max(prev, score) : score;
+      map[quizId] = next;
+      localStorage.setItem(bestKeyBase, JSON.stringify(map));
+    } catch { void 0; }
   };
 
   if (isLoading) {
@@ -522,6 +597,11 @@ export default function Quizzes() {
                     <p className="text-gray-700">
                       <strong>Explanation:</strong> {currentQuestion.explanation}
                     </p>
+                    {statusMessage && (
+                      <p className="text-sm text-gray-800 mt-3">
+                        {statusMessage}
+                      </p>
+                    )}
                     {currentQuestion.source && (
                       <p className="text-sm text-gray-600 mt-3">
                         <strong>Source:</strong> {currentQuestion.source}
@@ -624,25 +704,7 @@ export default function Quizzes() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4">
       <div className="max-w-7xl mx-auto">
-        {/* Firebase sign-in notice for Leaderboard points */}
-        {!fbUser && (
-          <div className="mb-4">
-            <Card className="border-2 border-yellow-300 bg-yellow-50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-yellow-900">
-                    To track your points on the Leaderboard, please sign in.
-                  </div>
-                  <Link to="/QuizSignup">
-                    <Button className="bg-blue-600 hover:bg-blue-700">
-                      Sign in / Signup
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {null}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -803,3 +865,7 @@ export default function Quizzes() {
     </div>
   );
 }
+
+Quizzes.propTypes = {
+  initialSubject: PropTypes.string,
+};

@@ -94,6 +94,9 @@ import AdminUsers from "./AdminUsers";
 
 import DeleteAccount from "./DeleteAccount";
 
+import Login from "./Login";
+import Signup from "./Signup";
+
 
 import AdminBanners from "./AdminBanners";
 import AdminSponsors from "./AdminSponsors";
@@ -101,17 +104,22 @@ import AdminSponsors from "./AdminSponsors";
 import AdminStoryBuilder from "./AdminStoryBuilder";
 
 import AdminGameSettings from "./AdminGameSettings";
+import AdminSurahSequences from "./AdminSurahSequences";
+import AdminWuduSteps from "./AdminWuduSteps";
+import AdminProphetClues from "./AdminProphetClues";
 
 import Quizzes from "./Quizzes";
 
 import AdminQuizManager from "./AdminQuizManager";
-import Signup from "./Signup";
-import Login from "./Login";
 import AdminMessages from "./AdminMessages";
 import ChildProgress from "./ChildProgress";
-import QuizSignup from "./QuizSignup";
 import KidsRecordingStudio from "./KidsRecordingStudio";
 import KidsZone from "./KidsZone";
+import KidsZoneHome from "./KidsZoneHome";
+import AqeedahModule from "./AqeedahModule";
+import AkhlaqModule from "./AkhlaqModule";
+import SalahModule from "./SalahModule";
+import StoriesModule from "./StoriesModule";
 import DailyMissions from "./DailyMissions";
 import MyRewards from "./MyRewards";
 import Alarm from "./Alarm";
@@ -219,6 +227,9 @@ const PAGES = {
     
     DeleteAccount: DeleteAccount,
     
+    Login: Login,
+    Signup: Signup,
+    
     
     AdminBanners: AdminBanners,
     
@@ -229,9 +240,6 @@ const PAGES = {
     Quizzes: Quizzes,
     
     AdminQuizManager: AdminQuizManager,
-    Signup: QuizSignup,
-    QuizSignup: QuizSignup,
-    Login: Login,
     ChildProgress: ChildProgress,
     Alarm: Alarm,
     Competition: Competition,
@@ -259,6 +267,19 @@ function _getCurrentPage(url) {
 // Create a wrapper component that uses useLocation inside the Router context
 function PagesContent() {
     const location = useLocation();
+    
+    // Check if we are on the landing page
+    const isLanding = location.pathname.toLowerCase() === '/landing';
+
+    if (isLanding) {
+        return (
+            <Routes>
+                <Route path="/Landing" element={<Landing />} />
+                <Route path="/landing" element={<Landing />} />
+            </Routes>
+        );
+    }
+
     const currentPage = _getCurrentPage(location.pathname);
     // Allow Assistant page without AdminGuard during local development
     
@@ -269,10 +290,11 @@ function PagesContent() {
         <Layout currentPageName={currentPage}>
             <Routes>            
                 
-                    <Route path="/" element={<Navigate to="/Home" replace />} />
+                <Route path="/" element={<Home />} />
                 
                 
                 <Route path="/Home" element={<Home />} />
+                <Route path="/home" element={<Home />} />
                 <Route path="/kids" element={<KidsZone />} />
                 <Route path="/DailyMissions" element={<DailyMissions />} />
                 <Route path="/MyRewards" element={<MyRewards />} />
@@ -301,7 +323,16 @@ function PagesContent() {
                 <Route path="/RecordingStudio" element={<RecordingStudio />} />
                 <Route path="/KidsRecordingStudio" element={<KidsRecordingStudio />} />
                 <Route path="/KidsZone" element={<KidsZone />} />
-                <Route path="/kidszone" element={<KidsZone />} />
+                <Route path="/kidszone" element={<KidsZoneHome />} />
+
+                <Route path="/kidszone/aqeedah" element={<AqeedahModule />} />
+                <Route path="/kidszone/akhlaq" element={<AkhlaqModule />} />
+                <Route path="/kidszone/salah" element={<SalahModule />} />
+                <Route path="/kidszone/seerah" element={<Quizzes initialSubject="Seerah" />} />
+                <Route path="/kidszone/quran" element={<Quizzes initialSubject="Quran" />} />
+                <Route path="/kidszone/prophets" element={<Quizzes initialSubject="Prophets" />} />
+                <Route path="/kidszone/tawheed" element={<Quizzes initialSubject="Tawheed" />} />
+                <Route path="/kidszone/stories" element={<StoriesModule />} />
 
                 <Route path="/RecordingsAdmin" element={<AdminGuard><RecordingsAdmin /></AdminGuard>} />
                 
@@ -355,6 +386,13 @@ function PagesContent() {
                 {/* Lowercase aliases for convenience */}
                 <Route path="/adminlogin" element={<AdminLogin />} />
                 
+                <Route path="/Login" element={<Login />} />
+                <Route path="/login" element={<Login />} />
+                
+                <Route path="/Signup" element={<Signup />} />
+                <Route path="/SignUp" element={<Signup />} />
+                <Route path="/signup" element={<Signup />} />
+                
                 <Route path="/AdminDashboard" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
                 <Route path="/admindashboard" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
                 <Route path="/AdminSettings" element={<AdminGuard><AdminSettings /></AdminGuard>} />
@@ -398,16 +436,7 @@ function PagesContent() {
                 <Route path="/Quizzes" element={<Quizzes />} />
                 
                 <Route path="/AdminQuizManager" element={<AdminQuizManager />} />
-                {/* Signup routes and legacy Signin redirects */}
-                <Route path="/signup" element={<QuizSignup />} />
-                <Route path="/Signup" element={<QuizSignup />} />
-                <Route path="/Signin" element={<QuizSignup />} />
-                <Route path="/signin" element={<QuizSignup />} />
-                <Route path="/QuizSignup" element={<QuizSignup />} />
-                <Route path="/quizsignup" element={<QuizSignup />} />
-                {/* Login routes */}
-                <Route path="/Login" element={<Login />} />
-                <Route path="/login" element={<Login />} />
+                
                 <Route path="/ChildProgress" element={<ChildProgress />} />
                 <Route path="/childprogress" element={<ChildProgress />} />
                 <Route path="/Alarm" element={<Alarm />} />
@@ -424,6 +453,3 @@ function PagesContent() {
 export default function Pages() {
     return <PagesContent />;
 }
-import AdminSurahSequences from "./AdminSurahSequences";
-import AdminWuduSteps from "./AdminWuduSteps";
-import AdminProphetClues from "./AdminProphetClues";
