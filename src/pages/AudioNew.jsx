@@ -5,9 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Play, Download, Filter, BookOpen, Star } from "lucide-react";
+import { Search, Play, Download, Filter, BookOpen, Star, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import AudioPlayer from "../components/AudioPlayer";
+import { createPageUrl } from "@/utils";
 import {
   Select,
   SelectContent,
@@ -22,6 +23,24 @@ export default function AudioNew() {
   const [selectedAge, setSelectedAge] = useState("all");
   const [selectedAudio, setSelectedAudio] = useState(null);
   const [currentPlaying, setCurrentPlaying] = useState(null);
+
+  const quickTabs = [
+    {
+      label: "Audio Library",
+      href: createPageUrl("AudioNew"),
+      active: true,
+    },
+    {
+      label: "Create Audio",
+      href: "https://create-me-a-audio.vercel.app/",
+      external: true,
+    },
+    {
+      label: "Kids Zone",
+      href: "https://islamic-kids-platform.vercel.app/",
+      external: true,
+    },
+  ];
 
   const { data: audioContent = [], isLoading } = useQuery({
     queryKey: ['audioContent'],
@@ -95,6 +114,33 @@ export default function AudioNew() {
           <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto">
             Listen to stories, lessons, and nasheeds that teach Islamic values
           </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="mb-8"
+        >
+          <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-blue-100 bg-white/90 p-3 shadow-sm">
+            {quickTabs.map((tab) => (
+              <a
+                key={tab.label}
+                href={tab.href}
+                target={tab.external ? "_blank" : undefined}
+                rel={tab.external ? "noopener noreferrer" : undefined}
+                aria-current={tab.active ? "page" : undefined}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                  tab.active
+                    ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md"
+                    : "border border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100"
+                }`}
+              >
+                <span>{tab.label}</span>
+                {tab.external ? <ExternalLink className="h-4 w-4" /> : null}
+              </a>
+            ))}
+          </div>
         </motion.div>
 
         {/* Featured Carousel */}

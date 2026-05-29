@@ -51,8 +51,8 @@ export default function Layout({ children, currentPageName }) {
 
   // Site settings (localStorage-driven)
   const [siteSettings, setSiteSettings] = useState({
-    siteTitle: "Islam Kids Zone",
-    tagline: "Learn, Play & Grow",
+    siteTitle: "Islam Media Central",
+    tagline: "Media With Purpose",
     logoEmoji: "🌙",
     headerGradient: "from-blue-600 to-purple-600",
     navActiveGradient: "from-blue-500 to-purple-500",
@@ -67,7 +67,17 @@ export default function Layout({ children, currentPageName }) {
       const raw = localStorage.getItem("siteSettings");
       if (raw) {
         const parsed = JSON.parse(raw);
-        setSiteSettings((prev) => ({ ...prev, ...parsed, showMobileSidebar: false }));
+        const migrated = { ...parsed };
+
+        // Migrate legacy branding values from older deployments.
+        if (migrated.siteTitle === "Islam Kids Zone") {
+          migrated.siteTitle = "Islam Media Central";
+        }
+        if (migrated.tagline === "Learn, Play & Grow") {
+          migrated.tagline = "Media With Purpose";
+        }
+
+        setSiteSettings((prev) => ({ ...prev, ...migrated, showMobileSidebar: false }));
       }
     } catch {}
   }, []);
@@ -193,12 +203,11 @@ export default function Layout({ children, currentPageName }) {
 
   const baseNavItems = [
     { name: "Kids Home", icon: Home, path: "Home" },
-    { name: "Kids Zone", icon: Star, external: true, url: "https://kidsquiz2.vercel.app/" },
+    { name: "Kids Zone", icon: Star, external: true, url: "https://islamic-kids-platform.vercel.app/" },
     { name: "Games", icon: Gamepad2, path: "Games" },
     { name: "Daily Missions", icon: Target, path: "DailyMissions" },
     { name: "My Rewards", icon: Trophy, path: "MyRewards" },
     { name: "Leaderboard", icon: Trophy, path: "Leaderboard" },
-    { name: "Competition", icon: Trophy, path: "Competition" },
     { name: "WhatsApp Channel", icon: MessageCircle, path: "WhatsAppChannel" },
     { name: "Stories", icon: BookOpen, path: "Stories" },
     { name: "Videos", icon: Video, path: "Videos" },
