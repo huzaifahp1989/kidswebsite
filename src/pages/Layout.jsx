@@ -204,13 +204,7 @@ export default function Layout({ children, currentPageName }) {
   const baseNavItems = [
     { name: "Kids Home", icon: Home, path: "Home" },
     { name: "Kids Zone", icon: Star, external: true, url: "https://islamic-kids-platform.vercel.app/" },
-    { name: "Games", icon: Gamepad2, path: "Games" },
-    { name: "Daily Missions", icon: Target, path: "DailyMissions" },
-    { name: "My Rewards", icon: Trophy, path: "MyRewards" },
-    { name: "Leaderboard", icon: Trophy, path: "Leaderboard" },
     { name: "WhatsApp Channel", icon: MessageCircle, path: "WhatsAppChannel" },
-    { name: "Stories", icon: BookOpen, path: "Stories" },
-    { name: "Videos", icon: Video, path: "Videos" },
     { name: "Kids Recording Studio", icon: Radio, path: "KidsRecordingStudio" },
     { name: "Alarm", icon: Bell, path: "Alarm" },
     {
@@ -260,7 +254,7 @@ export default function Layout({ children, currentPageName }) {
 
   const [menuQuery, setMenuQuery] = useState("");
   const normalizedQuery = menuQuery.trim().toLowerCase();
-  const kidsNames = ["Kids Home", "Kids Zone", "Games", "Stories", "Videos", "Leaderboard"];
+  const kidsNames = ["Kids Home", "Kids Zone"];
   const quranItem = navItemsWithPrivacy.find((i) => i.name === "Quran");
   const learnItem = navItemsWithPrivacy.find((i) => i.name === "Learn");
   const allItems = navItemsWithPrivacy.filter((i) => !i.dropdown && i.name !== "Quran" && i.name !== "Learn");
@@ -354,14 +348,6 @@ export default function Layout({ children, currentPageName }) {
                     <Badge className="bg-white/30 text-white border-white/40">
                       {Number(user?.points || 0)} pts
                     </Badge>
-                    <Link to={createPageUrl("MyRewards")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
-                      <Trophy className="w-4 h-4" />
-                      Rewards
-                    </Link>
-                    <Link to={createPageUrl("Leaderboard")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
-                      <BarChart2 className="w-4 h-4" />
-                      Leaderboard
-                    </Link>
                     <button type="button" onClick={handleLogout} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 shadow">
                       <LogOut className="w-4 h-4" />
                       Sign Out
