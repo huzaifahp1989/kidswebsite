@@ -122,7 +122,6 @@ import SalahModule from "./SalahModule";
 import StoriesModule from "./StoriesModule";
 import DailyMissions from "./DailyMissions";
 import MyRewards from "./MyRewards";
-import Alarm from "./Alarm";
 import Competition from "./Competition";
 import WhatsAppChannel from "./WhatsAppChannel";
 
@@ -241,7 +240,6 @@ const PAGES = {
     
     AdminQuizManager: AdminQuizManager,
     ChildProgress: ChildProgress,
-    Alarm: Alarm,
     Competition: Competition,
     WhatsAppChannel: WhatsAppChannel,
 
@@ -440,8 +438,6 @@ function PagesContent() {
                 
                 <Route path="/ChildProgress" element={<ChildProgress />} />
                 <Route path="/childprogress" element={<ChildProgress />} />
-                <Route path="/Alarm" element={<Alarm />} />
-                <Route path="/alarm" element={<Alarm />} />
                 <Route path="/Competition" element={<Competition />} />
                 <Route path="/WhatsAppChannel" element={<WhatsAppChannel />} />
                 

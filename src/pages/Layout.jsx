@@ -206,7 +206,6 @@ export default function Layout({ children, currentPageName }) {
     { name: "Kids Zone", icon: Star, external: true, url: "https://islamic-kids-platform.vercel.app/" },
     { name: "WhatsApp Channel", icon: MessageCircle, path: "WhatsAppChannel" },
     { name: "Kids Recording Studio", icon: Radio, path: "KidsRecordingStudio" },
-    { name: "Alarm", icon: Bell, path: "Alarm" },
     {
       name: "Learn",
       icon: GraduationCap,
