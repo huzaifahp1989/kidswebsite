@@ -10,8 +10,8 @@ import { Settings } from "lucide-react";
 import { dispatchDocsDeploy } from '@/api/github'
 
 const DEFAULTS = {
-  siteTitle: "Islam Kids Zone",
-  tagline: "Learn, Play & Grow",
+  siteTitle: "Islam Media Central",
+  tagline: "Media With Purpose",
   logoEmoji: "🌙",
   headerGradient: "from-blue-600 to-purple-600",
   navActiveGradient: "from-blue-500 to-purple-500",

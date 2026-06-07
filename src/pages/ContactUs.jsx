@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import { Mail, MessageSquare, Send, CheckCircle2, Sparkles } from "lucide-react";
-// Removed import of base44 for public page
+import { base44 } from "@/api/base44Client";
 
 export default function ContactUs() {
   const [formData, setFormData] = useState({

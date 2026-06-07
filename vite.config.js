@@ -3,16 +3,11 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
-  // Dynamic base so we can use '/' for Netlify and '/imediaweb/' for GitHub Pages
-  // Set env var VITE_BASE_PATH='/imediaweb/' when building for GitHub Pages.
   base: process.env.VITE_BASE_PATH ?? '/',
   server: {
     host: true,
-    port: 5173,
+    port: Number(process.env.VITE_PORT) || 5190,
     strictPort: true,
-    hmr: {
-      clientPort: 5173,
-    },
   },
   build: {
     rollupOptions: {

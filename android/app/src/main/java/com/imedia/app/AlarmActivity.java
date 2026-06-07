@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class AlarmActivity extends AppCompatActivity {
     private MediaPlayer mediaPlayer;
+    private boolean prepared = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,34 +40,48 @@ public class AlarmActivity extends AppCompatActivity {
                     .setUsage(AudioAttributes.USAGE_ALARM)
                     .build());
 
-            if (url != null) {
-                String u = url.trim();
-                if (u.equalsIgnoreCase("SYSTEM_ALARM")) {
-                    Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-                    mediaPlayer.setDataSource(this, uri);
-                } else if (u.equalsIgnoreCase("SYSTEM_NOTIFICATION")) {
-                    Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-                    mediaPlayer.setDataSource(this, uri);
-                } else if (u.equalsIgnoreCase("SYSTEM_RINGTONE")) {
-                    Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
-                    mediaPlayer.setDataSource(this, uri);
-                } else {
-                    mediaPlayer.setDataSource(u);
-                }
+            String u = (url == null ? "" : url.trim());
+            if (u.isEmpty() || u.equalsIgnoreCase("SYSTEM_ALARM")) {
+                Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                if (uri == null) uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                mediaPlayer.setDataSource(this, uri);
+            } else if (u.equalsIgnoreCase("SYSTEM_NOTIFICATION")) {
+                Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                mediaPlayer.setDataSource(this, uri);
+            } else if (u.equalsIgnoreCase("SYSTEM_RINGTONE")) {
+                Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+                mediaPlayer.setDataSource(this, uri);
+            } else {
+                mediaPlayer.setDataSource(u);
             }
 
             mediaPlayer.setLooping(true);
-            mediaPlayer.prepare();
-            mediaPlayer.start();
-        } catch (Exception e) {
+            mediaPlayer.setOnPreparedListener(mp -> {
+                prepared = true;
+                try { mp.start(); } catch (Exception ignored) { }
+            });
+            mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                stopSound();
+                finish();
+                return true;
+            });
+            mediaPlayer.prepareAsync();
+        } catch (Exception ignored) {
+            stopSound();
         }
     }
 
     private void stopSound() {
         if (mediaPlayer != null) {
-            mediaPlayer.stop();
-            mediaPlayer.release();
+            try {
+                if (prepared) {
+                    mediaPlayer.stop();
+                }
+            } catch (Exception ignored) {
+            }
+            try { mediaPlayer.release(); } catch (Exception ignored) { }
             mediaPlayer = null;
+            prepared = false;
         }
     }
 

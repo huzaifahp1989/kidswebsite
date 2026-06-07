@@ -274,8 +274,8 @@ function PagesContent() {
     if (isLanding) {
         return (
             <Routes>
-                <Route path="/Landing" element={<Landing />} />
-                <Route path="/landing" element={<Landing />} />
+                <Route path="/Landing" element={<Navigate to="/Home" replace />} />
+                <Route path="/landing" element={<Navigate to="/Home" replace />} />
             </Routes>
         );
     }
@@ -291,6 +291,7 @@ function PagesContent() {
             <Routes>            
                 
                 <Route path="/" element={<Home />} />
+                <Route path="/local-home" element={<Home />} />
                 
                 
                 <Route path="/Home" element={<Home />} />

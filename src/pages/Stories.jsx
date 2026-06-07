@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Headphones, X, Sparkles, Play } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import InteractiveStoryPlayer from "@/components/stories/InteractiveStoryPlayer";
+import { base44 } from "@/api/base44Client";
 import { getFirebase } from "@/api/firebase";
 import { awardPointsForGame } from "@/api/points";
 

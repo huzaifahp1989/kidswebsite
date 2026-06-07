@@ -2,6 +2,7 @@
 import React, { useState, useEffect, lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { usersApi } from "@/api/firebase";
+import { trackGameCompletionAndMaybeReview, trackPointsMilestoneAndMaybeReview } from "@/utils/inAppReview";
 // Optional Supabase import - won't break if Supabase is not configured
 import { supabase as supabaseClient, isSupabaseConfigured as checkSupabaseConfig } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -242,6 +243,17 @@ export default function Games() {
       }
     } finally {
       try { localStorage.removeItem('current_game_award_key'); } catch {}
+
+      trackGameCompletionAndMaybeReview();
+
+      try {
+        const raw = localStorage.getItem('users');
+        const arr = raw ? JSON.parse(raw) : [];
+        const id = user?.id || user?.uid || 'guest';
+        const pts = Number(arr.find(u => u.id === id)?.points || totalPoints || 0);
+        trackPointsMilestoneAndMaybeReview(pts);
+      } catch {}
+
       setTimeout(() => {
         setSelectedGame(null);
         try { navigate(createPageUrl('Games')); } catch {}

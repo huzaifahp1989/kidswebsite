@@ -1,6 +1,8 @@
 package com.imedia.app;
 
 import android.os.Bundle;
+import android.content.Intent;
+import android.net.Uri;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -21,6 +23,7 @@ public class MainActivity extends AppCompatActivity {
         webView = findViewById(R.id.webview);
         setupWebView();
         webView.addJavascriptInterface(new AlarmJsBridge(this), "AndroidAlarm");
+        webView.addJavascriptInterface(new ReviewJsBridge(this), "AndroidReview");
         webView.loadUrl("https://traeimedia3phmb.vercel.app/");
     }
 
@@ -32,13 +35,24 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowContentAccess(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
         webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+        webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
 
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                view.loadUrl(url);
-                return true;
+                try {
+                    if (url == null) return false;
+                    if (url.startsWith("http://") || url.startsWith("https://")) {
+                        view.loadUrl(url);
+                        return true;
+                    }
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    startActivity(intent);
+                    return true;
+                } catch (Exception ignored) {
+                    return false;
+                }
             }
         });
     }
@@ -55,18 +69,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        webView.onPause();
+        if (webView != null) webView.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        webView.onResume();
+        if (webView != null) webView.onResume();
     }
 
     @Override
     protected void onDestroy() {
-        webView.destroy();
+        if (webView != null) {
+            try { webView.destroy(); } catch (Exception ignored) { }
+        }
         super.onDestroy();
     }
 }

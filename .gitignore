@@ -28,3 +28,7 @@ dist-ssr
 .env.production
 # Local Netlify folder
 .netlify
+
+# Android
+android/.gradle/
+android/**/build/
