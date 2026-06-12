@@ -10,26 +10,13 @@ const QUIZ_COUNT_MILESTONES = [1, 2, 5, 10];
 const LEARNING_COUNT_MILESTONES = [1, 3, 5];
 const POINTS_MILESTONES = [50, 200, 500, 1000];
 
-let promptHandler = null;
-let pendingReason = null;
-
-export function registerReviewPromptHandler(handler) {
-  promptHandler = handler;
-  if (pendingReason) {
-    const reason = pendingReason;
-    pendingReason = null;
-    handler(reason);
-  }
-  return () => {
-    if (promptHandler === handler) {
-      promptHandler = null;
-    }
-  };
-}
-
 function isAndroidApp() {
   try {
-    return Boolean(window.AndroidReview && typeof window.AndroidReview.requestReview === 'function');
+    return Boolean(
+      window.AndroidReview &&
+      (typeof window.AndroidReview.openPlayStore === 'function' ||
+        typeof window.AndroidReview.requestReview === 'function')
+    );
   } catch {
     return false;
   }
@@ -46,7 +33,7 @@ function canShowReviewPrompt() {
   }
 }
 
-export function markReviewPromptShown(reason = 'unknown') {
+function markReviewPromptShown(reason = 'unknown') {
   try {
     localStorage.setItem(REVIEW_LAST_PROMPT_KEY, String(Date.now()));
     localStorage.setItem('review_last_reason', reason);
@@ -54,31 +41,38 @@ export function markReviewPromptShown(reason = 'unknown') {
   }
 }
 
-function openReviewPrompt(reason = 'unknown') {
-  if (promptHandler) {
-    promptHandler(reason);
-    return true;
+export function openPlayStoreReview(reason = 'unknown') {
+  markReviewPromptShown(reason);
+
+  if (isAndroidApp()) {
+    try {
+      if (typeof window.AndroidReview.openPlayStore === 'function') {
+        window.AndroidReview.openPlayStore();
+      } else {
+        window.AndroidReview.requestReview();
+      }
+      return true;
+    } catch {
+    }
   }
-  pendingReason = reason;
+
+  try {
+    window.open(PLAY_STORE_URL, '_blank', 'noopener,noreferrer');
+  } catch {
+  }
   return true;
 }
 
 export function maybeRequestReview(reason = 'unknown') {
   if (!canShowReviewPrompt()) return false;
-
-  if (isAndroidApp()) {
-    try {
-      window.AndroidReview.requestReview();
-    } catch {
-    }
-  }
-
-  openReviewPrompt(reason);
+  openPlayStoreReview(reason);
   return true;
 }
 
 export function triggerInAppReview(reason = 'manual') {
-  return maybeRequestReview(reason);
+  if (!canShowReviewPrompt()) return false;
+  openPlayStoreReview(reason);
+  return true;
 }
 
 function bumpCounter(key) {
