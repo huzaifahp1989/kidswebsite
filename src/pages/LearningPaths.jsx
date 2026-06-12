@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { awardPointsForGame } from "@/api/points";
+import { trackLearningCompletionAndMaybeReview, trackPointsMilestoneAndMaybeReview } from "@/utils/inAppReview";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -249,7 +250,15 @@ export default function LearningPaths() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-path-progress'] });
-      loadUser(); // Reload user to get updated points and badges
+      loadUser();
+      trackLearningCompletionAndMaybeReview();
+      try {
+        const raw = localStorage.getItem('users');
+        const arr = raw ? JSON.parse(raw) : [];
+        const id = user?.id || user?.uid;
+        const pts = Number(arr.find((u) => u.id === id)?.points || user?.points || 0);
+        trackPointsMilestoneAndMaybeReview(pts);
+      } catch {}
     }
   });
 
@@ -336,6 +345,14 @@ export default function LearningPaths() {
         try {
           await awardPointsForGame(user, 'learning_path', { fallbackScore: path.completion_points || 50, metadata: { path_id: path.id } });
         } catch { void 0; }
+        trackLearningCompletionAndMaybeReview();
+        try {
+          const raw = localStorage.getItem('users');
+          const arr = raw ? JSON.parse(raw) : [];
+          const id = user?.id || user?.uid || 'guest';
+          const pts = Number(arr.find((u) => u.id === id)?.points || 0);
+          trackPointsMilestoneAndMaybeReview(pts);
+        } catch {}
       }
       return;
     }

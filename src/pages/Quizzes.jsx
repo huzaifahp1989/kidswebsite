@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import PropTypes from 'prop-types';
 import { awardPointsForGame } from "@/api/points";
+import { trackQuizCompletionAndMaybeReview, trackPointsMilestoneAndMaybeReview } from "@/utils/inAppReview";
 import { watchAuth, getUserProfile } from "@/api/firebase";
 import { useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
@@ -433,6 +434,16 @@ export default function Quizzes({ initialSubject = "all" } = {}) {
       } catch { void 0; }
     } catch (e) {
       console.warn('awardPointsForGame failed:', e?.message || e);
+    }
+
+    trackQuizCompletionAndMaybeReview();
+    try {
+      const pts = fbUser?.uid
+        ? Number((await getUserProfile(fbUser.uid))?.points || 0)
+        : Number(totalPoints || pointsEarned || 0);
+      trackPointsMilestoneAndMaybeReview(pts);
+    } catch {
+      trackPointsMilestoneAndMaybeReview(Number(pointsEarned || 0));
     }
   };
 

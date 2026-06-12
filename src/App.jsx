@@ -2,28 +2,26 @@ import './App.css'
 import { useEffect } from 'react'
 import Pages from "@/pages/index.jsx"
 import { Toaster } from "@/components/ui/toaster"
-import { triggerInAppReview } from '@/utils/inAppReview'
-
-const FIVE_MINUTES = 5 * 60 * 1000;
+import InAppReviewPrompt from "@/components/InAppReviewPrompt"
+import { trackSessionEngagementAndMaybeReview, triggerInAppReview } from '@/utils/inAppReview'
 
 function App() {
   useEffect(() => {
-    const today = new Date().toDateString();
-    const lastFired = localStorage.getItem('review_5min_date');
-    if (lastFired === today) return;
-
-    const timer = setTimeout(() => {
-      localStorage.setItem('review_5min_date', today);
-      triggerInAppReview();
-    }, FIVE_MINUTES);
-
-    return () => clearTimeout(timer);
+    if (import.meta.env.DEV) {
+      window.showReviewPopup = () => {
+        localStorage.removeItem('review_last_prompt_at');
+        localStorage.removeItem('review_session_date');
+        triggerInAppReview('dev_test');
+      };
+    }
+    return trackSessionEngagementAndMaybeReview();
   }, []);
 
   return (
     <>
       <Pages />
       <Toaster />
+      <InAppReviewPrompt />
     </>
   )
 }

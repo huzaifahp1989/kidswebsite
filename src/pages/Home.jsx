@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import { sponsorsApi } from "/src/api/firebase";
 import React from "react";
 import nasihahWorldBanner from "@/assets/brands/nasihah-world-banner.jpg";
+import BeholdWidget from "@/components/BeholdWidget";
 
 const ADS_SECTION_URL = "https://traeadvert8pia.vercel.app/";
 const SPONSOR_POPUP_LAST_SHOWN_KEY = "home_sponsor_popup_last_shown_v1";
@@ -798,7 +799,7 @@ export default function Home() {
             </a>
           </div>
 
-          <behold-widget feed-id="uhHqbVSTssPsus4pLLre" />
+          <BeholdWidget feedId="uhHqbVSTssPsus4pLLre" />
 
           <div className="mt-6 text-center">
             <a
