@@ -2,6 +2,7 @@ import './App.css'
 import { useEffect } from 'react'
 import Pages from "@/pages/index.jsx"
 import { Toaster } from "@/components/ui/toaster"
+import PlatformLinksMenu from "@/components/PlatformLinksMenu"
 import { trackSessionEngagementAndMaybeReview, triggerInAppReview } from '@/utils/inAppReview'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
     <>
       <Pages />
       <Toaster />
+      <PlatformLinksMenu />
     </>
   )
 }
