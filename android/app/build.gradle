@@ -46,6 +46,9 @@ dependencies {
     
     // WebView for React app integration
     implementation 'androidx.webkit:webkit:1.9.0'
+
+    // Google Play In-App Review
+    implementation 'com.google.android.play:review:2.0.2'
     
     // Audio playback
     implementation 'androidx.media:media:1.7.0'
