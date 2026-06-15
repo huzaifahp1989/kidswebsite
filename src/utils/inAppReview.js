@@ -1,4 +1,4 @@
-export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.imedia.app';
+export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.wnapp.id1761553570260&hl=en_GB';
 
 const REVIEW_LAST_PROMPT_KEY = 'review_last_prompt_at';
 const REVIEW_SESSION_DATE_KEY = 'review_session_date';
