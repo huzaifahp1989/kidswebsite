@@ -1,19 +1,15 @@
-
 import { createPageUrl } from "@/utils";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Star, Sparkles, Heart, Shield, MessageCircle, ExternalLink, Moon, Mail, Users, BookOpen, Radio } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 // import WordPressFeed from "@/components/WordPressFeed";
 import { useState, useEffect, useRef } from "react";
-import { sponsorsApi } from "/src/api/firebase";
 import React from "react";
 import nasihahWorldBanner from "@/assets/brands/nasihah-world-banner.jpg";
-import BeholdWidget from "@/components/BeholdWidget";
+import { isAndroidWebView } from "@/utils/androidWebView";
+import { HIFZ_ASSISTANT_URL } from "@/constants/externalLinks";
 
 const ADS_SECTION_URL = "https://traeadvert8pia.vercel.app/";
-const SPONSOR_POPUP_LAST_SHOWN_KEY = "home_sponsor_popup_last_shown_v1";
-const SPONSOR_POPUP_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const COMMUNITY_POPUP_LAST_SHOWN_KEY = "home_community_popup_last_shown_v1";
 const COMMUNITY_POPUP_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
@@ -125,8 +121,6 @@ const islamicValues = [
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [sponsors, setSponsors] = useState([]);
-  const [showSponsorPopup, setShowSponsorPopup] = useState(false);
   const [showCommunityPopup, setShowCommunityPopup] = useState(false);
   const [isRadioPlaying, setIsRadioPlaying] = useState(false);
   const audioRef = useRef(null);
@@ -225,62 +219,9 @@ export default function Home() {
       });
   }, []);
 
-  // Load sponsors/ads for home placement
   useEffect(() => {
-    const loadSponsors = async () => {
-      try {
-        const list = await sponsorsApi.list();
-        const filtered = (list || []).filter(it => (it.active ?? true) && (it.placement || 'home') === 'home');
-        filtered.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-        setSponsors(filtered);
-      } catch (e) {
-        try {
-          const raw = localStorage.getItem('homepage_sponsors');
-          const list = raw ? JSON.parse(raw) : [];
-          const filtered = (Array.isArray(list) ? list : []).filter(it => (it.active ?? true) && (it.placement || 'home') === 'home');
-          filtered.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-          setSponsors(filtered);
-        } catch {
-          setSponsors([]);
-        }
-      }
-    };
-    loadSponsors();
-  }, []);
+    if (isAndroidWebView()) return;
 
-  useEffect(() => {
-    const shouldShowPopup = () => {
-      try {
-        const raw = localStorage.getItem(SPONSOR_POPUP_LAST_SHOWN_KEY);
-        const lastShown = raw ? Number(raw) : 0;
-        if (!lastShown) return true;
-        return Date.now() - lastShown >= SPONSOR_POPUP_COOLDOWN_MS;
-      } catch {
-        return true;
-      }
-    };
-
-    if (!shouldShowPopup()) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setShowSponsorPopup(true);
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const closeSponsorPopup = () => {
-    setShowSponsorPopup(false);
-    try {
-      localStorage.setItem(SPONSOR_POPUP_LAST_SHOWN_KEY, String(Date.now()));
-    } catch {
-      // Ignore storage errors and continue.
-    }
-  };
-
-  useEffect(() => {
     const shouldShow = () => {
       try {
         const raw = localStorage.getItem(COMMUNITY_POPUP_LAST_SHOWN_KEY);
@@ -302,56 +243,6 @@ export default function Home() {
       localStorage.setItem(COMMUNITY_POPUP_LAST_SHOWN_KEY, String(Date.now()));
     } catch {}
   };
-
- 
-
-  function SponsorTile({ item }) {
-    const [imgError, setImgError] = React.useState(false);
-    const hasImg = item.imageUrl && !imgError;
-    return (
-      <a href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="group block">
-        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 shadow hover:shadow-lg transition">
-          {hasImg ? (
-            <img
-              src={item.imageUrl}
-              alt={item.name || 'Sponsor'}
-              className="w-full h-24 md:h-28 object-contain p-4"
-              referrerPolicy="no-referrer"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <div className="p-6 text-center text-gray-700 font-semibold">{item.name || 'Sponsor'}</div>
-          )}
-        </div>
-      </a>
-    );
-  }
-
-  function SponsorPopupTile({ item }) {
-    const [imgError, setImgError] = React.useState(false);
-    const hasImg = item.imageUrl && !imgError;
-    return (
-      <a href={item.linkUrl} target="_blank" rel="noopener noreferrer" className="group block">
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm transition group-hover:shadow-md">
-          {hasImg ? (
-            <img
-              src={item.imageUrl}
-              alt={item.name || "Sponsor"}
-              className="h-20 w-full object-contain p-3 sm:h-24"
-              referrerPolicy="no-referrer"
-              loading="lazy"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <div className="flex h-20 items-center justify-center px-3 text-center text-sm font-semibold text-gray-700 sm:h-24">
-              {item.name || "Sponsor"}
-            </div>
-          )}
-        </div>
-      </a>
-    );
-  }
-
 
   return (
     <ErrorBoundary>
@@ -393,64 +284,6 @@ export default function Home() {
           </div>
           <div className="bg-gray-50 px-6 py-3 text-center border-t border-gray-100">
             <button onClick={closeCommunityPopup} className="text-xs text-gray-400 hover:text-gray-600 transition">Maybe later</button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showSponsorPopup} onOpenChange={(open) => !open && closeSponsorPopup()}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-3xl rounded-2xl border-0 bg-gradient-to-b from-white to-slate-50 p-0 shadow-2xl">
-          <DialogHeader className="border-b border-slate-200 px-5 py-4 sm:px-7">
-            <DialogTitle className="text-xl font-bold text-slate-900 sm:text-2xl">Our Sponsors</DialogTitle>
-            <DialogDescription className="text-sm text-slate-600">
-              Supporting our kids learning journey. Tap any logo to visit the sponsor.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="max-h-[70vh] space-y-6 overflow-y-auto px-5 py-5 sm:px-7">
-            <div>
-              <div className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-blue-700">Featured Sponsors</div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4">
-                {mainFeaturedSponsors.map((item, index) => (
-                  <a
-                    key={`${item.name}-popup-${index}`}
-                    href={ADS_SECTION_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block"
-                  >
-                    <div className="h-[80px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                      <FeaturedSponsorLogo item={item} />
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            {sponsors.length > 0 && (
-              <div>
-                <div className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-blue-700">Community Sponsors</div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {sponsors.slice(0, 9).map((item) => (
-                    <SponsorPopupTile key={item.id || item.name} item={item} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:justify-end sm:px-7">
-            <a
-              href={ADS_SECTION_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              Explore All Ads
-              <ExternalLink className="h-4 w-4" />
-            </a>
-            <Button type="button" variant="outline" onClick={closeSponsorPopup}>
-              Close
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -586,6 +419,47 @@ export default function Home() {
         </div>
         {/* Wave divider */}
         <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#EFF6FF]" style={{clipPath: 'ellipse(55% 100% at 50% 100%)'}} />
+      </section>
+
+      {/* ── Quran Hifz Assistant ── */}
+      <section className="px-4 pt-4 pb-6">
+        <div className="max-w-4xl mx-auto">
+          <motion.a
+            href={HIFZ_ASSISTANT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            whileHover={{ scale: 1.015 }}
+            transition={{ duration: 0.25 }}
+            className="group block"
+          >
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 p-8 md:p-10 shadow-2xl">
+              <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
+              <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full bg-white/10" />
+              <div className="relative z-10">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-emerald-100">
+                  <Sparkles className="h-3.5 w-3.5" /> New Feature
+                </span>
+                <h2 className="mt-4 text-3xl md:text-4xl font-extrabold text-white leading-tight">
+                  Quran Hifz Assistant
+                </h2>
+                <p className="mt-3 max-w-2xl text-emerald-50 text-base md:text-lg leading-relaxed">
+                  Learn the Quran with colour-coded tajweed rules, tap any ayah for translation and
+                  rule guidance, and practise word-by-word recitation for memorisation.
+                </p>
+                <ul className="mt-4 grid gap-2 text-sm text-emerald-50 md:grid-cols-3">
+                  <li className="rounded-xl bg-white/10 px-3 py-2">Colour-coded tajweed</li>
+                  <li className="rounded-xl bg-white/10 px-3 py-2">Ayah translation + rules</li>
+                  <li className="rounded-xl bg-white/10 px-3 py-2">Word-by-word audio</li>
+                </ul>
+                <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-bold text-emerald-700 shadow-lg group-hover:bg-emerald-50 transition-colors">
+                  <BookOpen className="h-4 w-4" />
+                  Open Hifz Assistant
+                  <ExternalLink className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
+          </motion.a>
+        </div>
       </section>
 
       {/* â"€â"€ Kids Zone Featured Card â"€â"€ */}
@@ -770,46 +644,6 @@ export default function Home() {
                 <p className="text-sm text-gray-500 leading-relaxed">{value.description}</p>
               </motion.div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* â"€â"€ Final CTA â"€â"€ */}
-      {/* Instagram Feed Section */}
-      <section className="bg-white px-4 py-12 md:py-16">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400">
-                <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-              </div>
-              <div>
-                <h2 className="text-xl font-extrabold text-gray-900">Instagram</h2>
-                <p className="text-sm text-gray-500">@imediac786</p>
-              </div>
-            </div>
-            <a
-              href="https://www.instagram.com/imediac786/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 px-5 py-2 text-sm font-bold text-white shadow hover:opacity-90 transition"
-            >
-              Follow Us
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </div>
-
-          <BeholdWidget feedId="uhHqbVSTssPsus4pLLre" />
-
-          <div className="mt-6 text-center">
-            <a
-              href="https://www.instagram.com/imediac786/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-pink-500 hover:text-pink-600 transition"
-            >
-              View all posts on Instagram <ExternalLink className="h-3.5 w-3.5" />
-            </a>
           </div>
         </div>
       </section>

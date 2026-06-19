@@ -62,6 +62,7 @@ import FullQuran from "./FullQuran";
 import Manzil from "./Manzil";
 import Hizb from "./Hizb";
 import HifzDashboard from "./HifzDashboard";
+import HifzAssistantRedirect from "./HifzAssistantRedirect";
 import QuranDictionary from "./QuranDictionary";
 import AdminReciters from "./AdminReciters";
 
@@ -198,6 +199,7 @@ const PAGES = {
     Manzil: Manzil,
     Hizb: Hizb,
     HifzDashboard: HifzDashboard,
+    QuranHifzAssistant: HifzAssistantRedirect,
     
     ResetPointsAdmin: ResetPointsAdmin,
     
@@ -378,6 +380,8 @@ function PagesContent() {
                 <Route path="/Manzil" element={<Manzil />} />
                 <Route path="/Hizb" element={<Hizb />} />
                 <Route path="/HifzDashboard" element={<HifzDashboard />} />
+                <Route path="/QuranHifzAssistant" element={<HifzAssistantRedirect />} />
+                <Route path="/quran-hifz-assistant" element={<HifzAssistantRedirect />} />
                 
                 <Route path="/ResetPointsAdmin" element={<ResetPointsAdmin />} />
                 

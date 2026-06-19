@@ -10,7 +10,13 @@ import {
   Video,
   X,
 } from "lucide-react";
+import { isAndroidWebView, openExternalUrl } from "@/utils/androidWebView";
 import { Button } from "@/components/ui/button";
+
+function handlePlatformLink(url, closeMenu) {
+  closeMenu();
+  openExternalUrl(url);
+}
 
 const platformLinks = [
   {
@@ -116,6 +122,33 @@ export default function PlatformLinksMenu() {
               <div className="grid gap-2">
                 {platformLinks.map((item) => {
                   const Icon = item.icon;
+                  const linkClassName =
+                    "flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 transition hover:border-blue-200 hover:bg-blue-50 w-full text-left";
+
+                  if (isAndroidWebView()) {
+                    return (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => handlePlatformLink(item.href, closeMenu)}
+                        className={linkClassName}
+                      >
+                        <div
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${item.accent} text-white shadow-sm`}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-gray-900">{item.label}</span>
+                            <ExternalLink className="h-3.5 w-3.5 text-gray-400" />
+                          </div>
+                          <p className="truncate text-xs text-gray-500">{item.description}</p>
+                        </div>
+                      </button>
+                    );
+                  }
+
                   return (
                     <a
                       key={item.label}
@@ -123,7 +156,7 @@ export default function PlatformLinksMenu() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={closeMenu}
-                      className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 transition hover:border-blue-200 hover:bg-blue-50"
+                      className={linkClassName}
                     >
                       <div
                         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${item.accent} text-white shadow-sm`}

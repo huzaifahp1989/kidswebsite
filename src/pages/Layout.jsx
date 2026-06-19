@@ -2,7 +2,8 @@
 
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Home, Gamepad2, BookOpen, Music, GraduationCap, Users, Info, Book, Trophy, ChevronDown, Menu, X, LogOut, User, LogIn, UserPlus, Video, Settings, Play, Pause, Volume2, VolumeX, Radio, Mail, Star, BarChart2, Layers, Shield, Bell, Target, MessageCircle } from "lucide-react";
+import { HIFZ_ASSISTANT_URL } from "@/constants/externalLinks";
+import { Home, Gamepad2, BookOpen, Music, GraduationCap, Users, Info, Book, Trophy, ChevronDown, Menu, X, LogOut, User, LogIn, UserPlus, Video, Settings, Play, Pause, Volume2, VolumeX, Radio, Mail, Star, Sparkles, BarChart2, Layers, Shield, Bell, Target, MessageCircle } from "lucide-react";
 import React, { useState, useEffect, useRef, createContext, useContext } from "react";
 import { motion } from "framer-motion";
 import {
@@ -220,6 +221,7 @@ export default function Layout({ children, currentPageName }) {
       name: "Quran",
       icon: BookOpen,
       dropdown: [
+        { name: "Quran Hifz Assistant", external: true, url: HIFZ_ASSISTANT_URL, icon: Sparkles },
         { name: "Learn Quran", path: "Quran", icon: BookOpen },
         { name: "Full Quran", path: "FullQuran", icon: Book },
         { name: "Quran Dictionary", path: "QuranDictionary", icon: BookOpen },
@@ -408,6 +410,21 @@ export default function Layout({ children, currentPageName }) {
                       <DropdownMenuContent>
                         {item.dropdown.map((subItem) => {
                           const SubIcon = subItem.icon;
+                          if (subItem.url) {
+                            return (
+                              <DropdownMenuItem key={`ext-${subItem.name}`} asChild>
+                                <a
+                                  href={subItem.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="cursor-pointer flex items-center gap-2"
+                                >
+                                  {SubIcon ? <SubIcon className="w-4 h-4" /> : null}
+                                  <span>{subItem.name}</span>
+                                </a>
+                              </DropdownMenuItem>
+                            );
+                          }
                           return (
                             <DropdownMenuItem key={subItem.path} asChild>
                               <Link to={createPageUrl(subItem.path)} className="cursor-pointer flex items-center gap-2">

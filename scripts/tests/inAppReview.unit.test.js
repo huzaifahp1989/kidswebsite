@@ -31,9 +31,15 @@ function createEnv() {
     set: (v) => { androidBridge = v; },
   });
 
-  const context = { window, localStorage, console };
+  const context = {
+    window,
+    localStorage,
+    console,
+    isAndroidWebView: () => false,
+  };
   vm.createContext(context);
   const moduleCode = source
+    .replace(/^import .+;\r?\n/gm, '')
     .replace(/^export /gm, '')
     .replace(/^export const /gm, 'const ')
     .replace(/^export function /gm, 'function ');
@@ -71,6 +77,7 @@ test('cooldown blocks repeat review within 7 days', () => {
 
 test('android bridge openPlayStore is used in app', () => {
   const ctx = createEnv();
+  ctx.isAndroidWebView = () => true;
   let called = false;
   ctx.setAndroidBridge({ openPlayStore: () => { called = true; } });
   ctx.resetReviewPromptForTesting();

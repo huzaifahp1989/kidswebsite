@@ -1,3 +1,5 @@
+import { isAndroidWebView } from '@/utils/androidWebView';
+
 export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.wnapp.id1761553570260&hl=en_GB';
 
 const REVIEW_LAST_PROMPT_KEY = 'review_last_prompt_at';
@@ -9,18 +11,6 @@ const GAME_COUNT_MILESTONES = [1, 3, 10, 25];
 const QUIZ_COUNT_MILESTONES = [1, 2, 5, 10];
 const LEARNING_COUNT_MILESTONES = [1, 3, 5];
 const POINTS_MILESTONES = [50, 200, 500, 1000];
-
-function isAndroidApp() {
-  try {
-    return Boolean(
-      window.AndroidReview &&
-      (typeof window.AndroidReview.openPlayStore === 'function' ||
-        typeof window.AndroidReview.requestReview === 'function')
-    );
-  } catch {
-    return false;
-  }
-}
 
 function canShowReviewPrompt() {
   try {
@@ -44,7 +34,7 @@ function markReviewPromptShown(reason = 'unknown') {
 export function openPlayStoreReview(reason = 'unknown') {
   markReviewPromptShown(reason);
 
-  if (isAndroidApp()) {
+  if (isAndroidWebView()) {
     try {
       if (typeof window.AndroidReview.openPlayStore === 'function') {
         window.AndroidReview.openPlayStore();
@@ -91,6 +81,7 @@ function maybeReviewAtMilestone(counterKey, milestones, reason) {
 
 export function trackGameCompletionAndMaybeReview() {
   try {
+    if (isAndroidWebView()) return;
     maybeReviewAtMilestone('games_completed_count', GAME_COUNT_MILESTONES, 'game_milestone');
   } catch {
   }
@@ -98,6 +89,7 @@ export function trackGameCompletionAndMaybeReview() {
 
 export function trackQuizCompletionAndMaybeReview() {
   try {
+    if (isAndroidWebView()) return;
     maybeReviewAtMilestone('quizzes_completed_count', QUIZ_COUNT_MILESTONES, 'quiz_milestone');
   } catch {
   }
@@ -112,6 +104,7 @@ export function trackLearningCompletionAndMaybeReview() {
 
 export function trackPointsMilestoneAndMaybeReview(totalPoints) {
   try {
+    if (isAndroidWebView()) return;
     const pts = Number(totalPoints) || 0;
     const lastMilestone = parseInt(localStorage.getItem('last_review_milestone') || '0', 10);
     const crossed = POINTS_MILESTONES.find((m) => pts >= m && lastMilestone < m);
@@ -125,6 +118,10 @@ export function trackPointsMilestoneAndMaybeReview(totalPoints) {
 
 export function trackSessionEngagementAndMaybeReview() {
   try {
+    if (isAndroidWebView()) {
+      return () => {};
+    }
+
     const today = new Date().toDateString();
     if (localStorage.getItem(REVIEW_SESSION_DATE_KEY) === today) {
       return () => {};

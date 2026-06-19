@@ -37,14 +37,24 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
         webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
 
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, android.os.Message resultMsg) {
+                // Avoid WebView crashes from target="_blank" popups.
+                return false;
+            }
+        });
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 try {
                     if (url == null) return false;
+                    if (isAppUrl(url)) {
+                        return false;
+                    }
                     if (url.startsWith("http://") || url.startsWith("https://")) {
-                        view.loadUrl(url);
+                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                        startActivity(intent);
                         return true;
                     }
                     Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
@@ -55,6 +65,15 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    private boolean isAppUrl(String url) {
+        return url.contains("traeimedia3phmb.vercel.app")
+            || url.contains("imediackids.com")
+            || url.startsWith("http://localhost")
+            || url.startsWith("https://localhost")
+            || url.startsWith("http://10.0.2.2")
+            || url.startsWith("https://10.0.2.2");
     }
 
     @Override
