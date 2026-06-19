@@ -1,13 +1,13 @@
 import { createPageUrl } from "@/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Star, Sparkles, Heart, Shield, MessageCircle, ExternalLink, Moon, Mail, Users, BookOpen, Radio } from "lucide-react";
+import { Star, Sparkles, Heart, Shield, MessageCircle, ExternalLink, Moon, Mail, Users, BookOpen, Radio, ClipboardList } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 // import WordPressFeed from "@/components/WordPressFeed";
 import { useState, useEffect, useRef } from "react";
 import React from "react";
 import nasihahWorldBanner from "@/assets/brands/nasihah-world-banner.jpg";
-import { isAndroidWebView } from "@/utils/androidWebView";
-import { HIFZ_ASSISTANT_URL } from "@/constants/externalLinks";
+import { isAndroidWebView, openExternalUrl } from "@/utils/androidWebView";
+import { HIFZ_ASSISTANT_URL, SURVEY_FORM_URL } from "@/constants/externalLinks";
 
 const ADS_SECTION_URL = "https://traeadvert8pia.vercel.app/";
 const COMMUNITY_POPUP_LAST_SHOWN_KEY = "home_community_popup_last_shown_v1";
@@ -244,9 +244,43 @@ export default function Home() {
     } catch {}
   };
 
+  const surveyLinkProps = isAndroidWebView()
+    ? {
+        href: SURVEY_FORM_URL,
+        onClick: (e) => {
+          e.preventDefault();
+          openExternalUrl(SURVEY_FORM_URL);
+        },
+      }
+    : {
+        href: SURVEY_FORM_URL,
+        target: "_blank",
+        rel: "noopener noreferrer",
+      };
+
   return (
     <ErrorBoundary>
     <div className="min-h-screen" style={{background: '#EFF6FF'}}>
+      {/* Survey tab link */}
+      <section className="border-b border-blue-200 bg-gradient-to-r from-[#1e3a8a] via-[#1d4ed8] to-[#2563eb] px-4 py-3">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-2 sm:flex-row sm:justify-between">
+          <div className="flex items-center gap-2 text-center text-white sm:text-left">
+            <ClipboardList className="h-5 w-5 shrink-0 text-sky-200" />
+            <p className="text-sm font-semibold md:text-base">
+              Take part in survey that can help us
+            </p>
+          </div>
+
+          <a
+            {...surveyLinkProps}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/30 bg-white px-5 py-2 text-sm font-bold text-[#1e3a8a] shadow-md transition hover:bg-sky-50"
+          >
+            Open Survey
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </div>
+      </section>
+
       {/* Stay Connected Popup */}
       <Dialog open={showCommunityPopup} onOpenChange={(open) => !open && closeCommunityPopup()}>
         <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl border-0 p-0 shadow-2xl overflow-hidden">
