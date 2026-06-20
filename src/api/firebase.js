@@ -384,8 +384,9 @@ export const announcementsApi = {
   },
 };
 
-export async function uploadSponsorImage() {
-  throw new Error('Image upload not configured. Paste an image URL instead.');
+export async function uploadSponsorImage(file, label = 'sponsor') {
+  const { uploadSponsorImage: upload } = await import('./mediaLibrary.js');
+  return upload(file, label);
 }
 
 export async function isAdminUser() {

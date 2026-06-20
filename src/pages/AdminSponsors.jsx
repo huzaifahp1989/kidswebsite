@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Plus, Save, Trash2, Edit, X, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { sponsorsApi, uploadSponsorImage, getFirebase } from "@/api/firebase";
+import { sponsorsApi, getFirebase } from "@/api/firebase";
+import AdminImagePicker from "@/components/AdminImagePicker";
 
 export default function AdminSponsors() {
   const navigate = useNavigate();
@@ -24,7 +25,6 @@ export default function AdminSponsors() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [file, setFile] = useState(null);
   const [configured, setConfigured] = useState(false);
 
   const loadLocal = () => {
@@ -175,29 +175,13 @@ export default function AdminSponsors() {
                   <Label>Link URL</Label>
                   <Input value={form.linkUrl} onChange={(e) => setForm({ ...form, linkUrl: e.target.value })} placeholder="https://sponsor.com" type="url" required />
                 </div>
-                <div>
-                  <Label>Logo/Image URL</Label>
-                  <Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://...logo.png" />
-                </div>
-                <div>
-                  <Label>Upload Image (optional)</Label>
-                  <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                  <div className="text-xs text-gray-500 mt-1">
-                    {configured ? 'Image URL is saved to Supabase. Paste a link or upload elsewhere first.' : 'Configure Supabase env vars to enable cloud storage later.'}
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    <Button type="button" variant="outline" disabled={!file || !configured || loading} onClick={async () => {
-                      setError("");
-                      if (!file) return;
-                      try {
-                        const res = await uploadSponsorImage(file, form.name || file.name);
-                        setForm({ ...form, imageUrl: res.url });
-                      } catch (e) {
-                        setError(e?.message || 'Upload failed');
-                      }
-                    }}>Upload to Storage</Button>
-                    {form.imageUrl && <a href={form.imageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm">Preview</a>}
-                  </div>
+                <div className="md:col-span-2">
+                  <AdminImagePicker
+                    label="Logo / image"
+                    folder="sponsors"
+                    value={form.imageUrl}
+                    onChange={(imageUrl) => setForm({ ...form, imageUrl })}
+                  />
                 </div>
                 <div>
                   <Label>Type</Label>

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import AdminImagePicker from "@/components/AdminImagePicker";
 import {
   ArrowLeft,
   Bell,
@@ -179,26 +180,22 @@ export default function AdminAnnouncements() {
           </CardHeader>
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    placeholder="Announcement title"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="imageUrl">Image URL</Label>
-                  <Input
-                    id="imageUrl"
-                    value={form.imageUrl}
-                    onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                    placeholder="https://example.com/image.jpg"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  placeholder="Announcement title"
+                />
               </div>
+
+              <AdminImagePicker
+                label="Announcement image"
+                folder="announcements"
+                value={form.imageUrl}
+                onChange={(imageUrl) => setForm({ ...form, imageUrl })}
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="text">Message</Label>
@@ -278,19 +275,6 @@ export default function AdminAnnouncements() {
                   Show as popup
                 </label>
               </div>
-
-              {form.imageUrl && (
-                <div className="overflow-hidden rounded-xl border bg-white p-3">
-                  <img
-                    src={form.imageUrl}
-                    alt="Preview"
-                    className="mx-auto max-h-48 rounded-lg object-contain"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                </div>
-              )}
 
               {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
