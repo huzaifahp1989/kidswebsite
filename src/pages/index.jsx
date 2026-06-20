@@ -100,6 +100,7 @@ import Signup from "./Signup";
 
 
 import AdminBanners from "./AdminBanners";
+import AdminAnnouncements from "./AdminAnnouncements";
 import AdminSponsors from "./AdminSponsors";
 
 import AdminStoryBuilder from "./AdminStoryBuilder";
@@ -233,6 +234,7 @@ const PAGES = {
     
     
     AdminBanners: AdminBanners,
+    AdminAnnouncements: AdminAnnouncements,
     
     AdminStoryBuilder: AdminStoryBuilder,
     
@@ -424,6 +426,8 @@ function PagesContent() {
                 
                 
                 <Route path="/AdminBanners" element={<AdminGuard><AdminBanners /></AdminGuard>} />
+                <Route path="/AdminAnnouncements" element={<AdminGuard><AdminAnnouncements /></AdminGuard>} />
+                <Route path="/adminannouncements" element={<AdminGuard><AdminAnnouncements /></AdminGuard>} />
                 <Route path="/AdminSponsors" element={<AdminGuard><AdminSponsors /></AdminGuard>} />
                 <Route path="/adminsponsors" element={<AdminGuard><AdminSponsors /></AdminGuard>} />
                 

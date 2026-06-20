@@ -1,6 +1,6 @@
 import { createPageUrl } from "@/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Star, Sparkles, Heart, Shield, MessageCircle, ExternalLink, Moon, Mail, Users, BookOpen, Radio, ClipboardList } from "lucide-react";
+import { Star, Sparkles, Heart, Shield, MessageCircle, ExternalLink, Moon, Mail, Users, BookOpen, Radio, ClipboardList, Megaphone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 // import WordPressFeed from "@/components/WordPressFeed";
 import { useState, useEffect, useRef } from "react";
@@ -8,10 +8,37 @@ import React from "react";
 import nasihahWorldBanner from "@/assets/brands/nasihah-world-banner.jpg";
 import { isAndroidWebView, openExternalUrl } from "@/utils/androidWebView";
 import { HIFZ_ASSISTANT_URL, SURVEY_FORM_URL } from "@/constants/externalLinks";
+import { announcementsApi } from "@/api/firebase";
 
 const ADS_SECTION_URL = "https://traeadvert8pia.vercel.app/";
 const COMMUNITY_POPUP_LAST_SHOWN_KEY = "home_community_popup_last_shown_v1";
 const COMMUNITY_POPUP_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+function announcementPopupKey(id) {
+  return `announcement_popup_${id}_last_shown`;
+}
+
+function canShowAnnouncementPopup(item) {
+  try {
+    const hours = Number(item.popupCooldownHours) || 24;
+    const cooldownMs = hours * 60 * 60 * 1000;
+    const raw = localStorage.getItem(announcementPopupKey(item.id));
+    const last = raw ? Number(raw) : 0;
+    if (!last) return true;
+    return Date.now() - last >= cooldownMs;
+  } catch {
+    return true;
+  }
+}
+
+function openAnnouncementLink(url) {
+  if (!url) return;
+  if (isAndroidWebView()) {
+    openExternalUrl(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 const mainFeaturedSponsors = [
   { name: "Nasihah World", accent: "sky" },
@@ -122,6 +149,9 @@ const islamicValues = [
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showCommunityPopup, setShowCommunityPopup] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
+  const [popupAnnouncement, setPopupAnnouncement] = useState(null);
+  const [showAnnouncementPopup, setShowAnnouncementPopup] = useState(false);
   const [isRadioPlaying, setIsRadioPlaying] = useState(false);
   const audioRef = useRef(null);
   const [gregorianDate, setGregorianDate] = useState("");
@@ -220,7 +250,43 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const loadAnnouncements = async () => {
+      try {
+        const list = await announcementsApi.list();
+        const active = (list || [])
+          .filter((item) => item && (item.active ?? true))
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        setAnnouncements(active);
+      } catch {
+        setAnnouncements([]);
+      }
+    };
+    loadAnnouncements();
+  }, []);
+
+  const homeAnnouncements = announcements.filter((item) => item.showOnHome);
+
+  useEffect(() => {
     if (isAndroidWebView()) return;
+
+    const candidates = announcements.filter((item) => item.showAsPopup);
+    if (!candidates.length) return;
+
+    const nextPopup = candidates.find((item) => canShowAnnouncementPopup(item));
+    if (!nextPopup) return;
+
+    const delayMs = Math.max(0, Number(nextPopup.popupDelaySeconds) || 3) * 1000;
+    const timer = setTimeout(() => {
+      setPopupAnnouncement(nextPopup);
+      setShowAnnouncementPopup(true);
+    }, delayMs);
+
+    return () => clearTimeout(timer);
+  }, [announcements]);
+
+  useEffect(() => {
+    if (isAndroidWebView()) return;
+    if (showAnnouncementPopup || popupAnnouncement) return;
 
     const shouldShow = () => {
       try {
@@ -235,7 +301,17 @@ export default function Home() {
     if (!shouldShow()) return;
     const timer = setTimeout(() => setShowCommunityPopup(true), 7000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [showAnnouncementPopup, popupAnnouncement]);
+
+  const closeAnnouncementPopup = () => {
+    if (popupAnnouncement?.id) {
+      try {
+        localStorage.setItem(announcementPopupKey(popupAnnouncement.id), String(Date.now()));
+      } catch {}
+    }
+    setShowAnnouncementPopup(false);
+    setPopupAnnouncement(null);
+  };
 
   const closeCommunityPopup = () => {
     setShowCommunityPopup(false);
@@ -318,6 +394,55 @@ export default function Home() {
           </div>
           <div className="bg-gray-50 px-6 py-3 text-center border-t border-gray-100">
             <button onClick={closeCommunityPopup} className="text-xs text-gray-400 hover:text-gray-600 transition">Maybe later</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAnnouncementPopup} onOpenChange={(open) => !open && closeAnnouncementPopup()}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-2xl border-0 p-0 shadow-2xl overflow-hidden">
+          {popupAnnouncement?.imageUrl && (
+            <div className="max-h-52 overflow-hidden bg-gray-100">
+              <img
+                src={popupAnnouncement.imageUrl}
+                alt={popupAnnouncement.title || "Announcement"}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          )}
+          <div className="bg-gradient-to-br from-[#1e3a8a] to-[#1d4ed8] px-6 py-4 text-white">
+            <div className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5 text-sky-200" />
+              <div className="text-xl font-bold">{popupAnnouncement?.title || "Announcement"}</div>
+            </div>
+          </div>
+          <div className="bg-white px-6 py-5">
+            {popupAnnouncement?.text && (
+              <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
+                {popupAnnouncement.text}
+              </p>
+            )}
+            {popupAnnouncement?.linkUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  openAnnouncementLink(popupAnnouncement.linkUrl);
+                  closeAnnouncementPopup();
+                }}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1e3a8a] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]"
+              >
+                {popupAnnouncement.linkLabel || "Learn more"}
+                <ExternalLink className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="bg-gray-50 px-6 py-3 text-center border-t border-gray-100">
+            <button
+              type="button"
+              onClick={closeAnnouncementPopup}
+              className="text-xs text-gray-400 hover:text-gray-600 transition"
+            >
+              Close
+            </button>
           </div>
         </DialogContent>
       </Dialog>
@@ -424,6 +549,56 @@ export default function Home() {
           <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent" />
         </div>
       </div>
+
+      {homeAnnouncements.length > 0 && (
+        <section className="border-b border-amber-100 bg-amber-50 px-4 py-4">
+          <div className="mx-auto max-w-5xl space-y-3">
+            <div className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5 text-amber-600" />
+              <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-amber-800">
+                Announcements
+              </h2>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {homeAnnouncements.map((item) => (
+                <article
+                  key={item.id}
+                  className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm"
+                >
+                  {item.imageUrl && (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title || "Announcement"}
+                      className="h-40 w-full object-cover"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="p-4">
+                    {item.title && (
+                      <h3 className="text-lg font-bold text-[#1e3a8a]">{item.title}</h3>
+                    )}
+                    {item.text && (
+                      <p className="mt-2 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
+                        {item.text}
+                      </p>
+                    )}
+                    {item.linkUrl && (
+                      <button
+                        type="button"
+                        onClick={() => openAnnouncementLink(item.linkUrl)}
+                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900"
+                      >
+                        {item.linkLabel || "Learn more"}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* â"€â"€ Hero Section â"€â"€ */}
       <section className="relative overflow-hidden bg-[#1e3a8a]">

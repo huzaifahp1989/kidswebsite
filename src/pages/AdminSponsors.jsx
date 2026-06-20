@@ -183,7 +183,7 @@ export default function AdminSponsors() {
                   <Label>Upload Image (optional)</Label>
                   <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
                   <div className="text-xs text-gray-500 mt-1">
-                    {configured ? 'Uploads go to Firebase Storage and auto-fill the Image URL.' : 'Upload disabled: configure Firebase env vars to enable Storage.'}
+                    {configured ? 'Image URL is saved to Supabase. Paste a link or upload elsewhere first.' : 'Configure Supabase env vars to enable cloud storage later.'}
                   </div>
                   <div className="mt-2 flex gap-2">
                     <Button type="button" variant="outline" disabled={!file || !configured || loading} onClick={async () => {

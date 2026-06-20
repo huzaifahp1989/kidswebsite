@@ -1,131 +1,41 @@
 # Supabase Setup
 
-This project is now configured with Supabase. Here's how to use it:
+Project URL: **https://jlqrbbqsuksncrxjcmbc.supabase.co**
 
-## Configuration
+## Environment variables
 
-The Supabase client is configured in `src/lib/supabase.js` with the following credentials:
-
-- **Project URL**: `https://bqmfrmfevnjdvpttsvof.supabase.co`
-- **Anon Key**: Configured in `.env` file
-
-## Environment Variables
-
-Make sure your `.env` file contains:
+Create `.env` in the project root:
 
 ```env
-VITE_SUPABASE_URL=https://bqmfrmfevnjdvpttsvof.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_SUPABASE_URL=https://jlqrbbqsuksncrxjcmbc.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key_from_supabase_dashboard
+VITE_ADMIN_EMAIL=your-admin@email.com
 ```
 
-## Usage
+Get the anon key from **Supabase → Project Settings → API**.
 
-### Import the Supabase client
+## Database tables
 
-```javascript
-import { supabase, supabaseAuth, isSupabaseConfigured } from '@/lib/supabase';
-```
+Run `supabase/schema.sql` in the Supabase SQL editor to create:
 
-### Authentication Examples
+- `users`
+- `sponsors`
+- `announcements`
+- `quiz_answers`
+- `game_scores`
+- `child_progress_logs`
 
-```javascript
-// Sign up
-const { data, error } = await supabaseAuth.signUp('user@example.com', 'password', {
-  full_name: 'John Doe'
-});
+## Auth
 
-// Sign in
-const { data, error } = await supabaseAuth.signIn('user@example.com', 'password');
+1. Enable **Email / Password** in Supabase Authentication
+2. Add your site URL to **Redirect URLs** (e.g. `https://imediackids.com`)
+3. Create an admin user with the same email as `VITE_ADMIN_EMAIL`
 
-// Sign out
-await supabaseAuth.signOut();
-
-// Get current session
-const { data: { session }, error } = await supabaseAuth.getSession();
-
-// Listen to auth state changes
-const { data: { subscription } } = supabaseAuth.onAuthStateChange((event, session) => {
-  console.log('Auth state changed:', event, session);
-});
-```
-
-### Database Examples
-
-```javascript
-// Select data
-const { data, error } = await supabase
-  .from('users')
-  .select('*')
-  .eq('email', 'user@example.com');
-
-// Insert data
-const { data, error } = await supabase
-  .from('users')
-  .insert({ email: 'user@example.com', name: 'John Doe' });
-
-// Update data
-const { data, error } = await supabase
-  .from('users')
-  .update({ name: 'Jane Doe' })
-  .eq('id', 'user-id');
-
-// Delete data
-const { data, error } = await supabase
-  .from('users')
-  .delete()
-  .eq('id', 'user-id');
-```
-
-### Storage Examples
-
-```javascript
-// Upload a file
-const { data, error } = await supabase.storage
-  .from('bucket-name')
-  .upload('path/to/file.jpg', file);
-
-// Download a file
-const { data, error } = await supabase.storage
-  .from('bucket-name')
-  .download('path/to/file.jpg');
-
-// Get public URL
-const { data } = supabase.storage
-  .from('bucket-name')
-  .getPublicUrl('path/to/file.jpg');
-```
-
-### Real-time Subscriptions
-
-```javascript
-// Subscribe to changes
-const subscription = supabase
-  .channel('users')
-  .on('postgres_changes', 
-    { event: 'INSERT', schema: 'public', table: 'users' },
-    (payload) => {
-      console.log('New user:', payload.new);
-    }
-  )
-  .subscribe();
-```
-
-## Testing the Connection
-
-You can test the Supabase connection by clicking the "TEST SUPABASE" button in the Games page, or by running:
+## Usage in code
 
 ```javascript
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-
-if (isSupabaseConfigured()) {
-  const { data, error } = await supabase.auth.getSession();
-  console.log('Connection test:', error ? error.message : 'Success');
-}
+import { watchAuth, signIn, getUserProfile } from '@/api/firebase';
 ```
 
-## Dashboard
-
-Access your Supabase dashboard at:
-https://supabase.com/dashboard/project/bqmfrmfevnjdvpttsvof
-
-
+The `firebase.js` API module name is kept for compatibility, but all data now uses Supabase.

@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Shield, Lock, CheckCircle2, AlertTriangle } from "lucide-react";
-import { adminSignIn, adminSignOut, watchAuth, isAdminUser, getFirebase } from "@/api/firebase";
-import { sendPasswordResetEmail } from "firebase/auth";
+import { adminSignIn, adminSignOut, watchAuth, isAdminUser, getFirebase, resetPassword } from "@/api/firebase";
 import { createPageUrl } from "@/utils";
 
 export default function AdminLogin() {
@@ -17,20 +16,13 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [configured, setConfigured] = useState(false);
   const envFlags = {
-    apiKey: Boolean(import.meta.env.VITE_FIREBASE_API_KEY),
-    authDomain: Boolean(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
-    projectId: Boolean(import.meta.env.VITE_FIREBASE_PROJECT_ID),
-    appId: Boolean(import.meta.env.VITE_FIREBASE_APP_ID),
+    supabaseUrl: Boolean(import.meta.env.VITE_SUPABASE_URL),
+    supabaseKey: Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY),
   };
 
-  // Debug: capture raw env values (masked in UI)
   const debugConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+    supabaseUrl: import.meta.env.VITE_SUPABASE_URL || "",
+    supabaseKey: import.meta.env.VITE_SUPABASE_ANON_KEY || "",
   };
   const mask = (s, start = 4, end = 4) => {
     if (!s) return "(empty)";
@@ -55,7 +47,7 @@ export default function AdminLogin() {
     setError("");
     setLoading(true);
     try {
-      if (!configured) throw new Error("Firebase not configured");
+      if (!configured) throw new Error("Supabase is not configured");
       const user = await adminSignIn(email, password);
       // Removed optional static 2FA code gate; sign-in proceeds with email/password only
       const ok = await isAdminUser();
@@ -72,7 +64,7 @@ export default function AdminLogin() {
       if (code === "auth/user-not-found") msg = "No account found for this email. Please sign up or ask an admin to create one.";
       if (code === "auth/wrong-password") msg = "Incorrect password. Try again or reset your password.";
       if (code === "auth/too-many-requests") msg = "Too many attempts. Please wait a minute, then try again.";
-      if (code === "auth/operation-not-allowed") msg = "Email/password sign-in is disabled. Enable it in Firebase Auth → Sign-in method.";
+      if (code === "auth/operation-not-allowed") msg = "Email/password sign-in is disabled. Enable it in Supabase Auth.";
       setError(msg);
     } finally {
       setLoading(false);
@@ -95,46 +87,38 @@ export default function AdminLogin() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-amber-600">
                   <AlertTriangle className="w-5 h-5" />
-                  <span>Firebase is not configured.</span>
+                  <span>Supabase is not configured.</span>
                 </div>
                 <p className="text-sm text-gray-600">
-                  Please set Firebase env vars in <code>.env</code>: <code>VITE_FIREBASE_API_KEY</code>, <code>VITE_FIREBASE_AUTH_DOMAIN</code>, <code>VITE_FIREBASE_PROJECT_ID</code>, <code>VITE_FIREBASE_APP_ID</code>. Optional: <code>VITE_ADMIN_EMAIL</code> (exact match), <code>VITE_ADMIN_EMAIL_DOMAIN</code> (e.g. <code>imediackids.com</code>).
+                  Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env</code>.
+                  Optional: <code>VITE_ADMIN_EMAIL</code> for admin-only access.
                 </p>
                 <div className="text-xs text-gray-500 bg-gray-50 border rounded p-2">
-                  <div className="font-semibold mb-1">Detected env flags (no secrets):</div>
+                  <div className="font-semibold mb-1">Detected env flags:</div>
                   <ul className="list-disc ml-4">
-                    <li>VITE_FIREBASE_API_KEY: {envFlags.apiKey ? '✓' : '✗'}</li>
-                    <li>VITE_FIREBASE_AUTH_DOMAIN: {envFlags.authDomain ? '✓' : '✗'}</li>
-                    <li>VITE_FIREBASE_PROJECT_ID: {envFlags.projectId ? '✓' : '✗'}</li>
-                    <li>VITE_FIREBASE_APP_ID: {envFlags.appId ? '✓' : '✗'}</li>
+                    <li>VITE_SUPABASE_URL: {envFlags.supabaseUrl ? '✓' : '✗'}</li>
+                    <li>VITE_SUPABASE_ANON_KEY: {envFlags.supabaseKey ? '✓' : '✗'}</li>
                   </ul>
-                  <div className="mt-2">After editing <code>.env</code>, fully restart the dev server (<code>Ctrl+C</code> then <code>npm run dev</code>).</div>
+                  <div className="mt-2">After editing <code>.env</code>, restart the dev server.</div>
                 </div>
                 <div className="text-xs text-gray-500 bg-gray-50 border rounded p-2">
                   <div className="font-semibold mb-1">Debug config (masked)</div>
                   <ul className="list-disc ml-4">
-                    <li>apiKey: {mask(debugConfig.apiKey)}</li>
-                    <li>authDomain: {debugConfig.authDomain || '(empty)'}</li>
-                    <li>projectId: {debugConfig.projectId || '(empty)'}</li>
-                    <li>appId: {mask(debugConfig.appId, 3, 6)}</li>
-                    <li>storageBucket: {debugConfig.storageBucket || '(empty)'}</li>
-                    <li>messagingSenderId: {debugConfig.messagingSenderId || '(empty)'}</li>
+                    <li>supabaseUrl: {debugConfig.supabaseUrl || '(empty)'}</li>
+                    <li>anonKey: {mask(debugConfig.supabaseKey)}</li>
                   </ul>
-                  <div className="mt-2">If values show as <code>(empty)</code>, ensure your <code>.env</code> exists at the project root and variables start with <code>VITE_</code>.</div>
                 </div>
                 <div className="text-sm text-gray-600">
-                  Admin login requires Firebase configuration. Once configured, use your email/password to sign in.
+                  Admin login uses Supabase email/password auth.
                 </div>
               </div>
             ) : (
               <>
               <div className="text-xs text-gray-500 bg-gray-50 border rounded p-2 mb-4">
-                <div className="font-semibold mb-1">Debug config (masked)</div>
+                <div className="font-semibold mb-1">Supabase project</div>
                 <ul className="list-disc ml-4">
-                  <li>apiKey: {mask(debugConfig.apiKey)}</li>
-                  <li>authDomain: {debugConfig.authDomain || '(empty)'}</li>
-                  <li>projectId: {debugConfig.projectId || '(empty)'}</li>
-                  <li>appId: {mask(debugConfig.appId, 3, 6)}</li>
+                  <li>url: {debugConfig.supabaseUrl || '(empty)'}</li>
+                  <li>anonKey: {mask(debugConfig.supabaseKey)}</li>
                 </ul>
               </div>
               <form onSubmit={handleLogin} className="space-y-4">
@@ -162,10 +146,8 @@ export default function AdminLogin() {
                     onClick={async () => {
                       setError("");
                       try {
-                        const { auth } = getFirebase();
-                        if (!auth) throw new Error("Firebase not configured");
                         if (!email) throw new Error("Enter your email above, then click reset.");
-                        await sendPasswordResetEmail(auth, email);
+                        await resetPassword(email);
                         setError("Password reset email sent. Check your inbox.");
                       } catch (err) {
                         const code = err?.code || "";

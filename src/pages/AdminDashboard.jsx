@@ -17,6 +17,7 @@ import {
   HelpCircle, // Added new icon
   GraduationCap, // Added new icon
   MessageSquare, // Added new icon
+  Megaphone,
   Gamepad2, // Added new icon
   BarChart3, // Added new icon
 } from "lucide-react";
@@ -104,6 +105,14 @@ export default function AdminDashboard() {
       path: "AdminBanners",
       color: "from-teal-500 to-cyan-500",
       stats: "Edit slides"
+    },
+    {
+      title: "Announcements",
+      description: "Image + text announcements for home and popup",
+      icon: Megaphone,
+      path: "AdminAnnouncements",
+      color: "from-indigo-500 to-blue-500",
+      stats: "Home & popup"
     },
     {
       title: "Sponsors & Ads",

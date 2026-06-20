@@ -1,21 +1,19 @@
-import { db } from "../lib/firebase"; 
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { supabase } from "../lib/supabase";
 
 export async function createUserProfile(user) {
-  if (!user) return;
+  if (!user || !supabase) return;
 
-  const ref = doc(db, "users", user.uid);
-  const snap = await getDoc(ref);
+  const { data } = await supabase.from("users").select("id").eq("id", user.uid || user.id).maybeSingle();
 
-  if (!snap.exists()) {
-    await setDoc(
-      ref,
+  if (!data) {
+    await supabase.from("users").upsert(
       {
+        id: user.uid || user.id,
         email: user.email || "",
         points: 0,
-        createdAt: new Date(),
+        created_at: new Date().toISOString(),
       },
-      { merge: true }
+      { onConflict: "id" }
     );
   }
 }

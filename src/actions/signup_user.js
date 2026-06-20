@@ -1,27 +1,27 @@
-import { auth, db } from "../lib/firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { supabase } from "../lib/supabase";
 
 export default async function signup_user(email, password, fullName) {
   try {
-    // Create Firebase Auth user
-    const result = await createUserWithEmailAndPassword(auth, email, password);
-    const user = result.user;
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
 
-    // Create Firestore user document
-    await setDoc(doc(db, "users", user.uid), {
-      full_name: fullName,
-      email: user.email,
-      points: 0,
-      created_at: new Date(),
-    });
+    const user = data.user;
+    await supabase.from("users").upsert(
+      {
+        id: user.id,
+        full_name: fullName,
+        email: user.email,
+        points: 0,
+        created_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
 
     return {
       success: true,
-      uid: user.uid,
+      uid: user.id,
       email: user.email,
     };
-
   } catch (error) {
     console.error("Signup Error:", error);
     return {

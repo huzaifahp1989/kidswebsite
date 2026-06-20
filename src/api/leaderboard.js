@@ -1,12 +1,17 @@
-import { collection, query, orderBy, getDocs } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { supabase } from "../lib/supabase";
 
 export async function getLeaderboard() {
-  const q = query(collection(db, "users"), orderBy("points", "desc"));
-  const snap = await getDocs(q);
+  if (!supabase) return [];
 
-  return snap.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .order("points", { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    ...row,
   }));
 }

@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Users, Plus, Edit, Trash2, Search, RefreshCw, Star } from "lucide-react";
 import { getFirebase, usersApi } from "@/api/firebase";
-import { collection, getDocs } from "firebase/firestore";
 
 export default function AdminUsers() {
   // Unlocked: rely on AdminGuard for access
@@ -36,33 +35,9 @@ export default function AdminUsers() {
         return;
       }
     } catch (e) {
-      console.warn('Backend users list failed:', e?.message || e);
+      console.warn('Users list failed:', e?.message || e);
     }
-    try {
-      // Fallback to direct Firestore read
-      const { db } = getFirebase();
-      if (!db) return;
-      const col = collection(db, 'users');
-      const snap = await getDocs(col);
-      const list = snap.docs.map(d => {
-        const data = d.data() || {};
-        return {
-          id: d.id,
-          uid: d.id,
-          name: data.fullName || data.name || "",
-          email: data.email || "",
-          role: data.role || "user",
-          age: data.age || "",
-          city: data.city || "",
-          madrasah: data.madrasah || data.madrasah_maktab || "",
-          points: Number(data.points || 0),
-          lastAward: data.lastAward || null,
-        };
-      });
-      setUsers(list);
-    } catch (e) {
-      console.warn('Failed to load users from Firestore:', e?.message || e);
-    }
+    setUsers([]);
   };
 
   useEffect(() => { load(); }, []);
@@ -205,7 +180,7 @@ export default function AdminUsers() {
                   </Button>
                   <Button variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Users are loaded from Firestore `users` collection. Editing is local-only. Use "Delete (server)" to remove accounts from Firebase Auth and Firestore.</p>
+                <p className="text-xs text-gray-500 mt-2">Users are loaded from Supabase. Editing is local-only in this view.</p>
               </div>
             )}
           </CardContent>

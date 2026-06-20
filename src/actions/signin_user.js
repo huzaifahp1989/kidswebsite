@@ -1,17 +1,15 @@
-import { auth } from "../lib/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { supabase } from "../lib/supabase";
 
 export default async function signin_user(email, password) {
   try {
-    const result = await signInWithEmailAndPassword(auth, email, password);
-    const user = result.user;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
 
     return {
       success: true,
-      uid: user.uid,
-      email: user.email,
+      uid: data.user.id,
+      email: data.user.email,
     };
-
   } catch (error) {
     console.error("Signin Error:", error);
     return { success: false, message: error.message };

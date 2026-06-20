@@ -5,8 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Star, RefreshCw, TrendingUp, Trophy } from "lucide-react";
 import { watchAuth, getUserProfile } from "@/api/firebase";
-import { db } from "../lib/firebase";
-import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { supabase } from "../lib/supabase";
 
 export default function MyPoints() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -29,14 +28,13 @@ export default function MyPoints() {
       setProfile(p ? { id: u.uid, email: u.email, ...p } : { id: u.uid, email: u.email, points: 0 });
       // Load recent awards history from Firestore
       try {
-        const qy = query(
-          collection(db, 'game_scores'),
-          where('user_id', '==', u.uid),
-          orderBy('at', 'desc'),
-          limit(10)
-        );
-        const snap = await getDocs(qy);
-        setScores(snap.docs.map(d => ({ id: d.id, ...d.data() })) || []);
+        const { data } = await supabase
+          .from("game_scores")
+          .select("*")
+          .eq("user_id", u.uid)
+          .order("at", { ascending: false })
+          .limit(10);
+        setScores(data || []);
       } catch { void 0; }
     } catch (e) {
       setStatus(`Failed to load profile: ${e?.message || e}`);

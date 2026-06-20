@@ -19,7 +19,7 @@ export default function AdminGuard({ children }) {
         if (!ok) navigate(createPageUrl("AdminLogin"));
       });
     } else {
-      // If Firebase is not configured, do not attempt Base44 fallback; redirect to Home
+      // If Supabase is not configured, redirect to Home
       setAllowed(false);
       setChecked(true);
       navigate(createPageUrl("Home"));
