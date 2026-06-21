@@ -10,28 +10,11 @@ import { isAndroidWebView, openExternalUrl } from "@/utils/androidWebView";
 import { HIFZ_ASSISTANT_URL, SURVEY_FORM_URL } from "@/constants/externalLinks";
 import { announcementsApi } from "@/api/firebase";
 import AnnouncementImageSlider from "@/components/AnnouncementImageSlider";
-import { getAnnouncementImages } from "@/utils/announcementImages";
+import { getAnnouncementImages, pickAnnouncementPopup, markAnnouncementPopupShown } from "@/utils/announcementImages";
 
 const ADS_SECTION_URL = "https://traeadvert8pia.vercel.app/";
 const COMMUNITY_POPUP_LAST_SHOWN_KEY = "home_community_popup_last_shown_v1";
 const COMMUNITY_POPUP_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-
-function announcementPopupKey(id) {
-  return `announcement_popup_${id}_last_shown`;
-}
-
-function canShowAnnouncementPopup(item) {
-  try {
-    const hours = Number(item.popupCooldownHours) || 24;
-    const cooldownMs = hours * 60 * 60 * 1000;
-    const raw = localStorage.getItem(announcementPopupKey(item.id));
-    const last = raw ? Number(raw) : 0;
-    if (!last) return true;
-    return Date.now() - last >= cooldownMs;
-  } catch {
-    return true;
-  }
-}
 
 function openAnnouncementLink(url) {
   if (!url) return;
@@ -271,17 +254,12 @@ export default function Home() {
   const homeAnnouncements = announcements.filter((item) => item.showOnHome);
 
   useEffect(() => {
-    if (isAndroidWebView()) return;
+    const candidates = pickAnnouncementPopup(announcements);
+    if (!candidates) return;
 
-    const candidates = announcements.filter((item) => item.showAsPopup);
-    if (!candidates.length) return;
-
-    const nextPopup = candidates.find((item) => canShowAnnouncementPopup(item));
-    if (!nextPopup) return;
-
-    const delayMs = Math.max(0, Number(nextPopup.popupDelaySeconds) || 3) * 1000;
+    const delayMs = Math.max(0, Number(candidates.popupDelaySeconds) || 3) * 1000;
     const timer = setTimeout(() => {
-      setPopupAnnouncement(nextPopup);
+      setPopupAnnouncement(candidates);
       setShowAnnouncementPopup(true);
     }, delayMs);
 
@@ -308,10 +286,8 @@ export default function Home() {
   }, [showAnnouncementPopup, popupAnnouncement]);
 
   const closeAnnouncementPopup = () => {
-    if (popupAnnouncement?.id) {
-      try {
-        localStorage.setItem(announcementPopupKey(popupAnnouncement.id), String(Date.now()));
-      } catch {}
+    if (popupAnnouncement) {
+      markAnnouncementPopupShown(popupAnnouncement);
     }
     setShowAnnouncementPopup(false);
     setPopupAnnouncement(null);
@@ -415,7 +391,7 @@ export default function Home() {
       </Dialog>
 
       <Dialog open={showAnnouncementPopup} onOpenChange={(open) => !open && closeAnnouncementPopup()}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-3xl rounded-2xl border-0 p-0 shadow-2xl overflow-hidden">
+        <DialogContent className="z-[60] w-[calc(100%-2rem)] max-w-3xl rounded-2xl border-0 p-0 shadow-2xl overflow-hidden">
           {popupAnnouncement && getAnnouncementImages(popupAnnouncement).length > 0 && (
             <AnnouncementImageSlider
               images={getAnnouncementImages(popupAnnouncement)}

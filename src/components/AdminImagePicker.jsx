@@ -4,14 +4,38 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { searchMediaAssets, uploadMediaFile } from "@/api/mediaLibrary";
-import { Image as ImageIcon, Search, Upload, Check } from "lucide-react";
+import { Image as ImageIcon, Search, Upload, Check, Plus } from "lucide-react";
 
-export default function AdminImagePicker({ value, onChange, folder = "announcements", label = "Image" }) {
+export default function AdminImagePicker({
+  value,
+  onChange,
+  onAdd,
+  multi = false,
+  folder = "announcements",
+  label = "Image",
+}) {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [draftUrl, setDraftUrl] = useState("");
+
+  const emitUrl = (url) => {
+    if (!url) return;
+    if (multi) {
+      onAdd?.(url);
+      return;
+    }
+    onChange?.(url);
+  };
+
+  const addDraftUrl = () => {
+    const url = draftUrl.trim();
+    if (!url) return;
+    emitUrl(url);
+    setDraftUrl("");
+  };
 
   const load = async (searchQuery = query) => {
     setLoading(true);
@@ -43,7 +67,7 @@ export default function AdminImagePicker({ value, onChange, folder = "announceme
     setError("");
     try {
       const asset = await uploadMediaFile(file, { folder, name: file.name });
-      onChange(asset.url);
+      emitUrl(asset.url);
       await load(query);
     } catch (err) {
       setError(err?.message || "Upload failed");
@@ -58,10 +82,29 @@ export default function AdminImagePicker({ value, onChange, folder = "announceme
       <Label>{label}</Label>
 
       <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={multi ? draftUrl : value}
+        onChange={(e) => {
+          if (multi) {
+            setDraftUrl(e.target.value);
+            return;
+          }
+          onChange(e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (multi && e.key === "Enter") {
+            e.preventDefault();
+            addDraftUrl();
+          }
+        }}
         placeholder="https://... or pick from library below"
       />
+
+      {multi && (
+        <Button type="button" variant="outline" size="sm" onClick={addDraftUrl} disabled={!draftUrl.trim()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add image URL
+        </Button>
+      )}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <form onSubmit={handleSearch} className="flex flex-1 gap-2">
@@ -81,7 +124,7 @@ export default function AdminImagePicker({ value, onChange, folder = "announceme
         </label>
       </div>
 
-      {value && (
+      {!multi && value && (
         <div className="overflow-hidden rounded-lg border bg-white p-2">
           <img src={value} alt="Selected" className="mx-auto max-h-40 object-contain" />
         </div>
@@ -101,12 +144,12 @@ export default function AdminImagePicker({ value, onChange, folder = "announceme
         ) : (
           <div className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 md:grid-cols-4">
             {items.map((item) => {
-              const selected = value === item.url;
+              const selected = !multi && value === item.url;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => onChange(item.url)}
+                  onClick={() => emitUrl(item.url)}
                   className={`relative overflow-hidden rounded-lg border bg-white text-left transition hover:ring-2 hover:ring-blue-400 ${
                     selected ? "ring-2 ring-blue-600" : ""
                   }`}
@@ -130,7 +173,9 @@ export default function AdminImagePicker({ value, onChange, folder = "announceme
 
 AdminImagePicker.propTypes = {
   value: PropTypes.string,
-  onChange: PropTypes.func.isRequired,
+  onChange: PropTypes.func,
+  onAdd: PropTypes.func,
+  multi: PropTypes.bool,
   folder: PropTypes.string,
   label: PropTypes.string,
 };

@@ -232,9 +232,8 @@ export default function AdminAnnouncements() {
                 <AdminImagePicker
                   label="Add image to slider"
                   folder="announcements"
-                  value=""
-                  onChange={(imageUrl) => {
-                    if (!imageUrl) return;
+                  multi
+                  onAdd={(imageUrl) => {
                     setForm((current) => {
                       const nextUrls = [...(current.imageUrls || []), imageUrl];
                       return {

@@ -319,7 +319,7 @@ function mapAnnouncementRow(row) {
     linkLabel: row.link_label ?? row.linkLabel ?? 'Learn more',
     active: row.active ?? true,
     showOnHome: row.show_on_home ?? row.showOnHome ?? true,
-    showAsPopup: row.show_as_popup ?? row.showAsPopup ?? false,
+    showAsPopup: Boolean(row.show_as_popup ?? row.showAsPopup ?? false),
     order: row.order ?? 0,
     popupDelaySeconds: row.popup_delay_seconds ?? row.popupDelaySeconds ?? 3,
     popupCooldownHours: row.popup_cooldown_hours ?? row.popupCooldownHours ?? 24,
@@ -372,11 +372,18 @@ function announcementToRow(item) {
 
 export const announcementsApi = {
   async list() {
-    if (!supabase) return readLocalAnnouncements();
+    if (!supabase) return readLocalAnnouncements().map(mapAnnouncementRow);
     try {
-      const { data, error } = await supabase.from('announcements').select('*').order('order', { ascending: true });
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []).map(mapAnnouncementRow);
+      const mapped = (data || []).map(mapAnnouncementRow);
+      if (mapped.length) {
+        return mapped.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      }
+      return readLocalAnnouncements().map(mapAnnouncementRow);
     } catch (e) {
       console.warn(e);
       if (isMissingTableError(e, 'announcements')) {
@@ -384,7 +391,11 @@ export const announcementsApi = {
       }
       try {
         const { data } = await supabase.from('announcements').select('*');
-        return (data || []).map(mapAnnouncementRow);
+        const mapped = (data || []).map(mapAnnouncementRow);
+        if (mapped.length) {
+          return mapped.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        }
+        return readLocalAnnouncements().map(mapAnnouncementRow);
       } catch {
         return readLocalAnnouncements().map(mapAnnouncementRow);
       }
