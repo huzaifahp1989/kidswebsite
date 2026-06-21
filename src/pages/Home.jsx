@@ -9,6 +9,8 @@ import nasihahWorldBanner from "@/assets/brands/nasihah-world-banner.jpg";
 import { isAndroidWebView, openExternalUrl } from "@/utils/androidWebView";
 import { HIFZ_ASSISTANT_URL, SURVEY_FORM_URL } from "@/constants/externalLinks";
 import { announcementsApi } from "@/api/firebase";
+import AnnouncementImageSlider from "@/components/AnnouncementImageSlider";
+import { getAnnouncementImages } from "@/utils/announcementImages";
 
 const ADS_SECTION_URL = "https://traeadvert8pia.vercel.app/";
 const COMMUNITY_POPUP_LAST_SHOWN_KEY = "home_community_popup_last_shown_v1";
@@ -152,6 +154,8 @@ export default function Home() {
   const [announcements, setAnnouncements] = useState([]);
   const [popupAnnouncement, setPopupAnnouncement] = useState(null);
   const [showAnnouncementPopup, setShowAnnouncementPopup] = useState(false);
+  const [lightboxAnnouncement, setLightboxAnnouncement] = useState(null);
+  const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
   const [isRadioPlaying, setIsRadioPlaying] = useState(false);
   const audioRef = useRef(null);
   const [gregorianDate, setGregorianDate] = useState("");
@@ -320,6 +324,18 @@ export default function Home() {
     } catch {}
   };
 
+  const openAnnouncementLightbox = (item, imageIndex = 0) => {
+    const images = getAnnouncementImages(item);
+    if (!images.length) return;
+    setLightboxAnnouncement(item);
+    setLightboxImageIndex(imageIndex);
+  };
+
+  const closeAnnouncementLightbox = () => {
+    setLightboxAnnouncement(null);
+    setLightboxImageIndex(0);
+  };
+
   const surveyLinkProps = isAndroidWebView()
     ? {
         href: SURVEY_FORM_URL,
@@ -399,21 +415,23 @@ export default function Home() {
       </Dialog>
 
       <Dialog open={showAnnouncementPopup} onOpenChange={(open) => !open && closeAnnouncementPopup()}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-2xl border-0 p-0 shadow-2xl overflow-hidden">
-          {popupAnnouncement?.imageUrl && (
-            <div className="max-h-52 overflow-hidden bg-gray-100">
-              <img
-                src={popupAnnouncement.imageUrl}
-                alt={popupAnnouncement.title || "Announcement"}
-                className="h-full w-full object-cover"
-              />
-            </div>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-3xl rounded-2xl border-0 p-0 shadow-2xl overflow-hidden">
+          {popupAnnouncement && getAnnouncementImages(popupAnnouncement).length > 0 && (
+            <AnnouncementImageSlider
+              images={getAnnouncementImages(popupAnnouncement)}
+              title={popupAnnouncement.title || "Announcement"}
+              variant="popup"
+              onImageClick={(index) => openAnnouncementLightbox(popupAnnouncement, index)}
+            />
           )}
           <div className="bg-gradient-to-br from-[#1e3a8a] to-[#1d4ed8] px-6 py-4 text-white">
             <div className="flex items-center gap-2">
               <Megaphone className="h-5 w-5 text-sky-200" />
               <div className="text-xl font-bold">{popupAnnouncement?.title || "Announcement"}</div>
             </div>
+            {getAnnouncementImages(popupAnnouncement).length > 1 && (
+              <p className="mt-1 text-xs text-blue-100">Tap the image to view full size</p>
+            )}
           </div>
           <div className="bg-white px-6 py-5">
             {popupAnnouncement?.text && (
@@ -444,6 +462,30 @@ export default function Home() {
               Close
             </button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(lightboxAnnouncement)} onOpenChange={(open) => !open && closeAnnouncementLightbox()}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-5xl rounded-2xl border-0 bg-black p-0 shadow-2xl overflow-hidden">
+          {lightboxAnnouncement && (
+            <>
+              <AnnouncementImageSlider
+                images={getAnnouncementImages(lightboxAnnouncement)}
+                title={lightboxAnnouncement.title || "Announcement"}
+                variant="lightbox"
+                startIndex={lightboxImageIndex}
+                onSlideChange={setLightboxImageIndex}
+              />
+              <div className="border-t border-white/10 bg-black/90 px-4 py-3 text-center text-sm text-white">
+                {lightboxAnnouncement.title || "Announcement"}
+                {getAnnouncementImages(lightboxAnnouncement).length > 1 && (
+                  <span className="ml-2 text-white/60">
+                    ({lightboxImageIndex + 1} of {getAnnouncementImages(lightboxAnnouncement).length})
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
       
@@ -560,17 +602,19 @@ export default function Home() {
               </h2>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              {homeAnnouncements.map((item) => (
+              {homeAnnouncements.map((item) => {
+                const images = getAnnouncementImages(item);
+                return (
                 <article
                   key={item.id}
                   className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm"
                 >
-                  {item.imageUrl && (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.title || "Announcement"}
-                      className="h-40 w-full object-cover"
-                      loading="lazy"
+                  {images.length > 0 && (
+                    <AnnouncementImageSlider
+                      images={images}
+                      title={item.title || "Announcement"}
+                      variant="preview"
+                      onImageClick={(index) => openAnnouncementLightbox(item, index)}
                     />
                   )}
                   <div className="p-4">
@@ -581,6 +625,15 @@ export default function Home() {
                       <p className="mt-2 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
                         {item.text}
                       </p>
+                    )}
+                    {images.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => openAnnouncementLightbox(item, 0)}
+                        className="mt-3 text-sm font-semibold text-blue-700 hover:text-blue-900"
+                      >
+                        View full image{images.length > 1 ? "s" : ""}
+                      </button>
                     )}
                     {item.linkUrl && (
                       <button
@@ -594,7 +647,7 @@ export default function Home() {
                     )}
                   </div>
                 </article>
-              ))}
+              )})}
             </div>
           </div>
         </section>

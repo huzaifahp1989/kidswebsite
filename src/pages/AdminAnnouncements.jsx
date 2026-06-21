@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import AdminImagePicker from "@/components/AdminImagePicker";
+import { getAnnouncementImages } from "@/utils/announcementImages";
 import {
   ArrowLeft,
   Bell,
@@ -26,6 +27,7 @@ const defaultForm = {
   title: "",
   text: "",
   imageUrl: "",
+  imageUrls: [],
   linkUrl: "",
   linkLabel: "Learn more",
   active: true,
@@ -74,11 +76,18 @@ export default function AdminAnnouncements() {
   };
 
   const startEdit = (item) => {
+    const imageUrls = Array.isArray(item.imageUrls) && item.imageUrls.length
+      ? item.imageUrls
+      : item.imageUrl
+        ? [item.imageUrl]
+        : [];
+
     setEditing(item.id);
     setForm({
       title: item.title || "",
       text: item.text || "",
-      imageUrl: item.imageUrl || "",
+      imageUrl: imageUrls[0] || "",
+      imageUrls,
       linkUrl: item.linkUrl || "",
       linkLabel: item.linkLabel || "Learn more",
       active: item.active ?? true,
@@ -95,10 +104,12 @@ export default function AdminAnnouncements() {
     setLoading(true);
     setError("");
     try {
+      const imageUrls = (form.imageUrls || []).filter(Boolean);
       const payload = {
         title: form.title.trim(),
         text: form.text.trim(),
-        imageUrl: form.imageUrl.trim(),
+        imageUrl: imageUrls[0] || form.imageUrl.trim(),
+        imageUrls,
         linkUrl: form.linkUrl.trim(),
         linkLabel: form.linkLabel.trim() || "Learn more",
         active: Boolean(form.active),
@@ -190,12 +201,51 @@ export default function AdminAnnouncements() {
                 />
               </div>
 
-              <AdminImagePicker
-                label="Announcement image"
-                folder="announcements"
-                value={form.imageUrl}
-                onChange={(imageUrl) => setForm({ ...form, imageUrl })}
-              />
+              <div className="space-y-3">
+                <Label>Announcement images (slider)</Label>
+                <p className="text-xs text-gray-500">
+                  Add multiple images. They appear as a slider on the home page and in the popup.
+                </p>
+
+                {(form.imageUrls || []).length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                    {(form.imageUrls || []).map((url, index) => (
+                      <div key={`${url}-${index}`} className="relative overflow-hidden rounded-lg border bg-white">
+                        <img src={url} alt={`Announcement ${index + 1}`} className="h-24 w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = form.imageUrls.filter((_, i) => i !== index);
+                            setForm({ ...form, imageUrls: next, imageUrl: next[0] || "" });
+                          }}
+                          className="absolute right-1 top-1 rounded-full bg-red-600 p-1 text-white hover:bg-red-700"
+                          aria-label={`Remove image ${index + 1}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        <div className="px-2 py-1 text-[11px] text-gray-500">Image {index + 1}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <AdminImagePicker
+                  label="Add image to slider"
+                  folder="announcements"
+                  value=""
+                  onChange={(imageUrl) => {
+                    if (!imageUrl) return;
+                    setForm((current) => {
+                      const nextUrls = [...(current.imageUrls || []), imageUrl];
+                      return {
+                        ...current,
+                        imageUrls: nextUrls,
+                        imageUrl: nextUrls[0] || "",
+                      };
+                    });
+                  }}
+                />
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="text">Message</Label>
@@ -318,7 +368,13 @@ export default function AdminAnnouncements() {
                   key={item.id}
                   className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm md:flex-row md:items-start"
                 >
-                  {item.imageUrl ? (
+                  {getAnnouncementImages(item).length > 0 ? (
+                    <img
+                      src={getAnnouncementImages(item)[0]}
+                      alt={item.title || "Announcement"}
+                      className="h-24 w-full rounded-lg object-cover md:w-32"
+                    />
+                  ) : item.imageUrl ? (
                     <img
                       src={item.imageUrl}
                       alt={item.title || "Announcement"}

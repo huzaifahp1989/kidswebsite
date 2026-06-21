@@ -6,6 +6,25 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const ANNOUNCEMENTS_LOCAL_KEY = 'homepage_announcements';
 
+function isMissingTableError(error, tableName) {
+  const message = error?.message || String(error || '');
+  return new RegExp(tableName, 'i').test(message) && /schema cache|does not exist|not find/i.test(message);
+}
+
+function readLocalAnnouncements() {
+  try {
+    const raw = localStorage.getItem(ANNOUNCEMENTS_LOCAL_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalAnnouncements(list) {
+  localStorage.setItem(ANNOUNCEMENTS_LOCAL_KEY, JSON.stringify(list));
+}
+
 function mapUserRow(row) {
   if (!row) return null;
   return {
@@ -284,11 +303,18 @@ export const sponsorsApi = {
 };
 
 function mapAnnouncementRow(row) {
+  const imageUrls = Array.isArray(row.image_urls) && row.image_urls.length
+    ? row.image_urls.filter(Boolean)
+    : row.image_url || row.imageUrl
+      ? [row.image_url || row.imageUrl]
+      : [];
+
   return {
     id: row.id,
     title: row.title || '',
     text: row.text || '',
-    imageUrl: row.image_url ?? row.imageUrl ?? '',
+    imageUrl: imageUrls[0] || '',
+    imageUrls,
     linkUrl: row.link_url ?? row.linkUrl ?? '',
     linkLabel: row.link_label ?? row.linkLabel ?? 'Learn more',
     active: row.active ?? true,
@@ -303,84 +329,133 @@ function mapAnnouncementRow(row) {
 }
 
 function announcementToRow(item) {
-  return {
-    title: item.title,
-    text: item.text,
-    image_url: item.imageUrl ?? item.image_url ?? '',
-    link_url: item.linkUrl ?? item.link_url ?? '',
-    link_label: item.linkLabel ?? item.link_label ?? 'Learn more',
-    active: item.active ?? true,
-    show_on_home: item.showOnHome ?? item.show_on_home ?? true,
-    show_as_popup: item.showAsPopup ?? item.show_as_popup ?? false,
-    order: item.order ?? 0,
-    popup_delay_seconds: item.popupDelaySeconds ?? item.popup_delay_seconds ?? 3,
-    popup_cooldown_hours: item.popupCooldownHours ?? item.popup_cooldown_hours ?? 24,
+  const row = {
     updated_at: item.updatedAt || new Date().toISOString(),
-    created_at: item.createdAt || new Date().toISOString(),
   };
+
+  if (item.createdAt) row.created_at = item.createdAt;
+  if (item.title !== undefined) row.title = item.title;
+  if (item.text !== undefined) row.text = item.text;
+  if (item.linkUrl !== undefined || item.link_url !== undefined) {
+    row.link_url = item.linkUrl ?? item.link_url ?? '';
+  }
+  if (item.linkLabel !== undefined || item.link_label !== undefined) {
+    row.link_label = item.linkLabel ?? item.link_label ?? 'Learn more';
+  }
+  if (item.active !== undefined) row.active = item.active;
+  if (item.showOnHome !== undefined || item.show_on_home !== undefined) {
+    row.show_on_home = item.showOnHome ?? item.show_on_home ?? true;
+  }
+  if (item.showAsPopup !== undefined || item.show_as_popup !== undefined) {
+    row.show_as_popup = item.showAsPopup ?? item.show_as_popup ?? false;
+  }
+  if (item.order !== undefined) row.order = item.order ?? 0;
+  if (item.popupDelaySeconds !== undefined || item.popup_delay_seconds !== undefined) {
+    row.popup_delay_seconds = item.popupDelaySeconds ?? item.popup_delay_seconds ?? 3;
+  }
+  if (item.popupCooldownHours !== undefined || item.popup_cooldown_hours !== undefined) {
+    row.popup_cooldown_hours = item.popupCooldownHours ?? item.popup_cooldown_hours ?? 24;
+  }
+
+  if (item.imageUrls !== undefined || item.imageUrl !== undefined || item.image_url !== undefined) {
+    const imageUrls = Array.isArray(item.imageUrls) && item.imageUrls.length
+      ? item.imageUrls.filter(Boolean)
+      : item.imageUrl || item.image_url
+        ? [item.imageUrl || item.image_url]
+        : [];
+    row.image_url = imageUrls[0] || '';
+    row.image_urls = imageUrls;
+  }
+
+  return row;
 }
 
 export const announcementsApi = {
   async list() {
-    if (!supabase) {
-      try {
-        const raw = localStorage.getItem(ANNOUNCEMENTS_LOCAL_KEY);
-        const list = raw ? JSON.parse(raw) : [];
-        return Array.isArray(list) ? list : [];
-      } catch {
-        return [];
-      }
-    }
+    if (!supabase) return readLocalAnnouncements();
     try {
       const { data, error } = await supabase.from('announcements').select('*').order('order', { ascending: true });
       if (error) throw error;
       return (data || []).map(mapAnnouncementRow);
     } catch (e) {
       console.warn(e);
-      const { data } = await supabase.from('announcements').select('*');
-      return (data || []).map(mapAnnouncementRow);
+      if (isMissingTableError(e, 'announcements')) {
+        return readLocalAnnouncements().map(mapAnnouncementRow);
+      }
+      try {
+        const { data } = await supabase.from('announcements').select('*');
+        return (data || []).map(mapAnnouncementRow);
+      } catch {
+        return readLocalAnnouncements().map(mapAnnouncementRow);
+      }
     }
   },
   async add(announcement) {
     if (!supabase) {
-      const list = await this.list();
+      const list = readLocalAnnouncements();
       const item = { ...announcement, id: `local_${Date.now()}`, _localId: `local_${Date.now()}` };
-      localStorage.setItem(ANNOUNCEMENTS_LOCAL_KEY, JSON.stringify([...list, item]));
+      writeLocalAnnouncements([...list, item]);
       return { id: item.id };
     }
-    const { data, error } = await supabase
-      .from('announcements')
-      .insert(announcementToRow(announcement))
-      .select('id')
-      .single();
-    if (error) throw error;
-    return { id: data.id };
+    try {
+      const { data, error } = await supabase
+        .from('announcements')
+        .insert(announcementToRow(announcement))
+        .select('id')
+        .single();
+      if (error) throw error;
+      return { id: data.id };
+    } catch (e) {
+      if (!isMissingTableError(e, 'announcements')) throw e;
+      const list = readLocalAnnouncements();
+      const item = { ...announcement, id: `local_${Date.now()}`, _localId: `local_${Date.now()}` };
+      writeLocalAnnouncements([...list, item]);
+      return { id: item.id };
+    }
   },
   async update(id, patch) {
     if (!supabase || String(id).startsWith('local_')) {
-      const list = await this.list();
+      const list = readLocalAnnouncements();
       const next = list.map((item) =>
         item.id === id || item._localId === id ? { ...item, ...patch, id: item.id } : item
       );
-      localStorage.setItem(ANNOUNCEMENTS_LOCAL_KEY, JSON.stringify(next));
+      writeLocalAnnouncements(next);
       return { ok: true };
     }
-    const rowPatch = announcementToRow({ ...patch, updatedAt: new Date().toISOString() });
-    delete rowPatch.created_at;
-    const { error } = await supabase.from('announcements').update(rowPatch).eq('id', id);
-    if (error) throw error;
-    return { ok: true };
+    try {
+      const rowPatch = announcementToRow({ ...patch, updatedAt: new Date().toISOString() });
+      delete rowPatch.created_at;
+      const { error } = await supabase.from('announcements').update(rowPatch).eq('id', id);
+      if (error) throw error;
+      return { ok: true };
+    } catch (e) {
+      if (!isMissingTableError(e, 'announcements')) throw e;
+      const list = readLocalAnnouncements();
+      const next = list.map((item) =>
+        item.id === id || item._localId === id ? { ...item, ...patch, id: item.id } : item
+      );
+      writeLocalAnnouncements(next);
+      return { ok: true };
+    }
   },
   async remove(id) {
     if (!supabase || String(id).startsWith('local_')) {
-      const list = await this.list();
+      const list = readLocalAnnouncements();
       const next = list.filter((item) => item.id !== id && item._localId !== id);
-      localStorage.setItem(ANNOUNCEMENTS_LOCAL_KEY, JSON.stringify(next));
+      writeLocalAnnouncements(next);
       return { ok: true };
     }
-    const { error } = await supabase.from('announcements').delete().eq('id', id);
-    if (error) throw error;
-    return { ok: true };
+    try {
+      const { error } = await supabase.from('announcements').delete().eq('id', id);
+      if (error) throw error;
+      return { ok: true };
+    } catch (e) {
+      if (!isMissingTableError(e, 'announcements')) throw e;
+      const list = readLocalAnnouncements();
+      const next = list.filter((item) => item.id !== id && item._localId !== id);
+      writeLocalAnnouncements(next);
+      return { ok: true };
+    }
   },
 };
 

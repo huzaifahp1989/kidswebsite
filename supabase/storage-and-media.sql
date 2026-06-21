@@ -1,6 +1,13 @@
 -- Supabase media library + storage setup
 -- Project: https://jlqrbbqsuksncrxjcmbc.supabase.co
--- Run this in Supabase → SQL Editor (after schema.sql)
+--
+-- IMPORTANT: If the full script fails, Supabase rolls back EVERYTHING
+-- (including the table create). Run these files one at a time instead:
+--   1) step1-media-assets.sql
+--   2) step2-storage-bucket.sql
+--   3) step3-admin-write-policies.sql  (requires schema.sql first)
+--
+-- Or run this whole file only after schema.sql succeeded.
 
 -- 1) Media assets table (searchable image library)
 create table if not exists public.media_assets (
@@ -13,7 +20,7 @@ create table if not exists public.media_assets (
   size_bytes bigint,
   tags text[] default '{}',
   folder text default 'general',
-  uploaded_by uuid references auth.users(id) on delete set null,
+  uploaded_by uuid,
   created_at timestamptz default now()
 );
 

@@ -35,6 +35,7 @@ create table if not exists public.announcements (
   title text,
   text text,
   image_url text,
+  image_urls text[] default '{}',
   link_url text,
   link_label text default 'Learn more',
   active boolean default true,
@@ -45,6 +46,20 @@ create table if not exists public.announcements (
   popup_cooldown_hours integer default 24,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
+);
+
+create table if not exists public.media_assets (
+  id uuid primary key default gen_random_uuid(),
+  name text,
+  file_name text not null,
+  storage_path text not null unique,
+  public_url text not null,
+  mime_type text,
+  size_bytes bigint,
+  tags text[] default '{}',
+  folder text default 'general',
+  uploaded_by uuid,
+  created_at timestamptz default now()
 );
 
 create table if not exists public.quiz_answers (
@@ -59,7 +74,7 @@ create table if not exists public.quiz_answers (
 
 create table if not exists public.game_scores (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references public.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
   game_type text,
   points_awarded integer default 0,
   at timestamptz default now()
@@ -67,7 +82,7 @@ create table if not exists public.game_scores (
 
 create table if not exists public.child_progress_logs (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references public.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
   log_date date,
   quran integer default 0,
   salah integer default 0,
@@ -81,6 +96,7 @@ create table if not exists public.child_progress_logs (
 alter table public.users enable row level security;
 alter table public.sponsors enable row level security;
 alter table public.announcements enable row level security;
+alter table public.media_assets enable row level security;
 alter table public.quiz_answers enable row level security;
 alter table public.game_scores enable row level security;
 alter table public.child_progress_logs enable row level security;

@@ -2,6 +2,26 @@ import { supabase } from '../lib/supabase';
 
 const BUCKET = 'media';
 
+function isMissingTableError(error, tableName) {
+  const message = error?.message || String(error || '');
+  return new RegExp(tableName, 'i').test(message) && /schema cache|does not exist|not find/i.test(message);
+}
+
+function buildStorageOnlyAsset(payload, storagePath, publicUrl) {
+  return {
+    id: `storage_${Date.now()}`,
+    name: payload.name,
+    fileName: payload.file_name,
+    storagePath,
+    url: publicUrl,
+    mimeType: payload.mime_type,
+    sizeBytes: payload.size_bytes,
+    tags: payload.tags || [],
+    folder: payload.folder,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 function sanitizeFileName(name = 'image') {
   return String(name).replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/-+/g, '-');
 }
@@ -40,15 +60,24 @@ export async function uploadMediaFile(file, options = {}) {
       contentType: file.type || undefined,
     });
 
-  if (uploadError) throw uploadError;
+  if (uploadError) {
+    const message = uploadError.message || String(uploadError);
+    if (/bucket not found/i.test(message)) {
+      throw new Error(
+        'Storage bucket "media" is missing. In Supabase open Storage → New bucket → name: media → turn on Public bucket → Create.'
+      );
+    }
+    throw uploadError;
+  }
 
   const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
+  const publicUrl = urlData.publicUrl;
 
   const payload = {
     name: options.name || file.name || safeName,
     file_name: file.name || safeName,
     storage_path: storagePath,
-    public_url: urlData.publicUrl,
+    public_url: publicUrl,
     mime_type: file.type || null,
     size_bytes: file.size || null,
     tags: options.tags || [],
@@ -62,7 +91,12 @@ export async function uploadMediaFile(file, options = {}) {
     .select('*')
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if (isMissingTableError(error, 'media_assets')) {
+      return buildStorageOnlyAsset(payload, storagePath, publicUrl);
+    }
+    throw error;
+  }
   return mapMediaRow(data);
 }
 
@@ -86,7 +120,12 @@ export async function searchMediaAssets({ query = '', folder = '', limit = 48 } 
   }
 
   const { data, error } = await request;
-  if (error) throw error;
+  if (error) {
+    if (isMissingTableError(error, 'media_assets')) {
+      return [];
+    }
+    throw error;
+  }
   return (data || []).map(mapMediaRow);
 }
 
@@ -99,7 +138,7 @@ export async function deleteMediaAsset(id) {
     .eq('id', id)
     .maybeSingle();
 
-  if (fetchError) throw fetchError;
+  if (fetchError && !isMissingTableError(fetchError, 'media_assets')) throw fetchError;
   if (!row) return { ok: true };
 
   if (row.storage_path) {
@@ -107,7 +146,7 @@ export async function deleteMediaAsset(id) {
   }
 
   const { error } = await supabase.from('media_assets').delete().eq('id', id);
-  if (error) throw error;
+  if (error && !isMissingTableError(error, 'media_assets')) throw error;
   return { ok: true };
 }
 
