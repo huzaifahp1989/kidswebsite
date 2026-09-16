@@ -1,20 +1,61 @@
-import { createPageUrl } from "@/utils";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Star, Sparkles, Heart, Shield, MessageCircle, ExternalLink, Moon, Mail, Users, BookOpen, Radio, ClipboardList, Megaphone } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Star,
+  Sparkles,
+  Heart,
+  Shield,
+  MessageCircle,
+  ExternalLink,
+  Mail,
+  BookOpen,
+  Radio,
+  ClipboardList,
+  Megaphone,
+  HeartHandshake,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-// import WordPressFeed from "@/components/WordPressFeed";
 import { useState, useEffect, useRef } from "react";
 import React from "react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { useRadio } from "./Layout.jsx";
 import nasihahWorldBanner from "@/assets/brands/nasihah-world-banner.jpg";
 import { isAndroidWebView, openExternalUrl } from "@/utils/androidWebView";
-import { HIFZ_ASSISTANT_URL, SURVEY_FORM_URL } from "@/constants/externalLinks";
+import {
+  AICT_GLOBAL_URL,
+  DONATE_SUPPORT_URL,
+  HIFZ_ASSISTANT_URL,
+  SURVEY_FORM_URL,
+  WHATSAPP_GROUP_URL,
+} from "@/constants/externalLinks";
 import { announcementsApi } from "@/api/firebase";
 import AnnouncementImageSlider from "@/components/AnnouncementImageSlider";
-import { getAnnouncementImages, pickAnnouncementPopup, markAnnouncementPopupShown } from "@/utils/announcementImages";
+import { getAnnouncementImages, isAnnouncementScheduledNow } from "@/utils/announcementImages";
+import { supabase } from "@/lib/supabase";
 
 const ADS_SECTION_URL = "https://traeadvert8pia.vercel.app/";
-const COMMUNITY_POPUP_LAST_SHOWN_KEY = "home_community_popup_last_shown_v1";
-const COMMUNITY_POPUP_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const KIDS_ZONE_PATH = createPageUrl("KidsZone");
+const NEWSLETTER_URL = "https://mailchi.mp/3a9b946d45cb/imedia";
+const SURVEY_POPUP_DISMISS_KEY = "survey_popup_dismissed_at_v2";
+const SURVEY_POPUP_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const HOME_HIT_COUNTER_KEY = "home_hit_counter";
+const HOME_VISITOR_COUNTED_KEY = "home_visitor_counted";
+const HOME_HIT_COUNTER_START = 6000;
+const HOME_VISITOR_ID_KEY = "home_visitor_id";
+const HOME_VISIT_SESSION_KEY = "home_visitor_counted_session";
+const HOME_VISIT_SESSION_ID_KEY = "home_visitor_session_id";
+
+function readCachedHomeHitCount() {
+  try {
+    const storedCount = Number(localStorage.getItem(HOME_HIT_COUNTER_KEY));
+    if (Number.isFinite(storedCount) && storedCount >= HOME_HIT_COUNTER_START) {
+      return storedCount;
+    }
+  } catch {}
+  return HOME_HIT_COUNTER_START;
+}
+const LIGHTBOX_DIALOG_CLOSE_CLASS =
+  "[&>button]:z-30 [&>button]:right-3 [&>button]:top-3 [&>button]:flex [&>button]:h-11 [&>button]:w-11 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:bg-white/15 [&>button]:text-white [&>button]:opacity-100 [&>button]:hover:bg-white/25 [&>button]:touch-manipulation";
 
 function openAnnouncementLink(url) {
   if (!url) return;
@@ -23,6 +64,23 @@ function openAnnouncementLink(url) {
     return;
   }
   window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function externalLinkProps(url) {
+  if (isAndroidWebView()) {
+    return {
+      href: url,
+      onClick: (e) => {
+        e.preventDefault();
+        openExternalUrl(url);
+      },
+    };
+  }
+  return {
+    href: url,
+    target: "_blank",
+    rel: "noopener noreferrer",
+  };
 }
 
 const mainFeaturedSponsors = [
@@ -44,10 +102,10 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">Something went wrong</div>
-            <div className="text-sm text-gray-600">Please refresh the page</div>
+            <div className="text-2xl font-bold text-slate-900">Something went wrong</div>
+            <div className="text-sm text-slate-600">Please refresh the page</div>
           </div>
         </div>
       );
@@ -55,7 +113,6 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
- 
 
 function FeaturedSponsorLogo({ item }) {
   if (item.accent === "sky") {
@@ -74,7 +131,7 @@ function FeaturedSponsorLogo({ item }) {
 
   if (item.accent === "dark") {
     return (
-      <div className="h-full w-full bg-black flex items-center justify-center gap-2 px-3">
+      <div className="flex h-full w-full items-center justify-center gap-2 bg-black px-3">
         <div className="h-7 w-7 shrink-0 rotate-45 border-[5px] border-red-600" />
         <div className="flex flex-col leading-none">
           <span className="text-[14px] font-black tracking-wide text-red-500">TILE</span>
@@ -86,152 +143,315 @@ function FeaturedSponsorLogo({ item }) {
 
   if (item.accent === "navy") {
     return (
-      <div className="relative h-full w-full bg-[#1A234D] text-white flex flex-col items-center justify-center gap-0.5 px-2">
-        <div className="text-[7px] italic tracking-wide text-white/70 text-center leading-none">Thinking of Selling or Letting?</div>
+      <div className="relative flex h-full w-full flex-col items-center justify-center gap-0.5 bg-[#1A234D] px-2 text-white">
+        <div className="text-center text-[7px] italic leading-none tracking-wide text-white/70">
+          Thinking of Selling or Letting?
+        </div>
         <div className="flex h-7 w-7 items-center justify-center rounded-full border-[3px] border-white font-serif font-semibold">
           <span className="text-[11px] text-[#8F143B]">E</span>
           <span className="text-[11px] text-white">P</span>
         </div>
-        <div className="text-center text-[11px] font-serif leading-tight tracking-wide">Express Properties</div>
+        <div className="text-center text-[11px] font-serif leading-tight tracking-wide">
+          Express Properties
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="relative h-full w-full bg-[#5B85E5] text-white flex flex-col items-center justify-center px-2 text-center">
+    <div className="relative flex h-full w-full flex-col items-center justify-center bg-[#5B85E5] px-2 text-center text-white">
       <div className="text-[18px] font-black leading-none tracking-wide">THEORY</div>
-      <div className="mt-0.5 text-[11px] font-black uppercase tracking-wide text-orange-300">Translated</div>
-      <div className="mt-0.5 text-[7px] font-semibold tracking-wide text-white/90">Multilingual App</div>
+      <div className="mt-0.5 text-[11px] font-black uppercase tracking-wide text-orange-300">
+        Translated
+      </div>
+      <div className="mt-0.5 text-[7px] font-semibold tracking-wide text-white/90">
+        Multilingual App
+      </div>
     </div>
   );
 }
-
-
 
 const islamicValues = [
   {
     icon: Heart,
     title: "Love & Compassion",
-    description: "Teaching kindness and mercy to all",
-    color: "text-red-500"
+    description: "Teaching kindness and mercy in every activity and story.",
   },
   {
     icon: Star,
     title: "Knowledge & Wisdom",
-    description: "Seeking knowledge is obligatory",
-    color: "text-yellow-500"
+    description: "Making Islamic learning clear, practical and engaging.",
   },
   {
     icon: Shield,
-    title: "Safety & Security",
-    description: "A safe environment for children",
-    color: "text-blue-500"
-  }
+    title: "Safety & Trust",
+    description: "A family-friendly space designed with children in mind.",
+  },
 ];
 
+const bannerSlides = [
+  {
+    id: 1,
+    text: "Welcome to Islam Media Central",
+    subtext: "Learn, grow and strengthen iman",
+  },
+  {
+    id: 2,
+    text: '"Whoever guides someone to goodness will have a reward like one who did it."',
+    subtext: "Sahih Muslim",
+  },
+  {
+    id: 3,
+    text: '"The best among you are those who learn the Qur\'an and teach it."',
+    subtext: "Sahih Bukhari",
+  },
+  {
+    id: 4,
+    text: '"Remember Allah much so that you may be successful."',
+    subtext: "Qur'an 62:10",
+  },
+];
 
+function SectionHeading({ eyebrow, title, subtitle }) {
+  return (
+    <div className="mx-auto mb-8 max-w-2xl text-center">
+      {eyebrow ? (
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700/80">
+          {eyebrow}
+        </p>
+      ) : null}
+      <h2 className="mt-2 text-2xl font-bold tracking-tight text-[#1e3a8a] md:text-3xl">
+        {title}
+      </h2>
+      {subtitle ? (
+        <p className="mt-2 text-sm leading-relaxed text-slate-600 md:text-base">{subtitle}</p>
+      ) : null}
+    </div>
+  );
+}
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [showCommunityPopup, setShowCommunityPopup] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
-  const [popupAnnouncement, setPopupAnnouncement] = useState(null);
-  const [showAnnouncementPopup, setShowAnnouncementPopup] = useState(false);
   const [lightboxAnnouncement, setLightboxAnnouncement] = useState(null);
   const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
-  const [isRadioPlaying, setIsRadioPlaying] = useState(false);
-  const audioRef = useRef(null);
+  const { isPlaying: isRadioPlaying, togglePlay: toggleRadio } = useRadio();
   const [gregorianDate, setGregorianDate] = useState("");
   const [islamicDate, setIslamicDate] = useState("");
+  const [surveyDialogOpen, setSurveyDialogOpen] = useState(false);
+  const initialHitCount = readCachedHomeHitCount();
+  const [homeHitCount, setHomeHitCount] = useState(initialHitCount);
+  const [displayHitCount, setDisplayHitCount] = useState(initialHitCount);
+  const displayHitCountRef = useRef(initialHitCount);
+  const shouldAnimateHitCountRef = useRef(false);
 
-  // Banner slides data
-  const bannerSlides = [
-    {
-      id: 1,
-      text: "Welcome to Islam Media Central",
-      subtext: "Learn, Grow and Strengthen Iman",
-      gradient: "from-blue-600 via-purple-600 to-pink-600"
-    },
-    {
-      id: 2,
-      text: "\"Whoever guides someone to goodness will have a reward like one who did it.\"",
-      subtext: "Sahih Muslim",
-      gradient: "from-green-600 via-teal-600 to-cyan-600"
-    },
-    {
-      id: 3,
-      text: "\"The best among you are those who learn the Qur'an and teach it.\"",
-      subtext: "Sahih Bukhari",
-      gradient: "from-amber-600 via-orange-600 to-red-600"
-    },
-    {
-      id: 4,
-      text: "\"Remember Allah much so that you may be successful.\"",
-      subtext: "Qur'an 62:10",
-      gradient: "from-purple-600 via-pink-600 to-rose-600"
-    }
-  ];
-
-  // Auto-play banner slides
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % bannerSlides.length);
     }, 5000);
-
     return () => clearInterval(interval);
   }, []);
 
-  // Load today's Gregorian and Islamic (Hijri) date (API-first for consistency on mobile)
+  useEffect(() => {
+    displayHitCountRef.current = displayHitCount;
+  }, [displayHitCount]);
+
+  useEffect(() => {
+    const end = homeHitCount;
+    if (!shouldAnimateHitCountRef.current) {
+      displayHitCountRef.current = end;
+      setDisplayHitCount(end);
+      return undefined;
+    }
+
+    const start = displayHitCountRef.current;
+    if (start === end) {
+      shouldAnimateHitCountRef.current = false;
+      return undefined;
+    }
+
+    const diff = end - start;
+    const durationMs = Math.min(1200, Math.max(400, Math.abs(diff) * 40));
+    const startedAt = performance.now();
+    let frameId = 0;
+
+    const tick = (now) => {
+      const progress = Math.min(1, (now - startedAt) / durationMs);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const next = Math.round(start + diff * eased);
+      displayHitCountRef.current = next;
+      setDisplayHitCount(next);
+      if (progress < 1) {
+        frameId = window.requestAnimationFrame(tick);
+      } else {
+        shouldAnimateHitCountRef.current = false;
+      }
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [homeHitCount]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const readSessionCounted = () => {
+      try {
+        return sessionStorage.getItem(HOME_VISIT_SESSION_KEY) === "true";
+      } catch {
+        return false;
+      }
+    };
+
+    const markSessionCounted = () => {
+      try {
+        sessionStorage.setItem(HOME_VISIT_SESSION_KEY, "true");
+      } catch {}
+    };
+
+    const getSessionVisitorId = () => {
+      try {
+        let visitorId = sessionStorage.getItem(HOME_VISIT_SESSION_ID_KEY);
+        if (!visitorId) {
+          visitorId = crypto.randomUUID();
+          sessionStorage.setItem(HOME_VISIT_SESSION_ID_KEY, visitorId);
+        }
+        if (!localStorage.getItem(HOME_VISITOR_ID_KEY)) {
+          localStorage.setItem(HOME_VISITOR_ID_KEY, visitorId);
+        }
+        return visitorId;
+      } catch {
+        return `anon-${Date.now()}`;
+      }
+    };
+
+    const applyCount = (value, { animate }) => {
+      const next = Number(value);
+      if (!Number.isFinite(next) || next < HOME_HIT_COUNTER_START) return false;
+      if (cancelled) return false;
+      shouldAnimateHitCountRef.current = Boolean(animate);
+      if (!animate) {
+        displayHitCountRef.current = next;
+        setDisplayHitCount(next);
+      }
+      setHomeHitCount(next);
+      try {
+        localStorage.setItem(HOME_HIT_COUNTER_KEY, String(next));
+      } catch {}
+      return true;
+    };
+
+    const registerVisit = async () => {
+      // Claim this session synchronously so StrictMode remounts / refresh
+      // never send a second increment.
+      const alreadyCountedThisSession = readSessionCounted();
+      if (!alreadyCountedThisSession) {
+        markSessionCounted();
+      }
+
+      const shouldIncrement = !alreadyCountedThisSession;
+      const visitorId = shouldIncrement ? getSessionVisitorId() : null;
+
+      if (supabase) {
+        try {
+          const { data, error } = await supabase.rpc("register_home_visitor", {
+            p_visitor_id: visitorId,
+          });
+          if (!error && applyCount(data, { animate: shouldIncrement })) {
+            return;
+          }
+        } catch {}
+      }
+
+      try {
+        const storedCount = Number(localStorage.getItem(HOME_HIT_COUNTER_KEY));
+        const base = Number.isFinite(storedCount)
+          ? Math.max(HOME_HIT_COUNTER_START, storedCount)
+          : HOME_HIT_COUNTER_START;
+        const nextCount = shouldIncrement ? base + 1 : base;
+        localStorage.setItem(HOME_HIT_COUNTER_KEY, String(nextCount));
+        localStorage.setItem(HOME_VISITOR_COUNTED_KEY, "true");
+        applyCount(nextCount, { animate: shouldIncrement });
+      } catch {
+        if (shouldIncrement && !cancelled) {
+          shouldAnimateHitCountRef.current = true;
+          setHomeHitCount((prev) => prev + 1);
+        }
+      }
+    };
+
+    registerVisit();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const delayMs = import.meta.env.DEV ? 1500 : 5000;
+    const timer = window.setTimeout(() => {
+      try {
+        const dismissedAt = parseInt(localStorage.getItem(SURVEY_POPUP_DISMISS_KEY) || "0", 10);
+        if (dismissedAt && Date.now() - dismissedAt < SURVEY_POPUP_COOLDOWN_MS) return;
+      } catch {}
+      setSurveyDialogOpen(true);
+    }, delayMs);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     const d = new Date();
     try {
-      setGregorianDate(d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+      setGregorianDate(
+        d.toLocaleDateString(undefined, {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      );
     } catch {
       setGregorianDate(d.toDateString());
     }
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
     fetch(`https://api.aladhan.com/v1/gToH?date=${dd}-${mm}-${yyyy}`)
-      .then(r => r.json())
-      .then(j => {
+      .then((r) => r.json())
+      .then((j) => {
         const h = j?.data?.hijri;
         if (h) {
           const monthMap = (m) => {
-            const x = String(m || '').toLowerCase();
-            if (x.includes('jumada') && x.includes('ii')) return 'Jumada al-Thani';
-            if (x.includes('jumada') && (x.includes('i') || x.includes('awwal') || x.includes('ula'))) return 'Jumada al-Ula';
-            if (x.includes('rabi') && x.includes('ii')) return 'Rabi al-Thani';
-            if (x.includes('rabi') && (x.includes('i') || x.includes('awwal'))) return 'Rabi al-Awwal';
-            if (x.includes('dhu') && (x.includes('qa') || x.includes('qadah') || x.includes("qa'dah"))) return 'Dhu al-Qadah';
-            if (x.includes('dhu') && x.includes('hij')) return 'Dhu al-Hijjah';
+            const x = String(m || "").toLowerCase();
+            if (x.includes("jumada") && x.includes("ii")) return "Jumada al-Thani";
+            if (x.includes("jumada") && (x.includes("i") || x.includes("awwal") || x.includes("ula"))) {
+              return "Jumada al-Ula";
+            }
+            if (x.includes("rabi") && x.includes("ii")) return "Rabi al-Thani";
+            if (x.includes("rabi") && (x.includes("i") || x.includes("awwal"))) return "Rabi al-Awwal";
+            if (x.includes("dhu") && (x.includes("qa") || x.includes("qadah") || x.includes("qa'dah"))) {
+              return "Dhu al-Qadah";
+            }
+            if (x.includes("dhu") && x.includes("hij")) return "Dhu al-Hijjah";
             return m;
           };
           const monthName = monthMap(h.month?.en);
           setIslamicDate(`${monthName} ${h.day} ${h.year} AH`);
         } else {
-          throw new Error('No hijri data');
+          throw new Error("No hijri data");
         }
       })
       .catch(() => {
         try {
-          const fmt = new Intl.DateTimeFormat('en-GB-u-ca-islamic', { day: 'numeric', month: 'long', year: 'numeric' });
+          const fmt = new Intl.DateTimeFormat("en-GB-u-ca-islamic", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          });
           const parts = fmt.formatToParts(d);
-          const obj = Object.fromEntries(parts.map(p => [p.type, p.value]));
-          const monthMap = (m) => {
-            const x = String(m || '').toLowerCase();
-            if (x.includes('jumada') && x.includes('ii')) return 'Jumada al-Thani';
-            if (x.includes('jumada') && (x.includes('i') || x.includes('awwal') || x.includes('ula'))) return 'Jumada al-Ula';
-            if (x.includes('rabi') && x.includes('ii')) return 'Rabi al-Thani';
-            if (x.includes('rabi') && (x.includes('i') || x.includes('awwal'))) return 'Rabi al-Awwal';
-            if (x.includes('dhu') && (x.includes('qa') || x.includes('qadah') || x.includes("qa'dah"))) return 'Dhu al-Qadah';
-            if (x.includes('dhu') && x.includes('hij')) return 'Dhu al-Hijjah';
-            return m;
-          };
-          const monthName = monthMap(obj.month);
-          setIslamicDate(`${monthName} ${obj.day} ${obj.year} AH`);
+          const obj = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+          setIslamicDate(`${obj.month} ${obj.day} ${obj.year} AH`);
         } catch {
-          setIslamicDate('');
+          setIslamicDate("");
         }
       });
   }, []);
@@ -251,54 +471,9 @@ export default function Home() {
     loadAnnouncements();
   }, []);
 
-  const homeAnnouncements = announcements.filter((item) => item.showOnHome);
-
-  useEffect(() => {
-    const candidates = pickAnnouncementPopup(announcements);
-    if (!candidates) return;
-
-    const delayMs = Math.max(0, Number(candidates.popupDelaySeconds) || 3) * 1000;
-    const timer = setTimeout(() => {
-      setPopupAnnouncement(candidates);
-      setShowAnnouncementPopup(true);
-    }, delayMs);
-
-    return () => clearTimeout(timer);
-  }, [announcements]);
-
-  useEffect(() => {
-    if (isAndroidWebView()) return;
-    if (showAnnouncementPopup || popupAnnouncement) return;
-
-    const shouldShow = () => {
-      try {
-        const raw = localStorage.getItem(COMMUNITY_POPUP_LAST_SHOWN_KEY);
-        const last = raw ? Number(raw) : 0;
-        if (!last) return true;
-        return Date.now() - last >= COMMUNITY_POPUP_COOLDOWN_MS;
-      } catch {
-        return true;
-      }
-    };
-    if (!shouldShow()) return;
-    const timer = setTimeout(() => setShowCommunityPopup(true), 7000);
-    return () => clearTimeout(timer);
-  }, [showAnnouncementPopup, popupAnnouncement]);
-
-  const closeAnnouncementPopup = () => {
-    if (popupAnnouncement) {
-      markAnnouncementPopupShown(popupAnnouncement);
-    }
-    setShowAnnouncementPopup(false);
-    setPopupAnnouncement(null);
-  };
-
-  const closeCommunityPopup = () => {
-    setShowCommunityPopup(false);
-    try {
-      localStorage.setItem(COMMUNITY_POPUP_LAST_SHOWN_KEY, String(Date.now()));
-    } catch {}
-  };
+  const homeAnnouncements = announcements.filter(
+    (item) => item.showOnHome && isAnnouncementScheduledNow(item)
+  );
 
   const openAnnouncementLightbox = (item, imageIndex = 0) => {
     const images = getAnnouncementImages(item);
@@ -312,616 +487,601 @@ export default function Home() {
     setLightboxImageIndex(0);
   };
 
-  const surveyLinkProps = isAndroidWebView()
-    ? {
-        href: SURVEY_FORM_URL,
-        onClick: (e) => {
-          e.preventDefault();
-          openExternalUrl(SURVEY_FORM_URL);
-        },
-      }
-    : {
-        href: SURVEY_FORM_URL,
-        target: "_blank",
-        rel: "noopener noreferrer",
-      };
+  const donateLinkProps = externalLinkProps(DONATE_SUPPORT_URL);
+  const aictDonateLinkProps = externalLinkProps(AICT_GLOBAL_URL);
+  const surveyLinkProps = externalLinkProps(SURVEY_FORM_URL);
+
+  const dismissSurveyPopup = () => {
+    try {
+      localStorage.setItem(SURVEY_POPUP_DISMISS_KEY, String(Date.now()));
+    } catch {}
+    setSurveyDialogOpen(false);
+  };
+
+  const openSurveyForm = () => {
+    dismissSurveyPopup();
+    if (isAndroidWebView()) {
+      openExternalUrl(SURVEY_FORM_URL);
+      return;
+    }
+    window.open(SURVEY_FORM_URL, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <ErrorBoundary>
-    <div className="min-h-screen" style={{background: '#EFF6FF'}}>
-      {/* Survey tab link */}
-      <section className="border-b border-blue-200 bg-gradient-to-r from-[#1e3a8a] via-[#1d4ed8] to-[#2563eb] px-4 py-3">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-2 sm:flex-row sm:justify-between">
-          <div className="flex items-center gap-2 text-center text-white sm:text-left">
-            <ClipboardList className="h-5 w-5 shrink-0 text-sky-200" />
-            <p className="text-sm font-semibold md:text-base">
-              Take part in survey that can help us
-            </p>
-          </div>
-
-          <a
-            {...surveyLinkProps}
-            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/30 bg-white px-5 py-2 text-sm font-bold text-[#1e3a8a] shadow-md transition hover:bg-sky-50"
-          >
-            Open Survey
-            <ExternalLink className="h-4 w-4" />
-          </a>
+      <div className="min-h-screen bg-[#EFF6FF]">
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-900 sm:text-sm">
+          Visitors:{" "}
+          <span className="inline-block tabular-nums">
+            {displayHitCount.toLocaleString()}
+          </span>
         </div>
-      </section>
-
-      {/* Stay Connected Popup */}
-      <Dialog open={showCommunityPopup} onOpenChange={(open) => !open && closeCommunityPopup()}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-sm rounded-2xl border-0 p-0 shadow-2xl overflow-hidden">
-          <div className="bg-gradient-to-br from-[#1e3a8a] to-[#1d4ed8] px-6 pt-6 pb-4 text-white text-center">
-            <div className="text-2xl font-bold mb-1">Stay Connected</div>
-            <p className="text-sm text-blue-100">Join our community and never miss an update</p>
-          </div>
-          <div className="bg-white px-6 py-5 space-y-3">
-            <a
-              href="https://chat.whatsapp.com/EYJ9EPbBJP15r7NEXzlkTy"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={closeCommunityPopup}
-              className="flex items-center gap-3 w-full rounded-xl bg-green-500 hover:bg-green-600 text-white px-4 py-3 font-semibold transition shadow-md"
-            >
-              <MessageCircle className="w-5 h-5 shrink-0" />
-              <div className="text-left">
-                <div className="text-sm font-bold">Join WhatsApp Group</div>
-                <div className="text-xs text-green-100">Get latest updates instantly</div>
-              </div>
-            </a>
-            <a
-              href="https://mailchi.mp/3a9b946d45cb/imedia"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={closeCommunityPopup}
-              className="flex items-center gap-3 w-full rounded-xl bg-[#1e3a8a] hover:bg-[#1d4ed8] text-white px-4 py-3 font-semibold transition shadow-md"
-            >
-              <Mail className="w-5 h-5 shrink-0" />
-              <div className="text-left">
-                <div className="text-sm font-bold">Subscribe to Newsletter</div>
-                <div className="text-xs text-blue-200">Monthly Islamic content digest</div>
-              </div>
-            </a>
-          </div>
-          <div className="bg-gray-50 px-6 py-3 text-center border-t border-gray-100">
-            <button onClick={closeCommunityPopup} className="text-xs text-gray-400 hover:text-gray-600 transition">Maybe later</button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showAnnouncementPopup} onOpenChange={(open) => !open && closeAnnouncementPopup()}>
-        <DialogContent className="z-[60] w-[calc(100%-2rem)] max-w-3xl rounded-2xl border-0 p-0 shadow-2xl overflow-hidden">
-          {popupAnnouncement && getAnnouncementImages(popupAnnouncement).length > 0 && (
-            <AnnouncementImageSlider
-              images={getAnnouncementImages(popupAnnouncement)}
-              title={popupAnnouncement.title || "Announcement"}
-              variant="popup"
-              onImageClick={(index) => openAnnouncementLightbox(popupAnnouncement, index)}
-            />
-          )}
-          <div className="bg-gradient-to-br from-[#1e3a8a] to-[#1d4ed8] px-6 py-4 text-white">
-            <div className="flex items-center gap-2">
-              <Megaphone className="h-5 w-5 text-sky-200" />
-              <div className="text-xl font-bold">{popupAnnouncement?.title || "Announcement"}</div>
-            </div>
-            {getAnnouncementImages(popupAnnouncement).length > 1 && (
-              <p className="mt-1 text-xs text-blue-100">Tap the image to view full size</p>
-            )}
-          </div>
-          <div className="bg-white px-6 py-5">
-            {popupAnnouncement?.text && (
-              <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
-                {popupAnnouncement.text}
+        {/* Utility bar: donate + survey */}
+        <div className="border-b border-white/10 bg-[#1e3a8a] px-4 py-2">
+          <div className="mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center">
+              <p className="text-center text-xs text-blue-100 sm:text-left">
+                Your giving will be a sadaqah jariyah — ongoing reward, insha&apos;Allah
               </p>
+              <a
+                {...donateLinkProps}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#1e3a8a] transition hover:bg-sky-50"
+              >
+                <HeartHandshake className="h-3.5 w-3.5" />
+                Donate to our projects
+              </a>
+              <a
+                {...aictDonateLinkProps}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/35 bg-white/10 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-white/20"
+              >
+                <img
+                  src="https://aictglobal.org/assets/aict-logo-D5H_R8Jb.png?v=512"
+                  alt="AICT Global"
+                  className="h-4 w-4 rounded-full bg-white object-contain"
+                />
+                Donate to AICT
+                <ExternalLink className="h-3 w-3 opacity-80" />
+              </a>
+            </div>
+            <a
+              {...surveyLinkProps}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-white/25 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
+            >
+              <ClipboardList className="h-3.5 w-3.5" />
+              Survey
+              <ExternalLink className="h-3 w-3 opacity-80" />
+            </a>
+          </div>
+        </div>
+
+        <Dialog
+          open={Boolean(lightboxAnnouncement)}
+          onOpenChange={(open) => !open && closeAnnouncementLightbox()}
+        >
+          <DialogContent
+            className={`z-[70] w-[calc(100%-2rem)] max-h-[90dvh] max-w-5xl overflow-y-auto rounded-2xl border-0 bg-black p-0 shadow-2xl ${LIGHTBOX_DIALOG_CLOSE_CLASS}`}
+          >
+            {lightboxAnnouncement && (
+              <>
+                <AnnouncementImageSlider
+                  images={getAnnouncementImages(lightboxAnnouncement)}
+                  title={lightboxAnnouncement.title || "Announcement"}
+                  variant="lightbox"
+                  startIndex={lightboxImageIndex}
+                  onSlideChange={setLightboxImageIndex}
+                />
+                <div className="border-t border-white/10 bg-black/90 px-4 py-3 text-center text-sm text-white">
+                  {lightboxAnnouncement.title || "Announcement"}
+                  {getAnnouncementImages(lightboxAnnouncement).length > 1 && (
+                    <span className="ml-2 text-white/60">
+                      ({lightboxImageIndex + 1} of{" "}
+                      {getAnnouncementImages(lightboxAnnouncement).length})
+                    </span>
+                  )}
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={closeAnnouncementLightbox}
+                      className="min-h-[44px] rounded-full bg-white/15 px-6 py-2.5 text-sm font-semibold text-white touch-manipulation hover:bg-white/25"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
-            {popupAnnouncement?.linkUrl && (
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={surveyDialogOpen && !lightboxAnnouncement}
+          onOpenChange={(open) => {
+            if (!open) dismissSurveyPopup();
+          }}
+        >
+          <DialogContent className="w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-3xl border-0 p-0 shadow-2xl">
+            <div className="bg-gradient-to-br from-[#1e3a8a] via-[#1e40af] to-[#172554] px-6 pb-5 pt-7 text-white">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+                <ClipboardList className="h-6 w-6 text-sky-200" />
+              </div>
+              <DialogTitle className="text-center text-2xl font-bold leading-tight text-white">
+                We need to know our users
+              </DialogTitle>
+              <DialogDescription className="mt-3 text-center text-sm leading-relaxed text-blue-100/90">
+                Your feedback is very important for us. Please take a minute to fill in the survey
+                so we can improve Islam Media Central for everyone.
+              </DialogDescription>
+            </div>
+            <div className="space-y-3 bg-white px-6 py-5">
               <button
                 type="button"
-                onClick={() => {
-                  openAnnouncementLink(popupAnnouncement.linkUrl);
-                  closeAnnouncementPopup();
-                }}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1e3a8a] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]"
+                onClick={openSurveyForm}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#1e3a8a] px-5 text-sm font-bold text-white transition hover:bg-[#1e40af]"
               >
-                {popupAnnouncement.linkLabel || "Learn more"}
-                <ExternalLink className="h-4 w-4" />
+                Take the survey
+                <ExternalLink className="h-4 w-4 opacity-90" />
               </button>
-            )}
-          </div>
-          <div className="bg-gray-50 px-6 py-3 text-center border-t border-gray-100">
-            <button
-              type="button"
-              onClick={closeAnnouncementPopup}
-              className="text-xs text-gray-400 hover:text-gray-600 transition"
-            >
-              Close
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(lightboxAnnouncement)} onOpenChange={(open) => !open && closeAnnouncementLightbox()}>
-        <DialogContent className="w-[calc(100%-2rem)] max-w-5xl rounded-2xl border-0 bg-black p-0 shadow-2xl overflow-hidden">
-          {lightboxAnnouncement && (
-            <>
-              <AnnouncementImageSlider
-                images={getAnnouncementImages(lightboxAnnouncement)}
-                title={lightboxAnnouncement.title || "Announcement"}
-                variant="lightbox"
-                startIndex={lightboxImageIndex}
-                onSlideChange={setLightboxImageIndex}
-              />
-              <div className="border-t border-white/10 bg-black/90 px-4 py-3 text-center text-sm text-white">
-                {lightboxAnnouncement.title || "Announcement"}
-                {getAnnouncementImages(lightboxAnnouncement).length > 1 && (
-                  <span className="ml-2 text-white/60">
-                    ({lightboxImageIndex + 1} of {getAnnouncementImages(lightboxAnnouncement).length})
-                  </span>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-      
-      {/* Floating WhatsApp Chat Button */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-        className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-50"
-      >
-        <a
-          href="https://chat.whatsapp.com/EYJ9EPbBJP15r7NEXzlkTy"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white rounded-full px-4 py-2.5 shadow-xl hover:shadow-2xl transition-all duration-300 text-sm font-semibold"
-          aria-label="Join WhatsApp Group"
-        >
-          <MessageCircle className="w-5 h-5 shrink-0" />
-          <span className="hidden sm:inline">Join Group</span>
-        </a>
-      </motion.div>
-
-      {/* Radio Player Bar */}
-      <div className="bg-[#1e3a8a] px-4 py-2.5 flex items-center justify-between gap-3">
-        <audio ref={audioRef} src="https://a4.asurahosting.com:7820/radio.mp3" preload="none" />
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10">
-            <Radio className="h-4 w-4 text-sky-300" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold text-white truncate">Islam Media Central</span>
-              <span className="shrink-0 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">LIVE</span>
+              <button
+                type="button"
+                onClick={dismissSurveyPopup}
+                className="inline-flex h-10 w-full items-center justify-center rounded-full text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+              >
+                Maybe later
+              </button>
             </div>
-            <div className="text-[10px] text-sky-300 truncate">Islamic Radio Stream</div>
-          </div>
-        </div>
-        <button
-          onClick={() => {
-            if (!audioRef.current) return;
-            if (isRadioPlaying) {
-              audioRef.current.pause();
-              setIsRadioPlaying(false);
-            } else {
-              audioRef.current.play().catch(() => {});
-              setIsRadioPlaying(true);
-            }
-          }}
-          className="shrink-0 flex items-center gap-1.5 rounded-full bg-sky-400 hover:bg-sky-300 text-[#1e3a8a] px-4 py-1.5 text-xs font-extrabold transition"
-          aria-label={isRadioPlaying ? "Pause radio" : "Play radio"}
-        >
-          {isRadioPlaying ? (
-            <>
-              <span className="h-2 w-2 rounded-full bg-[#1e3a8a] animate-pulse" />
-              Pause
-            </>
-          ) : (
-            <>
-              <span className="border-l-[10px] border-y-[6px] border-y-transparent border-l-[#1e3a8a]" />
-              Play
-            </>
-          )}
-        </button>
-      </div>
+          </DialogContent>
+        </Dialog>
 
-      {/* Sponsor Ticker Bar */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3">
-        <div className="max-w-6xl mx-auto flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-blue-700">Featured Sponsors</span>
-          </div>
+        {/* Floating WhatsApp */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="fixed bottom-4 right-4 z-50 md:bottom-6 md:right-6"
+        >
           <a
-            href={ADS_SECTION_URL}
+            href={WHATSAPP_GROUP_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition"
+            className="flex items-center gap-2 rounded-full bg-[#25d366] px-4 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:bg-[#1ebe57]"
+            aria-label="Join WhatsApp Group"
           >
-            View All Ads <ExternalLink className="w-3 h-3" />
+            <MessageCircle className="h-5 w-5 shrink-0" />
+            <span className="hidden sm:inline">Join Group</span>
           </a>
-        </div>
-        <div className="max-w-6xl mx-auto mt-3 relative overflow-hidden">
-          <motion.div
-            className="flex w-max gap-3"
-            animate={{ x: ["0%", "-50%"] }}
-            transition={{ duration: 28, ease: "linear", repeat: Infinity }}
-          >
-            {[...mainFeaturedSponsors, ...mainFeaturedSponsors].map((item, index) => (
+        </motion.div>
+
+        {/* Hero */}
+        <section className="relative overflow-hidden bg-[#1e3a8a]">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(45deg, #C8960C 0px, #C8960C 1px, transparent 1px, transparent 56px), repeating-linear-gradient(-45deg, #C8960C 0px, #C8960C 1px, transparent 1px, transparent 56px)",
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1e3a8a] via-[#1e40af]/95 to-[#172554]" />
+          <div className="relative z-10 mx-auto max-w-5xl px-4 pb-16 pt-16 text-center md:pb-20 md:pt-20">
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.65 }}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-300/90">
+                Media With Purpose
+              </p>
+              <h1 className="mt-4 text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
+                Islam Media Central
+              </h1>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-blue-100/85 md:text-lg">
+                Islamic education, interactive learning and community resources for every age.
+              </p>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.35, duration: 0.5 }}
+                className="mt-8 flex flex-col items-center gap-1 text-sm text-blue-100/70 sm:flex-row sm:justify-center sm:gap-3"
+              >
+                <span>{gregorianDate || "Loading date…"}</span>
+                <span className="hidden text-sky-400/60 sm:inline">|</span>
+                <span className="font-medium text-sky-200">
+                  {islamicDate || "Loading Hijri…"}
+                </span>
+              </motion.div>
+            </motion.div>
+          </div>
+          <div
+            className="absolute bottom-0 left-0 right-0 h-7 bg-[#EFF6FF]"
+            style={{ clipPath: "ellipse(58% 100% at 50% 100%)" }}
+          />
+        </section>
+
+        {/* Live radio */}
+        <section className="border-b border-blue-100 bg-white px-4 py-3">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EFF6FF]">
+                <Radio className="h-4 w-4 text-[#1e3a8a]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-semibold text-slate-900">
+                    Islamic Radio
+                  </span>
+                  <span className="shrink-0 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                    Live
+                  </span>
+                </div>
+                <p className="truncate text-xs text-slate-500">Islam Media Central stream</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={toggleRadio}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#1e3a8a] px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-[#1e40af]"
+              aria-label={isRadioPlaying ? "Pause radio" : "Play radio"}
+            >
+              {isRadioPlaying ? (
+                <>
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-sky-300" />
+                  Pause
+                </>
+              ) : (
+                <>
+                  <span className="border-y-[5px] border-l-[8px] border-y-transparent border-l-white" />
+                  Play
+                </>
+              )}
+            </button>
+          </div>
+        </section>
+
+        {/* Announcements */}
+        {homeAnnouncements.length > 0 && (
+          <section className="border-b border-amber-100 bg-amber-50/80 px-4 py-10">
+            <div className="mx-auto max-w-5xl">
+              <SectionHeading
+                eyebrow="Updates"
+                title="Announcements"
+                subtitle="Latest news and notices from Islam Media Central"
+              />
+              <div className="grid gap-4 md:grid-cols-2">
+                {homeAnnouncements.map((item) => {
+                  const images = getAnnouncementImages(item);
+                  return (
+                    <article
+                      key={item.id}
+                      className="overflow-hidden rounded-2xl border border-amber-200/80 bg-white shadow-sm"
+                    >
+                      {images.length > 0 && (
+                        <AnnouncementImageSlider
+                          images={images}
+                          title={item.title || "Announcement"}
+                          variant="preview"
+                          onImageClick={(index) => openAnnouncementLightbox(item, index)}
+                        />
+                      )}
+                      <div className="p-5">
+                        {item.title ? (
+                          <h3 className="text-lg font-semibold text-[#1e3a8a]">{item.title}</h3>
+                        ) : null}
+                        {item.text ? (
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">
+                            {item.text}
+                          </p>
+                        ) : null}
+                        {item.linkUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => openAnnouncementLink(item.linkUrl)}
+                            className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900"
+                          >
+                            {item.linkLabel || "Learn more"}
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Sponsors */}
+        <section className="border-b border-slate-100 bg-white px-4 py-10">
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700/80">
+                  Partners
+                </p>
+                <h2 className="mt-1 text-xl font-bold text-[#1e3a8a]">Featured sponsors</h2>
+              </div>
               <a
-                key={`${item.name}-ticker-${index}`}
                 href={ADS_SECTION_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block shrink-0"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900"
               >
-                <div className="w-[150px] h-[80px] rounded-xl overflow-hidden border border-gray-200">
-                  <FeaturedSponsorLogo item={item} />
-                </div>
+                View all ads <ExternalLink className="h-3.5 w-3.5" />
               </a>
-            ))}
-          </motion.div>
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-white to-transparent" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent" />
-        </div>
-      </div>
-
-      {homeAnnouncements.length > 0 && (
-        <section className="border-b border-amber-100 bg-amber-50 px-4 py-4">
-          <div className="mx-auto max-w-5xl space-y-3">
-            <div className="flex items-center gap-2">
-              <Megaphone className="h-5 w-5 text-amber-600" />
-              <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-amber-800">
-                Announcements
-              </h2>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {homeAnnouncements.map((item) => {
-                const images = getAnnouncementImages(item);
-                return (
-                <article
-                  key={item.id}
-                  className="overflow-hidden rounded-2xl border border-amber-200 bg-white shadow-sm"
-                >
-                  {images.length > 0 && (
-                    <AnnouncementImageSlider
-                      images={images}
-                      title={item.title || "Announcement"}
-                      variant="preview"
-                      onImageClick={(index) => openAnnouncementLightbox(item, index)}
-                    />
-                  )}
-                  <div className="p-4">
-                    {item.title && (
-                      <h3 className="text-lg font-bold text-[#1e3a8a]">{item.title}</h3>
-                    )}
-                    {item.text && (
-                      <p className="mt-2 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
-                        {item.text}
-                      </p>
-                    )}
-                    {images.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => openAnnouncementLightbox(item, 0)}
-                        className="mt-3 text-sm font-semibold text-blue-700 hover:text-blue-900"
-                      >
-                        View full image{images.length > 1 ? "s" : ""}
-                      </button>
-                    )}
-                    {item.linkUrl && (
-                      <button
-                        type="button"
-                        onClick={() => openAnnouncementLink(item.linkUrl)}
-                        className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900"
-                      >
-                        {item.linkLabel || "Learn more"}
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </article>
-              )})}
+            <div className="relative overflow-hidden">
+              <motion.div
+                className="flex w-max gap-3"
+                animate={{ x: ["0%", "-50%"] }}
+                transition={{ duration: 28, ease: "linear", repeat: Infinity }}
+              >
+                {[...mainFeaturedSponsors, ...mainFeaturedSponsors].map((item, index) => (
+                  <a
+                    key={`${item.name}-ticker-${index}`}
+                    href={ADS_SECTION_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block shrink-0"
+                  >
+                    <div className="h-[72px] w-[140px] overflow-hidden rounded-xl border border-slate-200">
+                      <FeaturedSponsorLogo item={item} />
+                    </div>
+                  </a>
+                ))}
+              </motion.div>
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-white to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent" />
             </div>
           </div>
         </section>
-      )}
 
-      {/* â"€â"€ Hero Section â"€â"€ */}
-      <section className="relative overflow-hidden bg-[#1e3a8a]">
-        {/* Geometric overlay */}
-        <div className="pointer-events-none absolute inset-0 opacity-[0.06]" style={{backgroundImage: 'repeating-linear-gradient(45deg, #C8960C 0px, #C8960C 1px, transparent 1px, transparent 60px), repeating-linear-gradient(-45deg, #C8960C 0px, #C8960C 1px, transparent 1px, transparent 60px)'}} />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1e3a8a] via-[#1e40af] to-[#172554]" />
-        <div className="relative z-10 max-w-5xl mx-auto px-4 pt-14 pb-16 md:pt-20 md:pb-24 text-center">
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border-2 border-sky-400/60 bg-sky-400/15 shadow-lg">
-              <Moon className="h-10 w-10 text-sky-300" />
-            </div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl">
-              Islam Media{" "}
-              <span className="text-sky-300">Central</span>
-            </h1>
-            <p className="mt-3 text-lg text-blue-200 font-medium tracking-wide">Media With Purpose</p>
-            <p className="mt-4 max-w-2xl mx-auto text-base md:text-lg text-white/70">
-              A trusted platform for Islamic education, interactive content and community - built for every age.
-            </p>
-            {/* Date pill */}
-            <div className="mt-8 inline-flex flex-col items-center rounded-2xl border border-white/15 bg-white/8 px-6 py-4 backdrop-blur" style={{background: 'rgba(255,255,255,0.08)'}}>
-              <span className="text-xs text-white/60 uppercase tracking-widest">Today</span>
-              <span className="mt-1 text-sm font-medium text-white/80">{gregorianDate || 'Loading...'}</span>
-              <span className="mt-0.5 text-xl font-bold text-sky-200">{islamicDate || 'Loading Hijri...'}</span>
-            </div>
-          </motion.div>
-        </div>
-        {/* Wave divider */}
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#EFF6FF]" style={{clipPath: 'ellipse(55% 100% at 50% 100%)'}} />
-      </section>
-
-      {/* ── Quran Hifz Assistant ── */}
-      <section className="px-4 pt-4 pb-6">
-        <div className="max-w-4xl mx-auto">
-          <motion.a
-            href={HIFZ_ASSISTANT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            whileHover={{ scale: 1.015 }}
-            transition={{ duration: 0.25 }}
-            className="group block"
-          >
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 p-8 md:p-10 shadow-2xl">
-              <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
-              <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full bg-white/10" />
-              <div className="relative z-10">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-emerald-100">
-                  <Sparkles className="h-3.5 w-3.5" /> New Feature
-                </span>
-                <h2 className="mt-4 text-3xl md:text-4xl font-extrabold text-white leading-tight">
-                  Quran Hifz Assistant
-                </h2>
-                <p className="mt-3 max-w-2xl text-emerald-50 text-base md:text-lg leading-relaxed">
-                  Learn the Quran with colour-coded tajweed rules, tap any ayah for translation and
-                  rule guidance, and practise word-by-word recitation for memorisation.
-                </p>
-                <ul className="mt-4 grid gap-2 text-sm text-emerald-50 md:grid-cols-3">
-                  <li className="rounded-xl bg-white/10 px-3 py-2">Colour-coded tajweed</li>
-                  <li className="rounded-xl bg-white/10 px-3 py-2">Ayah translation + rules</li>
-                  <li className="rounded-xl bg-white/10 px-3 py-2">Word-by-word audio</li>
-                </ul>
-                <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-bold text-emerald-700 shadow-lg group-hover:bg-emerald-50 transition-colors">
-                  <BookOpen className="h-4 w-4" />
-                  Open Hifz Assistant
-                  <ExternalLink className="h-4 w-4" />
-                </div>
-              </div>
-            </div>
-          </motion.a>
-        </div>
-      </section>
-
-      {/* â"€â"€ Kids Zone Featured Card â"€â"€ */}
-      <section className="px-4 pt-14 pb-10">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-7">
-            <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-blue-700">
-              <Star className="h-3.5 w-3.5" /> Featured
-            </span>
-            <h2 className="mt-3 text-3xl md:text-4xl font-extrabold text-[#1e3a8a]">Kids Zone</h2>
-            <p className="mt-2 text-gray-500">Our flagship interactive platform for young learners</p>
-          </div>
-          <motion.a
-            href="https://islamic-kids-platform.vercel.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            whileHover={{ scale: 1.015 }}
-            transition={{ duration: 0.25 }}
-            className="group block"
-          >
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 p-8 md:p-12 shadow-2xl">
-              {/* Background shimmer */}
-              <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
-              <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full bg-white/10" />
-              <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center">
-                <div className="flex-1">
-                  <h3 className="text-3xl md:text-4xl font-extrabold text-white leading-tight">Explore Kids Zone</h3>
-                  <p className="mt-3 max-w-lg text-white/90 text-base md:text-lg leading-relaxed">
-                    Interactive Islamic games, stories, quizzes, Quran activities and creative challenges - designed just for children.
-                  </p>
-                  <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 font-bold text-orange-600 shadow-lg group-hover:bg-orange-50 transition-colors">
-                    Open Kids Zone <ExternalLink className="h-4 w-4" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.a>
-        </div>
-      </section>
-
-      {/* â"€â"€ Community CTAs â"€â"€ */}
-      <section className="px-4 py-10 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-[#1e3a8a]">Join Our Community</h2>
-            <p className="mt-2 text-gray-500">Stay connected - get updates, resources and reminders</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* WhatsApp Group */}
-            <motion.a
-              href="https://chat.whatsapp.com/EYJ9EPbBJP15r7NEXzlkTy"
-              target="_blank"
-              rel="noopener noreferrer"
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.2 }}
-              className="group block"
-            >
-              <div className="h-full rounded-3xl bg-gradient-to-br from-[#075e54] via-[#128c7e] to-[#25d366] p-7 md:p-8 shadow-xl">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
-                  <MessageCircle className="h-7 w-7 text-white" />
-                </div>
-                <h3 className="text-xl md:text-2xl font-extrabold text-white">Join WhatsApp Group</h3>
-                <p className="mt-2 text-green-100 text-sm md:text-base leading-relaxed">
-                  Connect with our growing Muslim community. Get daily reminders, Islamic content and updates directly in your WhatsApp.
-                </p>
-                <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-green-700 shadow group-hover:bg-green-50 transition-colors">
-                  Join Now <ExternalLink className="h-4 w-4" />
-                </div>
-              </div>
-            </motion.a>
-
-            {/* Newsletter */}
-            <motion.a
-              href="https://mailchi.mp/3a9b946d45cb/imedia"
-              target="_blank"
-              rel="noopener noreferrer"
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.2 }}
-              className="group block"
-            >
-              <div className="h-full rounded-3xl bg-gradient-to-br from-[#1a237e] via-[#283593] to-[#3949ab] p-7 md:p-8 shadow-xl">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
-                  <Mail className="h-7 w-7 text-white" />
-                </div>
-                <h3 className="text-xl md:text-2xl font-extrabold text-white">Newsletter Signup</h3>
-                <p className="mt-2 text-indigo-200 text-sm md:text-base leading-relaxed">
-                  Weekly Islamic content, platform updates, new features and curated resources delivered straight to your inbox.
-                </p>
-                <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-indigo-700 shadow group-hover:bg-indigo-50 transition-colors">
-                  Subscribe Free <ExternalLink className="h-4 w-4" />
-                </div>
-              </div>
-            </motion.a>
-          </div>
-        </div>
-      </section>
-
-      {/* â"€â"€ Hadith / Quote Slider â"€â"€ */}
-      <section className="bg-[#1e3a8a] px-4 py-12 md:py-16">
-        <div className="max-w-3xl mx-auto">
-          <div className="relative overflow-hidden rounded-2xl border border-sky-400/20 bg-white/5 shadow-2xl">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentSlide}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.45 }}
-                className="px-8 py-10 md:px-14 md:py-14 text-center"
+        {/* Platforms */}
+        <section className="px-4 py-14 md:py-16">
+          <div className="mx-auto max-w-5xl">
+            <SectionHeading
+              eyebrow="Platforms"
+              title="Learn with purpose"
+              subtitle="Tools for Qur’an memorisation and engaging Islamic learning for children."
+            />
+            <div className="grid gap-5 md:grid-cols-2">
+              <motion.a
+                href={HIFZ_ASSISTANT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+                className="group block"
               >
-                
-                <p className="text-lg md:text-2xl font-semibold text-white leading-relaxed">
-                  {bannerSlides[currentSlide].text}
-                </p>
-                {bannerSlides[currentSlide].subtext && (
-                  <p className="mt-4 text-sm md:text-base text-sky-300 font-medium">
-                    {bannerSlides[currentSlide].subtext}
+                <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-[#0f766e] to-[#134e4a] p-7 text-white shadow-sm md:p-8">
+                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-50">
+                    <Sparkles className="h-3 w-3" />
+                    Qur’an
+                  </span>
+                  <h3 className="mt-4 text-2xl font-bold leading-tight">Quran Hifz Assistant</h3>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-emerald-50/90">
+                    Colour-coded tajweed, ayah translations and word-by-word practice for
+                    memorisation.
                   </p>
-                )}
-              </motion.div>
-            </AnimatePresence>
-            <div className="flex justify-center gap-2 pb-6">
-              {bannerSlides.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentSlide(i)}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    i === currentSlide ? 'w-8 bg-sky-400' : 'w-2 bg-white/30'
-                  }`}
-                  aria-label={`Slide ${i + 1}`}
-                />
+                  <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-white">
+                    <BookOpen className="h-4 w-4" />
+                    Open assistant
+                    <ExternalLink className="h-3.5 w-3.5 opacity-80 transition group-hover:translate-x-0.5" />
+                  </span>
+                </div>
+              </motion.a>
+
+              <Link
+                to={KIDS_ZONE_PATH}
+                className="group block"
+              >
+                <motion.div
+                  whileHover={{ y: -2 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-[#1e3a8a] to-[#172554] p-7 text-white shadow-sm md:p-8"
+                >
+                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-100">
+                    <Star className="h-3 w-3" />
+                    Featured
+                  </span>
+                  <h3 className="mt-4 text-2xl font-bold leading-tight">Kids Zone</h3>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-blue-100/90">
+                    Games, stories, quizzes and creative challenges designed for young Muslim
+                    learners.
+                  </p>
+                  <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-sky-200">
+                    Explore Kids Zone
+                  </span>
+                </motion.div>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Community */}
+        <section className="border-y border-slate-100 bg-white px-4 py-14 md:py-16">
+          <div className="mx-auto max-w-5xl">
+            <SectionHeading
+              eyebrow="Community"
+              title="Stay connected"
+              subtitle="Join the conversation and receive weekly updates."
+            />
+            <div className="grid gap-5 md:grid-cols-2">
+              <a
+                href={WHATSAPP_GROUP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group rounded-2xl border border-slate-200 bg-[#EFF6FF] p-6 transition hover:border-emerald-200 hover:shadow-md md:p-7"
+              >
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#25d366]/15 text-[#128c7e]">
+                  <MessageCircle className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-[#1e3a8a]">WhatsApp group</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  Daily reminders, Islamic content and community updates.
+                </p>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#128c7e]">
+                  Join now <ExternalLink className="h-3.5 w-3.5" />
+                </span>
+              </a>
+
+              <a
+                href={NEWSLETTER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group rounded-2xl border border-slate-200 bg-[#EFF6FF] p-6 transition hover:border-blue-200 hover:shadow-md md:p-7"
+              >
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#1e3a8a]/10 text-[#1e3a8a]">
+                  <Mail className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-[#1e3a8a]">Newsletter</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                  Platform updates, curated resources and new features by email.
+                </p>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1e3a8a]">
+                  Subscribe free <ExternalLink className="h-3.5 w-3.5" />
+                </span>
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* Donate */}
+        <section className="px-4 py-14 md:py-16">
+          <div className="mx-auto max-w-5xl">
+            <a
+              {...donateLinkProps}
+              className="group block overflow-hidden rounded-2xl border border-[#1e3a8a]/15 bg-[#1e3a8a] p-8 text-white shadow-sm transition hover:shadow-md md:p-10"
+            >
+              <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                <div className="max-w-2xl">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-300/90">
+                    Sadaqah jariyah
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold tracking-tight md:text-3xl">
+                    Support our mission
+                  </h2>
+                  <p className="mt-3 text-sm leading-relaxed text-blue-100/85 md:text-base">
+                    Your giving will be a sadaqah jariyah — helping fund prizes, new features and
+                    hosting for families worldwide.
+                  </p>
+                </div>
+                <span className="inline-flex shrink-0 items-center gap-2 self-start rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[#1e3a8a] transition group-hover:bg-sky-50 md:self-center">
+                  <HeartHandshake className="h-4 w-4" />
+                  Donate now
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </span>
+              </div>
+            </a>
+          </div>
+        </section>
+
+        {/* Quotes */}
+        <section className="bg-[#1e3a8a] px-4 py-14 md:py-16">
+          <div className="mx-auto max-w-3xl">
+            <p className="mb-6 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-300/90">
+              Inspiration
+            </p>
+            <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06]">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentSlide}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.4 }}
+                  className="px-8 py-10 text-center md:px-12 md:py-12"
+                >
+                  <p className="text-lg font-medium leading-relaxed text-white md:text-xl">
+                    {bannerSlides[currentSlide].text}
+                  </p>
+                  {bannerSlides[currentSlide].subtext ? (
+                    <p className="mt-4 text-sm font-medium text-sky-300">
+                      {bannerSlides[currentSlide].subtext}
+                    </p>
+                  ) : null}
+                </motion.div>
+              </AnimatePresence>
+              <div className="flex justify-center gap-2 pb-6">
+                {bannerSlides.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setCurrentSlide(i)}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      i === currentSlide ? "w-7 bg-sky-300" : "w-1.5 bg-white/30"
+                    }`}
+                    aria-label={`Slide ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Values */}
+        <section className="bg-white px-4 py-14 md:py-16">
+          <div className="mx-auto max-w-5xl">
+            <SectionHeading
+              eyebrow="Our values"
+              title="Built with care"
+              subtitle="A calm, trusted foundation for Islamic learning at home."
+            />
+            <div className="grid gap-5 md:grid-cols-3">
+              {islamicValues.map((value, i) => (
+                <motion.div
+                  key={value.title}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.08 * i }}
+                  className="rounded-2xl border border-slate-100 bg-[#EFF6FF] p-6 text-center"
+                >
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[#1e3a8a] shadow-sm">
+                    <value.icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-base font-semibold text-[#1e3a8a]">{value.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{value.description}</p>
+                </motion.div>
               ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* â"€â"€ Stats â"€â"€ */}
-      <section className="px-4 py-12 md:py-16 bg-[#EFF6FF]">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-3 gap-4 md:gap-8">
-            {[
-              { value: '12+', label: 'Interactive Games' },
-              { value: '7', label: 'Learning Modules' },
-              { value: '100+', label: 'Active Learners' },
-            ].map((stat, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * i }}
-                className="rounded-2xl border border-blue-100 bg-white p-5 md:p-8 text-center shadow-md"
-              >
-                <div className="text-3xl md:text-4xl font-extrabold text-[#1e3a8a]">{stat.value}</div>
-                <div className="mt-1 text-xs md:text-sm text-gray-500 font-medium">{stat.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* â"€â"€ Core Values â"€â"€ */}
-      <section className="px-4 py-12 md:py-16 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-[#1e3a8a]">Our Core Values</h2>
-            <p className="mt-2 text-gray-500">Building strong Islamic character through engaging content</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {islamicValues.map((value, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.12 * i }}
-                className="group rounded-2xl border border-gray-100 bg-[#EFF6FF] p-7 text-center shadow-md hover:shadow-xl transition-shadow duration-300 hover:border-emerald-200"
-              >
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1e3a8a]/10 to-[#1e3a8a]/5">
-                  <value.icon className={`h-8 w-8 ${value.color}`} />
-                </div>
-                <h3 className="text-lg font-bold text-[#1e3a8a] mb-2">{value.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{value.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="relative overflow-hidden bg-[#1e3a8a] px-4 py-16 md:py-20">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.06]" style={{backgroundImage: 'repeating-linear-gradient(45deg, #C8960C 0px, #C8960C 1px, transparent 1px, transparent 60px), repeating-linear-gradient(-45deg, #C8960C 0px, #C8960C 1px, transparent 1px, transparent 60px)'}} />
-        <div className="relative z-10 max-w-3xl mx-auto text-center">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <h2 className="text-3xl md:text-5xl font-extrabold text-white leading-tight">
-              Begin Your Islamic Learning Journey
+        {/* Closing CTA */}
+        <section className="relative overflow-hidden bg-[#172554] px-4 py-16 md:py-20">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.06]"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(45deg, #C8960C 0px, #C8960C 1px, transparent 1px, transparent 56px)",
+            }}
+          />
+          <div className="relative z-10 mx-auto max-w-3xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
+              Begin your learning journey
             </h2>
-            <p className="mt-4 text-base md:text-lg text-blue-200">
-              Explore our Kids Zone - no sign-up required
+            <p className="mt-3 text-base text-blue-200/90">
+              Explore Kids Zone — no sign-up required.
             </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                to={KIDS_ZONE_PATH}
+                className="inline-flex items-center gap-2 rounded-full bg-sky-300 px-7 py-3 text-sm font-bold text-[#1e3a8a] transition hover:bg-sky-200"
+              >
+                <Sparkles className="h-4 w-4" />
+                Open Kids Zone
+              </Link>
               <a
-                href="https://islamic-kids-platform.vercel.app/"
+                href={WHATSAPP_GROUP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full bg-sky-400 px-8 py-3.5 text-base font-extrabold text-[#1e3a8a] shadow-xl hover:bg-sky-300 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 px-7 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
               >
-                <Sparkles className="h-5 w-5" /> Open Kids Zone
-              </a>
-              <a
-                href="https://chat.whatsapp.com/EYJ9EPbBJP15r7NEXzlkTy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-white/30 px-8 py-3.5 text-base font-bold text-white hover:bg-white/10 transition-colors"
-              >
-                <MessageCircle className="h-5 w-5" /> Join WhatsApp
+                <MessageCircle className="h-4 w-4" />
+                Join WhatsApp
               </a>
             </div>
-          </motion.div>
-        </div>
-      </section>
-
-    </div>
+          </div>
+        </section>
+      </div>
     </ErrorBoundary>
   );
 }
-
-
-

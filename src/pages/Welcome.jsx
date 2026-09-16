@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
 import { Star, Sparkles, ArrowRight } from "lucide-react";
+import { requestInAppReview } from "@/utils/inAppReview";
 // Authentication via Base44 removed in favor of email-only access
 
 const avatars = ["🌟", "🌙", "⭐", "🎨", "🎮", "📚", "🚀", "🦁", "🐱", "🐼", "🦊", "🐰"];
@@ -59,6 +60,8 @@ export default function Welcome() {
       setLoading(false);
       // Optionally save to localStorage
       localStorage.setItem("ikz_user", JSON.stringify(formData));
+      // Onboarding completion is a qualified review opportunity on Android.
+      requestInAppReview("onboarding_completed");
       navigate(createPageUrl("Games"));
     }, 500);
   };

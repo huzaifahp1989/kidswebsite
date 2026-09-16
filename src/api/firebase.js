@@ -323,6 +323,8 @@ function mapAnnouncementRow(row) {
     order: row.order ?? 0,
     popupDelaySeconds: row.popup_delay_seconds ?? row.popupDelaySeconds ?? 3,
     popupCooldownHours: row.popup_cooldown_hours ?? row.popupCooldownHours ?? 24,
+    startsAt: row.starts_at ?? row.startsAt ?? null,
+    endsAt: row.ends_at ?? row.endsAt ?? null,
     updatedAt: row.updated_at ?? row.updatedAt,
     createdAt: row.created_at ?? row.createdAt,
   };
@@ -355,6 +357,12 @@ function announcementToRow(item) {
   }
   if (item.popupCooldownHours !== undefined || item.popup_cooldown_hours !== undefined) {
     row.popup_cooldown_hours = item.popupCooldownHours ?? item.popup_cooldown_hours ?? 24;
+  }
+  if (item.startsAt !== undefined || item.starts_at !== undefined) {
+    row.starts_at = item.startsAt ?? item.starts_at ?? null;
+  }
+  if (item.endsAt !== undefined || item.ends_at !== undefined) {
+    row.ends_at = item.endsAt ?? item.ends_at ?? null;
   }
 
   if (item.imageUrls !== undefined || item.imageUrl !== undefined || item.image_url !== undefined) {

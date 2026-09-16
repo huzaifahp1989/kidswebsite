@@ -1,30 +1,102 @@
 package com.imedia.app;
 
-import android.os.Bundle;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.view.ViewGroup;
 import android.webkit.WebChromeClient;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.webkit.JavascriptInterface;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String START_URL = "https://imediackids.com/";
 
     private WebView webView;
+    private NotificationsJsBridge notificationsJsBridge;
+    private InAppReviewManager inAppReviewManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        SystemBarUtils.enable(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Keep review eligibility and prompt history in one native service instance.
+        inAppReviewManager = new InAppReviewManager(this);
+        inAppReviewManager.recordAppOpen();
+
+        SystemBarUtils.applySystemBarInsets(findViewById(R.id.main_root), true);
+
+        initializeWebView();
+    }
+
+    private void initializeWebView() {
         webView = findViewById(R.id.webview);
+        if (webView == null) return;
         setupWebView();
+        attachJavascriptBridges();
+        webView.loadUrl(START_URL);
+    }
+
+    private void attachJavascriptBridges() {
+        if (webView == null) return;
         webView.addJavascriptInterface(new AlarmJsBridge(this), "AndroidAlarm");
-        webView.addJavascriptInterface(new ReviewJsBridge(this), "AndroidReview");
-        webView.loadUrl("https://traeimedia3phmb.vercel.app/");
+        // Expose the native review service to engagement events from the web experience.
+        webView.addJavascriptInterface(new ReviewJsBridge(this, inAppReviewManager), "AndroidReview");
+        notificationsJsBridge = new NotificationsJsBridge(this);
+        webView.addJavascriptInterface(notificationsJsBridge, "AndroidNotifications");
+    }
+
+    private void restoreWebView() {
+        setContentView(R.layout.activity_main);
+        SystemBarUtils.applySystemBarInsets(findViewById(R.id.main_root), true);
+        initializeWebView();
+    }
+
+    private void cleanupWebView(WebView view) {
+        if (view == null) return;
+
+        try {
+            view.stopLoading();
+        } catch (Exception ignored) {
+        }
+        try {
+            view.loadUrl("about:blank");
+        } catch (Exception ignored) {
+        }
+        try {
+            view.onPause();
+            view.pauseTimers();
+        } catch (Exception ignored) {
+        }
+        try {
+            view.clearHistory();
+        } catch (Exception ignored) {
+        }
+        try {
+            view.clearCache(false);
+        } catch (Exception ignored) {
+        }
+        try {
+            ViewGroup parent = (ViewGroup) view.getParent();
+            if (parent != null) {
+                parent.removeView(view);
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            view.removeAllViews();
+        } catch (Exception ignored) {
+        }
+        try {
+            view.destroy();
+        } catch (Exception ignored) {
+        }
     }
 
     private void setupWebView() {
@@ -36,6 +108,13 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setMediaPlaybackRequiresUserGesture(false);
         webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
         webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+        webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            webSettings.setOffscreenPreRaster(false);
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_BOUND, true);
+        }
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -64,6 +143,16 @@ public class MainActivity extends AppCompatActivity {
                     return false;
                 }
             }
+
+            @Override
+            public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                cleanupWebView(view);
+                if (view == webView) {
+                    webView = null;
+                    restoreWebView();
+                }
+                return true;
+            }
         });
     }
 
@@ -78,7 +167,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
+        if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
@@ -86,22 +175,46 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == NotificationsJsBridge.REQUEST_CODE && notificationsJsBridge != null) {
+            notificationsJsBridge.onAndroidPermissionResult();
+        }
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
-        if (webView != null) webView.onPause();
+        if (webView != null) {
+            webView.onPause();
+            webView.pauseTimers();
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (webView != null) webView.onResume();
+        if (webView != null) {
+            webView.onResume();
+            webView.resumeTimers();
+        }
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level >= TRIM_MEMORY_RUNNING_LOW && webView != null) {
+            try {
+                webView.clearCache(false);
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     @Override
     protected void onDestroy() {
-        if (webView != null) {
-            try { webView.destroy(); } catch (Exception ignored) { }
-        }
+        cleanupWebView(webView);
+        webView = null;
         super.onDestroy();
     }
 }

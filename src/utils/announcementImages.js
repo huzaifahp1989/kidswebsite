@@ -1,3 +1,5 @@
+import { isAnnouncementScheduledNow } from './announcementSchedule';
+
 export function getAnnouncementImages(item) {
   if (!item) return [];
 
@@ -48,7 +50,10 @@ export function markAnnouncementPopupShown(item) {
 export function pickAnnouncementPopup(announcements = []) {
   const candidates = announcements
     .filter(isPopupAnnouncement)
+    .filter(isAnnouncementScheduledNow)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   return candidates.find(canShowAnnouncementPopup) || null;
 }
+
+export { isAnnouncementScheduledNow, formatScheduleLabel, toDatetimeLocalValue } from './announcementSchedule';

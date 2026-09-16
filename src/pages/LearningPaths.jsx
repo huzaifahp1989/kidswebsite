@@ -248,10 +248,13 @@ export default function LearningPaths() {
 
       return { isCompleted, completionPercentage };
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['user-path-progress'] });
       loadUser();
-      trackLearningCompletionAndMaybeReview();
+      // Only a fully completed path is a qualified lesson-completion event.
+      if (result?.isCompleted) {
+        trackLearningCompletionAndMaybeReview(variables?.path?.category);
+      }
       try {
         const raw = localStorage.getItem('users');
         const arr = raw ? JSON.parse(raw) : [];
@@ -341,11 +344,14 @@ export default function LearningPaths() {
       };
       map[path.id] = next;
       setLocalProgressMap(map);
-      if (done && user) {
-        try {
-          await awardPointsForGame(user, 'learning_path', { fallbackScore: path.completion_points || 50, metadata: { path_id: path.id } });
-        } catch { void 0; }
-        trackLearningCompletionAndMaybeReview();
+      if (done) {
+        if (user) {
+          try {
+            await awardPointsForGame(user, 'learning_path', { fallbackScore: path.completion_points || 50, metadata: { path_id: path.id } });
+          } catch { void 0; }
+        }
+        // Include the path category so Quran lessons use the dedicated trigger reason.
+        trackLearningCompletionAndMaybeReview(path.category);
         try {
           const raw = localStorage.getItem('users');
           const arr = raw ? JSON.parse(raw) : [];

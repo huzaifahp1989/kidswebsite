@@ -5,3 +5,41 @@ dist
 .trae
 .log
 .figma
+
+# Nested Next.js project (separate app, 1.3 GB+)
+Chairtyportal/
+
+# Android native app (not needed for web deploy)
+android/
+
+# Local Data Connect dev database (Postgres data dirs, 26 MB+)
+dataconnect/.dataconnect/
+dataconnect/**/*.log
+
+# Pre-built static output (rebuilt by Vite; keep if using build:docs only)
+docs/
+
+# GitHub CI configs (not needed at runtime)
+.github/
+
+# Netlify build artifacts
+.netlify/
+
+# Caches & temp
+.cache/
+.turbo/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# Local dev databases / emulators
+*.db
+*.sqlite
+*.sqlite3
+.firebaserc~
+
+# Env & secrets (belt & suspenders — also in .gitignore)
+.env
+.env.local
+.env.*.local
+.env.production

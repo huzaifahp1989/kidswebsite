@@ -18,8 +18,11 @@ import {
   GraduationCap, // Added new icon
   MessageSquare, // Added new icon
   Megaphone,
+  Bell,
+  BellRing,
   Gamepad2, // Added new icon
   BarChart3, // Added new icon
+  HandHeart,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -115,12 +118,52 @@ export default function AdminDashboard() {
       stats: "Home & popup"
     },
     {
+      title: "Push Notifications",
+      description: "Send or schedule OneSignal push to all users",
+      icon: Bell,
+      path: "AdminNotifications",
+      color: "from-emerald-500 to-teal-500",
+      stats: "Send & schedule"
+    },
+    {
       title: "Sponsors & Ads",
       description: "Manage sponsors and advertising tiles",
       icon: Newspaper,
       path: "AdminSponsors",
       color: "from-amber-500 to-orange-500",
       stats: "Configure placements"
+    },
+    {
+      title: "Welcome Submissions",
+      description: "View new user forms: name, city, mobile, broadcast, feedback",
+      icon: HandHeart,
+      path: "AdminWelcomeSubmissions",
+      color: "from-emerald-500 to-teal-600",
+      stats: "Export CSV"
+    },
+    {
+      title: "Site Notices (Bell)",
+      description: "Broadcast notices shown on every page via the header bell icon with highlight badges",
+      icon: BellRing,
+      path: "AdminNotices",
+      color: "from-indigo-500 to-violet-600",
+      stats: "Add / pause / edit"
+    },
+    {
+      title: "Central Global Notices",
+      description: "Shared Supabase master DB — written once, appears on ALL sites that install the bell component",
+      icon: Bell,
+      path: "AdminGlobalNotices",
+      color: "from-teal-500 to-emerald-600",
+      stats: "Cross-site notices"
+    },
+    {
+      title: "Charity Portal",
+      description: "Donors, masjids, fundraising, Gift Aid, volunteers, meetings, finance & audit — linked to the full Charity Portal Next app",
+      icon: HandHeart,
+      path: "CharityPortal",
+      color: "from-emerald-500 via-teal-500 to-sky-500",
+      stats: "Donors · Masjids · Finance"
     },
     {
       title: "Media Library",

@@ -3,7 +3,7 @@
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { HIFZ_ASSISTANT_URL } from "@/constants/externalLinks";
-import { Home, Gamepad2, BookOpen, Music, GraduationCap, Users, Info, Book, Trophy, ChevronDown, Menu, X, LogOut, User, LogIn, UserPlus, Video, Settings, Play, Pause, Volume2, VolumeX, Radio, Mail, Star, Sparkles, BarChart2, Layers, Shield, Bell, Target, MessageCircle } from "lucide-react";
+import { Home, Gamepad2, BookOpen, Music, GraduationCap, Users, Info, Book, Trophy, ChevronDown, Menu, X, LogOut, User, LogIn, UserPlus, Settings, Play, Pause, Volume2, VolumeX, Radio, Mail, Star, Sparkles, BarChart2, Layers, Shield, Bell, Target, MessageCircle, BellRing, CheckCheck, Clock, ExternalLink, ArrowRight, Flame } from "lucide-react";
 import React, { useState, useEffect, useRef, createContext, useContext } from "react";
 import { motion } from "framer-motion";
 import {
@@ -15,8 +15,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  NOTICES_STORAGE_KEY,
+  NOTICE_PRIORITY,
+  PRIORITY_META,
+  countUnreadNotices,
+  isNoticeNew,
+  listNotices,
+  markNoticeReadById,
+  setLastReadNow,
+} from "@/utils/noticeStore";
 import PropTypes from 'prop-types';
 import { watchAuth, getUserProfile, getFirebase } from "@/api/firebase";
+import { trackRadioListeningAndMaybeReview } from "@/utils/inAppReview";
+import GlobalNoticeBell from "@/components/GlobalNoticeBell.jsx";
 // Base44 auth removed from public UI; email-only access in place
 
 // Create Radio Context
@@ -51,7 +64,7 @@ export default function Layout({ children, currentPageName }) {
   const audioRef = useRef(null);
 
   // Site settings (localStorage-driven)
-  const [siteSettings, setSiteSettings] = useState({
+  const DEFAULT_SITE_SETTINGS = {
     siteTitle: "Islam Media Central",
     tagline: "Media With Purpose",
     logoEmoji: "🌙",
@@ -61,7 +74,11 @@ export default function Layout({ children, currentPageName }) {
     darkModeDefault: false,
     showRadioBar: false,
     showMobileSidebar: false,
-  });
+    radioUrl:
+      import.meta.env.VITE_RADIO_URL ||
+      "https://a4.asurahosting.com:7820/radio.mp3",
+  };
+  const [siteSettings, setSiteSettings] = useState(DEFAULT_SITE_SETTINGS);
 
   useEffect(() => {
     try {
@@ -76,6 +93,17 @@ export default function Layout({ children, currentPageName }) {
         }
         if (migrated.tagline === "Learn, Play & Grow") {
           migrated.tagline = "Media With Purpose";
+        }
+
+        // Seed missing fields (e.g. radioUrl) with defaults.
+        for (const [k, v] of Object.entries(DEFAULT_SITE_SETTINGS)) {
+          if (
+            migrated[k] === undefined ||
+            migrated[k] === null ||
+            migrated[k] === ""
+          ) {
+            migrated[k] = v;
+          }
         }
 
         setSiteSettings((prev) => ({ ...prev, ...migrated, showMobileSidebar: false }));
@@ -103,7 +131,188 @@ export default function Layout({ children, currentPageName }) {
   const bgClass = `min-h-screen bg-gradient-to-br ${siteSettings.backgroundGradient}`;
   const headerClass = `bg-gradient-to-r ${siteSettings.headerGradient} text-white shadow-lg sticky top-0 z-50`;
   const supportEmail = siteSettings.supportEmail || "imedia786@gmail.com";
-  const radioSrc = siteSettings.radioUrl || "";
+  const radioSrc =
+    siteSettings.radioUrl ||
+    DEFAULT_SITE_SETTINGS.radioUrl ||
+    "https://a4.asurahosting.com:7820/radio.mp3";
+
+  // ===== Notifications / Bell =====
+  const [noticesDrawerOpen, setNoticesDrawerOpen] = useState(false);
+  const [notices, setNotices] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [noticeTick, setNoticeTick] = useState(0);
+
+  const refreshNotices = () => {
+    try {
+      setNotices(listNotices({ includeInactive: false }));
+    } catch {
+      setNotices([]);
+    }
+    try {
+      setUnreadCount(countUnreadNotices());
+    } catch {
+      setUnreadCount(0);
+    }
+  };
+
+  // Initial load + interval for cross-tab/admin writes.
+  useEffect(() => {
+    const run = () => {
+      refreshNotices();
+      setNoticeTick((t) => (t + 1) % 1000000);
+    };
+    run();
+    const every = window.setInterval(run, 10000);
+    const onChanged = () => run();
+    const onRead = () => run();
+    try {
+      window.addEventListener("notices:changed", onChanged);
+      window.addEventListener("notices:read-marker", onRead);
+      window.addEventListener("storage", (e) => {
+        if (!e || !e.key) return;
+        if (
+          e.key === NOTICES_STORAGE_KEY ||
+          e.key === "notice_read_ids_v1" ||
+          e.key.startsWith("notices_")
+        ) {
+          run();
+        }
+      });
+    } catch {}
+    return () => {
+      window.clearInterval(every);
+      try {
+        window.removeEventListener("notices:changed", onChanged);
+        window.removeEventListener("notices:read-marker", onRead);
+      } catch {}
+    };
+  }, []);
+
+  const openNotices = () => {
+    setNoticesDrawerOpen(true);
+  };
+  const closeNoticesDrawer = () => {
+    setNoticesDrawerOpen(false);
+    try {
+      setLastReadNow();
+    } catch {}
+    refreshNotices();
+  };
+  const markAllRead = () => {
+    try {
+      setLastReadNow();
+    } catch {}
+    refreshNotices();
+  };
+
+  const highestPriority = (() => {
+    const list = notices;
+    if (list.some((n) => n.priority === NOTICE_PRIORITY.urgent && isNoticeNew(n)))
+      return NOTICE_PRIORITY.urgent;
+    if (list.some((n) => n.priority === NOTICE_PRIORITY.highlight && isNoticeNew(n)))
+      return NOTICE_PRIORITY.highlight;
+    if (unreadCount > 0) return NOTICE_PRIORITY.normal;
+    return null;
+  })();
+
+  // ===== Floating Radio FAB: free-drag with viewport bounds + persist to localStorage =====
+  const FAB_POS_KEY = "fab_radio_pos_v1";
+  const FAB_SIZE_PX = typeof window !== "undefined" && window.innerWidth < 640 ? 48 : 52;
+  const FAB_MARGIN_PX = 8;
+  const readInitialFabPos = () => {
+    if (typeof window === "undefined") return { x: null, y: null };
+    try {
+      const saved = JSON.parse(localStorage.getItem(FAB_POS_KEY) || "null");
+      if (saved && typeof saved.x === "number" && typeof saved.y === "number") {
+        return saved;
+      }
+    } catch {}
+    return { x: null, y: null };
+  };
+  const [fabPos, setFabPos] = useState(readInitialFabPos);
+  const draggingRef = useRef({
+    active: false,
+    pointerId: null,
+    moved: false,
+    startX: 0,
+    startY: 0,
+    origX: 0,
+    origY: 0,
+  });
+
+  const clampFab = (x, y) => {
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+    const safeTop = typeof window !== "undefined"
+      ? (window.innerWidth < 640 ? 92 : 76)
+      : 80;
+    const safeBottom = 28;
+    return {
+      x: Math.max(FAB_MARGIN_PX, Math.min(vw - FAB_SIZE_PX - FAB_MARGIN_PX, x)),
+      y: Math.max(safeTop, Math.min(vh - FAB_SIZE_PX - safeBottom, y)),
+    };
+  };
+
+  const handleFabPointerDown = (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    const target = e.currentTarget;
+    try { target.setPointerCapture(e.pointerId); } catch {}
+    const rect = target.getBoundingClientRect();
+    const startX = typeof e.clientX === "number" ? e.clientX : (e.touches?.[0]?.clientX || 0);
+    const startY = typeof e.clientY === "number" ? e.clientY : (e.touches?.[0]?.clientY || 0);
+    let origX = rect.left;
+    let origY = rect.top;
+    if (fabPos.x !== null && fabPos.y !== null) {
+      origX = fabPos.x;
+      origY = fabPos.y;
+    }
+    draggingRef.current = {
+      active: true,
+      pointerId: e.pointerId ?? null,
+      moved: false,
+      startX,
+      startY,
+      origX,
+      origY,
+    };
+  };
+
+  const handleFabPointerMove = (e) => {
+    const d = draggingRef.current;
+    if (!d.active) return;
+    const cx = typeof e.clientX === "number" ? e.clientX : (e.touches?.[0]?.clientX ?? d.startX);
+    const cy = typeof e.clientY === "number" ? e.clientY : (e.touches?.[0]?.clientY ?? d.startY);
+    const dx = cx - d.startX;
+    const dy = cy - d.startY;
+    if (!d.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+      d.moved = true;
+    }
+    if (d.moved) {
+      const next = clampFab(d.origX + dx, d.origY + dy);
+      setFabPos(next);
+    }
+  };
+
+  const endFabDrag = (e) => {
+    const d = draggingRef.current;
+    if (!d.active) return;
+    try { if (e?.currentTarget && e.pointerId != null) e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    const moved = d.moved;
+    draggingRef.current = { active: false, pointerId: null, moved: false, startX: 0, startY: 0, origX: 0, origY: 0 };
+    if (moved && fabPos.x !== null && fabPos.y !== null) {
+      try { localStorage.setItem(FAB_POS_KEY, JSON.stringify(fabPos)); } catch {}
+    }
+  };
+
+  const handleFabClick = (e) => {
+    // Suppress play/pause toggle when the pointer just finished a drag
+    if (draggingRef.current.moved || (e?.detail === 0 && !e)) {
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      return;
+    }
+    togglePlay();
+  };
 
   useEffect(() => {
     // Define public pages that do NOT require authentication
@@ -188,6 +397,64 @@ export default function Layout({ children, currentPageName }) {
     }
   };
 
+  // Only continuous active playback counts toward the ten-minute radio trigger.
+  useEffect(() => {
+    if (!isPlaying) return undefined;
+    return trackRadioListeningAndMaybeReview();
+  }, [isPlaying]);
+
+  // Keep `isPlaying` in sync with the actual <audio> element and auto-recover
+  // from live-stream drops instead of silently freezing on a stale "playing" state.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return undefined;
+
+    let retryTimeout = null;
+
+    const handlePlay = () => setIsPlaying(true);
+    const handlePauseOrEnd = () => setIsPlaying(false);
+    const handleStallOrError = () => {
+      clearTimeout(retryTimeout);
+      retryTimeout = setTimeout(() => {
+        if (!audioRef.current) return;
+        // Reconnect to the live stream if we were expected to be playing.
+        audioRef.current.load();
+        audioRef.current.play().catch(() => setIsPlaying(false));
+      }, 1500);
+    };
+
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("playing", handlePlay);
+    audio.addEventListener("pause", handlePauseOrEnd);
+    audio.addEventListener("ended", handlePauseOrEnd);
+    audio.addEventListener("error", handleStallOrError);
+    audio.addEventListener("stalled", handleStallOrError);
+
+    return () => {
+      clearTimeout(retryTimeout);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("playing", handlePlay);
+      audio.removeEventListener("pause", handlePauseOrEnd);
+      audio.removeEventListener("ended", handlePauseOrEnd);
+      audio.removeEventListener("error", handleStallOrError);
+      audio.removeEventListener("stalled", handleStallOrError);
+    };
+  }, [radioSrc]);
+
+  // Resume the stream automatically if the tab regains focus mid-stall while
+  // it was supposed to be playing (mobile browsers often suspend background audio).
+  useEffect(() => {
+    if (!isPlaying) return undefined;
+    const resumeIfStuck = () => {
+      const audio = audioRef.current;
+      if (audio && audio.paused) {
+        audio.play().catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", resumeIfStuck);
+    return () => document.removeEventListener("visibilitychange", resumeIfStuck);
+  }, [isPlaying]);
+
   const toggleMute = () => {
     if (audioRef.current) {
       audioRef.current.muted = !isMuted;
@@ -204,7 +471,7 @@ export default function Layout({ children, currentPageName }) {
 
   const baseNavItems = [
     { name: "Kids Home", icon: Home, path: "Home" },
-    { name: "Kids Zone", icon: Star, external: true, url: "https://islamic-kids-platform.vercel.app/" },
+    { name: "Kids Zone", icon: Star, path: "KidsZone" },
     { name: "WhatsApp Channel", icon: MessageCircle, path: "WhatsAppChannel" },
     { name: "Kids Recording Studio", icon: Radio, path: "KidsRecordingStudio" },
     {
@@ -311,8 +578,8 @@ export default function Layout({ children, currentPageName }) {
   return (
     <RadioContext.Provider value={radioContextValue}>
       <div className={bgClass}>
-        {/* Hidden Audio Element */}
-        {siteSettings.showRadioBar && radioSrc ? (
+        {/* Hidden Audio Element — always attach whenever a stream URL exists */}
+        {radioSrc ? (
           <audio
             ref={audioRef}
             src={radioSrc}
@@ -333,6 +600,28 @@ export default function Layout({ children, currentPageName }) {
               </Link>
 
               <div className="hidden md:flex items-center gap-2">
+                {radioSrc && (
+                  <button
+                    type="button"
+                    onClick={togglePlay}
+                    aria-label={isPlaying ? "Pause live radio" : "Listen live radio"}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all border ${
+                      isPlaying
+                        ? "bg-red-500/90 border-red-300 text-white shadow-lg"
+                        : "bg-white/15 border-white/30 text-white hover:bg-white/25"
+                    }`}
+                  >
+                    {isPlaying ? (
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/80" />
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+                      </span>
+                    ) : (
+                      <Radio className="w-4 h-4" />
+                    )}
+                    {isPlaying ? "Live" : "Listen Live"}
+                  </button>
+                )}
                 {!isAuthenticated ? (
                   <>
                     <Link to={createPageUrl("Home")} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
@@ -355,6 +644,41 @@ export default function Layout({ children, currentPageName }) {
                     </button>
                   </>
                 )}
+                <button
+                  type="button"
+                  onClick={openNotices}
+                  aria-label="Open announcements"
+                  className="relative inline-flex items-center justify-center h-10 w-10 rounded-lg transition-all hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                >
+                  {highestPriority === NOTICE_PRIORITY.urgent ? (
+                    <>
+                      <span className="absolute inset-0 rounded-lg bg-rose-500/25 animate-ping" />
+                      <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
+                    </>
+                  ) : highestPriority === NOTICE_PRIORITY.highlight ? (
+                    <>
+                      <span className="absolute inset-0 rounded-lg bg-amber-400/25" />
+                      <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 ring-2 ring-white animate-pulse" />
+                    </>
+                  ) : unreadCount > 0 ? (
+                    <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-indigo-500 ring-2 ring-white" />
+                  ) : null}
+                  {highestPriority === NOTICE_PRIORITY.urgent ? (
+                    <BellRing className="w-5 h-5 text-rose-100 drop-shadow relative z-10" />
+                  ) : highestPriority === NOTICE_PRIORITY.highlight ? (
+                    <BellRing className="w-5 h-5 text-amber-100 drop-shadow relative z-10" />
+                  ) : unreadCount > 0 ? (
+                    <Bell className="w-5 h-5 text-white drop-shadow relative z-10" />
+                  ) : (
+                    <Bell className="w-5 h-5 text-white/80 drop-shadow relative z-10" />
+                  )}
+                  {unreadCount > 0 ? (
+                    <span className="pointer-events-none absolute left-8 top-0 -translate-y-1 rounded-full bg-white text-indigo-700 text-[10px] font-bold px-1.5 py-0.5 min-w-[18px] text-center ring-1 ring-indigo-200">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  ) : null}
+                </button>
+                <GlobalNoticeBell />
               </div>
 
               {/* Mobile auth is shown inside the drawer above menu; header kept minimal */}
@@ -362,18 +686,70 @@ export default function Layout({ children, currentPageName }) {
               {/* Mobile Menu Button */}
               {!siteSettings.showMobileSidebar && (
                 <>
-                  <Link to={createPageUrl("Home")} className="md:hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
-                    <Home className="w-4 h-4" />
-                    Home
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="md:hidden text-white hover:bg-white/20"
-                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  >
-                    {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                  </Button>
+                  <div className="md:hidden flex items-center gap-1">
+                    {radioSrc && (
+                      <button
+                        type="button"
+                        onClick={togglePlay}
+                        aria-label={isPlaying ? "Pause live radio" : "Listen live radio"}
+                        className={`relative inline-flex items-center justify-center h-10 w-10 rounded-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                          isPlaying ? "bg-red-500/90" : "hover:bg-white/15"
+                        }`}
+                      >
+                        {isPlaying && (
+                          <span className="absolute inset-0 rounded-lg bg-red-400/30 animate-ping" />
+                        )}
+                        <Radio className={`w-5 h-5 relative z-10 ${isPlaying ? "text-white" : "text-white/90"}`} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={openNotices}
+                      aria-label="Open announcements"
+                      className="relative inline-flex items-center justify-center h-10 w-10 rounded-lg transition-all hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                    >
+                      {highestPriority === NOTICE_PRIORITY.urgent ? (
+                        <>
+                          <span className="absolute inset-0 rounded-lg bg-rose-500/25 animate-ping" />
+                          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
+                        </>
+                      ) : highestPriority === NOTICE_PRIORITY.highlight ? (
+                        <>
+                          <span className="absolute inset-0 rounded-lg bg-amber-400/25" />
+                          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 ring-2 ring-white animate-pulse" />
+                        </>
+                      ) : unreadCount > 0 ? (
+                        <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-indigo-500 ring-2 ring-white" />
+                      ) : null}
+                      {highestPriority === NOTICE_PRIORITY.urgent ? (
+                        <BellRing className="w-5 h-5 text-rose-100 drop-shadow relative z-10" />
+                      ) : highestPriority === NOTICE_PRIORITY.highlight ? (
+                        <BellRing className="w-5 h-5 text-amber-100 drop-shadow relative z-10" />
+                      ) : unreadCount > 0 ? (
+                        <Bell className="w-5 h-5 text-white drop-shadow relative z-10" />
+                      ) : (
+                        <Bell className="w-5 h-5 text-white/80 drop-shadow relative z-10" />
+                      )}
+                      {unreadCount > 0 ? (
+                        <span className="pointer-events-none absolute left-7 top-0 -translate-y-1 rounded-full bg-white text-indigo-700 text-[10px] font-bold px-1.5 py-0.5 min-w-[18px] text-center ring-1 ring-indigo-200">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </span>
+                      ) : null}
+                    </button>
+                    <GlobalNoticeBell compact />
+                    <Link to={createPageUrl("Home")} className="md:hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
+                      <Home className="w-4 h-4" />
+                      Home
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="md:hidden text-white hover:bg-white/20"
+                      onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    >
+                      {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                    </Button>
+                  </div>
                 </>
               )}
             </div>
@@ -384,7 +760,7 @@ export default function Layout({ children, currentPageName }) {
 
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:block bg-white shadow-md sticky top-[calc(env(safe-area-inset-top)+68px)] z-40">
+        <nav className="hidden md:block bg-white shadow-md sticky top-[calc(env(safe-area-inset-top)+100px)] z-40">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex overflow-x-auto scrollbar-hide gap-1 py-2">
               {navItems.map((item) => {
@@ -440,16 +816,19 @@ export default function Layout({ children, currentPageName }) {
                 }
                 
                 if (item.external && item.url) {
+                  const highlightClass = item._highlight
+                    ? "bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 shadow hover:from-amber-300 hover:to-amber-400 animate-pulse"
+                    : "text-gray-700 hover:bg-gray-100";
                   return (
                     <a
                       key={item.name}
                       href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg whitespace-nowrap transition-all flex-shrink-0 text-gray-700 hover:bg-gray-100"
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg whitespace-nowrap transition-all flex-shrink-0 ${highlightClass}`}
                     >
-                      <Icon className="w-4 h-4" />
-                      <span className="text-sm font-medium">{item.name}</span>
+                      <Icon className={`w-4 h-4 ${item._highlight ? "" : ""}`} />
+                      <span className="text-sm font-bold">{item.name}</span>
                     </a>
                   );
                 }
@@ -523,6 +902,7 @@ export default function Layout({ children, currentPageName }) {
                       .filter((it) => it.name?.toLowerCase().includes(normalizedQuery))
                       .map((item) => {
                         const Icon = item.icon;
+                        const isHi = item._highlight;
                         if (item.url) {
                           return (
                             <a
@@ -530,9 +910,13 @@ export default function Layout({ children, currentPageName }) {
                               href={item.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium text-gray-800 bg-white hover:bg-blue-100 shadow transition-all duration-150"
+                              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium transition-all duration-150 shadow ${
+                                isHi
+                                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 hover:from-amber-300 hover:to-amber-400 animate-pulse"
+                                  : "text-gray-800 bg-white hover:bg-blue-100"
+                              }`}
                             >
-                              {Icon ? <Icon className="w-5 h-5 text-blue-600" /> : null}
+                              {Icon ? <Icon className={`w-5 h-5 ${isHi ? "text-amber-900" : "text-blue-600"}`} /> : null}
                               {item.name}
                             </a>
                           );
@@ -554,6 +938,7 @@ export default function Layout({ children, currentPageName }) {
                       <div key={group.title} className="flex flex-col gap-2">
                         <div className="px-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{group.title}</div>
                         {group.entries.map((item) => {
+                          const isHi = item._highlight;
                           if (item.url) {
                             const Icon = item.icon;
                             return (
@@ -562,9 +947,13 @@ export default function Layout({ children, currentPageName }) {
                                 href={item.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium text-gray-800 bg-white hover:bg-blue-100 shadow transition-all duration-150"
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium transition-all duration-150 shadow ${
+                                  isHi
+                                    ? "bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 hover:from-amber-300 hover:to-amber-400 animate-pulse"
+                                    : "text-gray-800 bg-white hover:bg-blue-100"
+                                }`}
                               >
-                                {Icon ? <Icon className="w-5 h-5 text-blue-600" /> : null}
+                                {Icon ? <Icon className={`w-5 h-5 ${isHi ? "text-amber-900" : "text-blue-600"}`} /> : null}
                                 {item.name}
                               </a>
                             );
@@ -617,10 +1006,21 @@ export default function Layout({ children, currentPageName }) {
                     .filter((it) => it.name?.toLowerCase().includes(normalizedQuery))
                     .map((item) => {
                       const Icon = item.icon;
+                      const isHi = item._highlight;
                       if (item.url) {
                         return (
-                          <a key={`ext-app-${item.name}`} href={item.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium text-gray-800 bg-white hover:bg-blue-100 shadow">
-                            {Icon ? <Icon className="w-5 h-5 text-blue-600" /> : null}
+                          <a
+                            key={`ext-app-${item.name}`}
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium shadow ${
+                              isHi
+                                ? "bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 hover:from-amber-300 hover:to-amber-400 animate-pulse"
+                                : "text-gray-800 bg-white hover:bg-blue-100"
+                            }`}
+                          >
+                            {Icon ? <Icon className={`w-5 h-5 ${isHi ? "text-amber-900" : "text-blue-600"}`} /> : null}
                             {item.name}
                           </a>
                         );
@@ -637,11 +1037,22 @@ export default function Layout({ children, currentPageName }) {
                     <div key={`app-${group.title}`} className="flex flex-col gap-2">
                       <div className="px-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{group.title}</div>
                       {group.entries.map((item) => {
+                        const isHi = item._highlight;
                         if (item.url) {
                           const Icon = item.icon;
                           return (
-                            <a key={`app-ext-${group.title}-${item.name}`} href={item.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium text-gray-800 bg-white hover:bg-blue-100 shadow">
-                              {Icon ? <Icon className="w-5 h-5 text-blue-600" /> : null}
+                            <a
+                              key={`app-ext-${group.title}-${item.name}`}
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium shadow ${
+                                isHi
+                                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 hover:from-amber-300 hover:to-amber-400 animate-pulse"
+                                  : "text-gray-800 bg-white hover:bg-blue-100"
+                              }`}
+                            >
+                              {Icon ? <Icon className={`w-5 h-5 ${isHi ? "text-amber-900" : "text-blue-600"}`} /> : null}
                               {item.name}
                             </a>
                           );
@@ -759,7 +1170,342 @@ export default function Layout({ children, currentPageName }) {
           </motion.div>
         )}
 
+        {/* Floating Radio — Islam Media Central (freely draggable, viewport-bounded, click=toggle play/pause, drag=reposition, remembers position) */}
+        {radioSrc && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.6, type: "spring", stiffness: 260, damping: 22 }}
+            className="fixed z-[60] touch-none select-none"
+            style={(() => {
+              // Use explicit top/left so framer-motion's `animate` transform never
+              // overrides our position, and the fixed element is always anchored
+              // to the viewport instead of inheriting the in-flow position.
+              if (typeof window === "undefined") {
+                return { top: "80px", right: "8px" };
+              }
+              const isMobile = window.innerWidth < 640;
+              const sizePx = isMobile ? 48 : 52;
+              const marginPx = isMobile ? 8 : 12;
+              const safeTopPx = isMobile ? 92 : 76;
+              let x, y;
+              if (fabPos.x !== null && fabPos.y !== null) {
+                x = fabPos.x;
+                y = fabPos.y;
+              } else {
+                x = Math.max(0, window.innerWidth - sizePx - marginPx);
+                y = safeTopPx;
+              }
+              return {
+                top: `${y}px`,
+                left: `${x}px`,
+                width: `${sizePx}px`,
+                height: `${sizePx}px`,
+              };
+            })()}
+          >
+            <div className="group relative">
+              <button
+                type="button"
+                onClick={handleFabClick}
+                onPointerDown={handleFabPointerDown}
+                onPointerMove={handleFabPointerMove}
+                onPointerUp={endFabDrag}
+                onPointerCancel={endFabDrag}
+                onPointerLeave={endFabDrag}
+                aria-label={isPlaying ? "Pause live radio" : "Play Islam Media Central live radio"}
+                title="Islam Media Central — Live Radio (drag to move)"
+                className="relative flex h-[52px] w-[52px] shrink-0 items-center justify-center
+                           rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-white
+                           shadow-[0_10px_25px_-8px_rgba(16,185,129,0.55)] ring-1 ring-white/60
+                           hover:scale-105 active:scale-95
+                           focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300
+                           max-sm:h-12 max-sm:w-12"
+                style={{
+                  cursor: draggingRef.current.active ? "grabbing" : "grab",
+                  touchAction: "none",
+                  transition: draggingRef.current.active
+                    ? "box-shadow 120ms ease-out, background 120ms ease-out"
+                    : "transform 160ms ease-out, box-shadow 120ms ease-out, background 120ms ease-out",
+                }}
+              >
+                {/* Subtle drag-handle hint ring (non-interactive) */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-white/25"
+                />
+                {/* Pulsing halo when live/playing */}
+                {isPlaying && (
+                  <>
+                    <span className="pointer-events-none absolute inset-0 rounded-full bg-emerald-400/40 animate-ping" />
+                    <span className="pointer-events-none absolute -inset-1 rounded-full ring-2 ring-emerald-300/60 animate-pulse" />
+                  </>
+                )}
+                {isPlaying ? (
+                  <Pause className="relative z-10 h-6 w-6 drop-shadow" />
+                ) : (
+                  <Radio className="relative z-10 h-6 w-6 drop-shadow" />
+                )}
+                <span className="sr-only">Islam Media Central Live Radio — drag to reposition</span>
+              </button>
+
+              {/* Desktop: rich tooltip on hover/focus-visible, appears to the left */}
+              <div
+                role="tooltip"
+                className="pointer-events-none invisible opacity-0 translate-x-2
+                           hidden sm:flex absolute top-1/2 right-full mr-3 -translate-y-1/2
+                           items-center gap-2 whitespace-nowrap rounded-xl bg-slate-900/95
+                           px-3.5 py-2 text-[0.75rem] font-semibold text-white shadow-xl ring-1 ring-black/10 backdrop-blur
+                           transition-all duration-150 ease-out
+                           group-hover:visible group-hover:opacity-100 group-hover:translate-x-0
+                           group-focus-within:visible group-focus-within:opacity-100 group-focus-within:translate-x-0"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Live Radio · drag to move
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="absolute right-0 top-1/2 translate-x-[7px] -translate-y-1/2 h-0 w-0
+                             border-y-[8px] border-y-transparent
+                             border-l-[8px] border-l-slate-900/95"
+                />
+              </div>
+
+              {/* Tiny badge under button (non-interactive) */}
+              {isMuted && (
+                <div className="pointer-events-none absolute left-1/2 mt-1 -translate-x-1/2 whitespace-nowrap rounded-full bg-rose-600/95 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow ring-1 ring-white/30">
+                  Muted
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
         {/* (Removed) duplicated mobile menu button at bottom */}
+
+        {/* Notices / Announcements drawer — universal on all pages */}
+        {noticesDrawerOpen && (
+          <div className="fixed inset-0 z-[1200]">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={closeNoticesDrawer}
+            />
+            <motion.div
+              initial={null}
+              animate={{ x: 0, y: 0 }}
+              className={`
+                absolute bg-white shadow-2xl border border-slate-200
+                md:right-0 md:top-0 md:bottom-0 md:w-full md:max-w-md md:rounded-l-3xl
+                max-sm:left-0 max-sm:right-0 max-sm:bottom-0 max-sm:top-auto
+                max-sm:h-[88dvh] max-sm:max-h-[88dvh]
+                max-sm:rounded-t-[1.5rem] max-sm:rounded-b-none
+                max-sm:data-[state=open]:animate-in
+                max-sm:data-[state=open]:slide-in-from-bottom-0
+                flex flex-col overflow-hidden
+              `}
+              data-state="open"
+            >
+              <div className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-3 md:px-5 md:py-4 flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
+                    {highestPriority === NOTICE_PRIORITY.urgent ? (
+                      <BellRing className="w-5 h-5 text-rose-200" />
+                    ) : highestPriority === NOTICE_PRIORITY.highlight ? (
+                      <BellRing className="w-5 h-5 text-amber-200" />
+                    ) : (
+                      <Bell className="w-5 h-5 text-white" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-lg md:text-xl font-bold flex items-center gap-2">
+                      Notices & Announcements
+                      {unreadCount > 0 ? (
+                        <Badge className="bg-white/25 text-white border-white/30">
+                          {unreadCount > 99 ? "99+" : unreadCount} new
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className="text-xs md:text-sm text-indigo-100 mt-0.5">
+                      Site-wide updates from Islam Media Central
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {unreadCount > 0 ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={markAllRead}
+                      className="text-white hover:bg-white/15 h-9 gap-1.5 hidden sm:inline-flex"
+                    >
+                      <CheckCheck className="w-4 h-4" />
+                      Mark all read
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={closeNoticesDrawer}
+                    className="text-white hover:bg-white/15"
+                    aria-label="Close announcements"
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
+              <div className="hidden sm:block border-t border-indigo-100/60 px-4 py-2 bg-indigo-50/60 flex items-center justify-between gap-3">
+                <div className="text-xs text-slate-600 flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5" />
+                  Auto-refreshes every 10 s · close this drawer to mark as read
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={refreshNotices}
+                  className="gap-1.5 h-8 border-slate-200 text-slate-700 hover:bg-white"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  Refresh
+                </Button>
+              </div>
+              <div className="flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 to-white">
+                {notices.length === 0 ? (
+                  <div className="p-6 md:p-10 text-center">
+                    <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                      <Bell className="w-8 h-8 text-slate-400" />
+                    </div>
+                    <div className="text-lg font-semibold text-slate-800">No announcements yet</div>
+                    <div className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+                      Admin posts show here as notices. Urgent posts have a pinging red badge, highlights have an amber pulse.
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 md:p-4 space-y-3">
+                    {notices.map((n, idx) => {
+                      const meta = PRIORITY_META[n.priority];
+                      const isNew = isNoticeNew(n);
+                      return (
+                        <motion.div
+                          key={n.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: Math.min(0.5, idx * 0.03) }}
+                        >
+                          <Card className={`overflow-hidden border bg-gradient-to-br ${meta.accentClass}`}>
+                            <div className={`px-3 py-2 flex items-center justify-between gap-2 ${meta.accentRibbon} text-xs`}>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${meta.dotClass}`} />
+                                <Badge className={`${meta.chipClass} truncate`}>
+                                  {meta.label}
+                                </Badge>
+                                <span className="flex items-center gap-1 opacity-90 truncate">
+                                  <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                                  {(() => {
+                                    const diff = Date.now() - (n.createdAt || 0);
+                                    const m = Math.floor(diff / 60000);
+                                    if (m < 1) return "just now";
+                                    if (m < 60) return `${m}m ago`;
+                                    const h = Math.floor(m / 60);
+                                    if (h < 24) return `${h}h ago`;
+                                    const d = Math.floor(h / 24);
+                                    return `${d}d ago`;
+                                  })()}
+                                </span>
+                                {isNew ? (
+                                  <Badge className="bg-indigo-600 text-white border-0 ml-auto flex-shrink-0">
+                                    New
+                                  </Badge>
+                                ) : null}
+                              </div>
+                              {n.priority === NOTICE_PRIORITY.urgent ? (
+                                <Flame className="w-4 h-4 text-rose-100 flex-shrink-0" />
+                              ) : null}
+                            </div>
+                            <CardContent className="p-3 md:p-4">
+                              <div className="font-bold text-slate-900 break-words leading-snug">{n.title}</div>
+                              {n.body ? (
+                                <div className="text-sm text-slate-700 whitespace-pre-wrap mt-2 leading-relaxed">
+                                  {n.body}
+                                </div>
+                              ) : null}
+                              {n.linkUrl ? (
+                                <div className="mt-3">
+                                  <a
+                                    href={n.linkUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => {
+                                      try { markNoticeReadById(n.id); } catch {}
+                                    }}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-3 py-2 shadow min-h-[40px]"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                    {n.linkLabel || "Open link"}
+                                    <ArrowRight className="w-4 h-4" />
+                                  </a>
+                                </div>
+                              ) : null}
+                              <div className="mt-3 flex flex-wrap items-center gap-2 justify-between">
+                                <div className="text-[11px] text-slate-500 truncate">
+                                  Posted: {(() => {
+                                    try {
+                                      return new Date(n.createdAt || 0).toLocaleString();
+                                    } catch {
+                                      return "—";
+                                    }
+                                  })()}
+                                </div>
+                                {isNew ? (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      try { markNoticeReadById(n.id); } catch {}
+                                      refreshNotices();
+                                    }}
+                                    className="h-8 gap-1 text-indigo-700 hover:bg-indigo-50"
+                                  >
+                                    <CheckCheck className="w-3.5 h-3.5" />
+                                    Dismiss
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="sm:hidden border-t border-slate-200 bg-white/80 backdrop-blur px-3 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] flex items-center justify-between gap-2">
+                {unreadCount > 0 ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={markAllRead}
+                    className="gap-1.5 h-10 text-slate-700 border-slate-300 hover:bg-white flex-1"
+                  >
+                    <CheckCheck className="w-4 h-4" />
+                    Mark all read
+                  </Button>
+                ) : (
+                  <div className="text-xs text-slate-500 flex-1">
+                    Closing marks all as read
+                  </div>
+                )}
+                <Button
+                  onClick={closeNoticesDrawer}
+                  className="gap-1.5 h-10 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow"
+                >
+                  Close
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </RadioContext.Provider>
   );

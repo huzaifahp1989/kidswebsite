@@ -4,7 +4,7 @@ This Android app wraps the React web application for mobile deployment.
 
 ## Prerequisites
 
-1. **Android Studio** installed with SDK 34
+1. **Android Studio** installed with SDK 36
 2. **Node.js** for building the React app
 3. **Java 8+** for Android development
 
@@ -56,11 +56,42 @@ This AAB is compatible with:
 
 ## Key Configuration Details
 
-- **Target SDK**: 34
-- **Minimum SDK**: 21
+- **Target SDK**: 36
+- **Minimum SDK**: 23 (required for OneSignal SDK 5.x)
 - **Telephony**: Optional (false)
 - **Screen Support**: All sizes (small, normal, large, xlarge)
 - **App Category**: Handheld (`APP_HANDSET`)
+
+## OneSignal push notifications
+
+The Android app includes the **OneSignal Android SDK** for native push.
+
+### 1. Firebase setup (required for delivery)
+
+1. Open [Firebase Console](https://console.firebase.google.com/) → project `push-notification-78356`
+2. Add Android app with package name **`com.imedia.app`**
+3. Download **`google-services.json`**
+4. Save it as:
+   ```
+   android/app/google-services.json
+   ```
+   (See `google-services.json.example` for the expected format.)
+
+### 2. OneSignal dashboard
+
+1. [OneSignal](https://onesignal.com) → your app
+2. **Settings → Platforms → Google Android (FCM)**
+3. Upload Firebase **service account JSON**
+4. App ID used in code: `daf8fc36-781a-417d-8ee4-5078635f22e7`
+
+### 3. Build in Android Studio
+
+1. Open the **`android/`** folder in Android Studio
+2. **File → Sync Project with Gradle Files**
+3. Build → **Generate Signed Bundle / APK**
+4. Install on a real device and send a test push from OneSignal
+
+Push will not deliver until both `google-services.json` is in place and FCM is linked in OneSignal.
 
 ## Publishing to Google Play
 

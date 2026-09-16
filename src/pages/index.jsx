@@ -101,6 +101,7 @@ import Signup from "./Signup";
 
 import AdminBanners from "./AdminBanners";
 import AdminAnnouncements from "./AdminAnnouncements";
+import AdminNotifications from "./AdminNotifications";
 import AdminSponsors from "./AdminSponsors";
 
 import AdminStoryBuilder from "./AdminStoryBuilder";
@@ -126,6 +127,11 @@ import DailyMissions from "./DailyMissions";
 import MyRewards from "./MyRewards";
 import Competition from "./Competition";
 import WhatsAppChannel from "./WhatsAppChannel";
+import Features from "./Features";
+import AdminWelcomeSubmissions from "./AdminWelcomeSubmissions";
+import AdminNotices from "./AdminNotices";
+import AdminGlobalNotices from "./AdminGlobalNotices";
+import CharityPortal from "./CharityPortal";
 
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import Landing from "./Landing";
@@ -235,7 +241,12 @@ const PAGES = {
     
     AdminBanners: AdminBanners,
     AdminAnnouncements: AdminAnnouncements,
-    
+    AdminNotifications: AdminNotifications,
+    AdminWelcomeSubmissions: AdminWelcomeSubmissions,
+    AdminNotices: AdminNotices,
+    AdminGlobalNotices: AdminGlobalNotices,
+    CharityPortal: CharityPortal,
+
     AdminStoryBuilder: AdminStoryBuilder,
     
     AdminGameSettings: AdminGameSettings,
@@ -246,6 +257,7 @@ const PAGES = {
     ChildProgress: ChildProgress,
     Competition: Competition,
     WhatsAppChannel: WhatsAppChannel,
+    Features: Features,
 
 }
 
@@ -287,6 +299,10 @@ function PagesContent() {
     
     const isDev = import.meta.env?.DEV;
     const adminAudioContentElement = isDev ? <AdminAudioContent /> : <AdminGuard><AdminAudioContent /></AdminGuard>;
+    const adminQuizManagerElement = isDev ? <AdminQuizManager /> : <AdminGuard><AdminQuizManager /></AdminGuard>;
+    const adminWelcomeSubmissionsElement = isDev ? <AdminWelcomeSubmissions /> : <AdminGuard><AdminWelcomeSubmissions /></AdminGuard>;
+    const adminNoticesElement = isDev ? <AdminNotices /> : <AdminGuard><AdminNotices /></AdminGuard>;
+    const adminGlobalNoticesElement = isDev ? <AdminGlobalNotices /> : <AdminGuard><AdminGlobalNotices /></AdminGuard>;
 
     return (
         <Layout currentPageName={currentPage}>
@@ -428,8 +444,18 @@ function PagesContent() {
                 <Route path="/AdminBanners" element={<AdminGuard><AdminBanners /></AdminGuard>} />
                 <Route path="/AdminAnnouncements" element={<AdminGuard><AdminAnnouncements /></AdminGuard>} />
                 <Route path="/adminannouncements" element={<AdminGuard><AdminAnnouncements /></AdminGuard>} />
+                <Route path="/AdminNotifications" element={<AdminGuard><AdminNotifications /></AdminGuard>} />
+                <Route path="/adminnotifications" element={<AdminGuard><AdminNotifications /></AdminGuard>} />
                 <Route path="/AdminSponsors" element={<AdminGuard><AdminSponsors /></AdminGuard>} />
                 <Route path="/adminsponsors" element={<AdminGuard><AdminSponsors /></AdminGuard>} />
+                <Route path="/AdminWelcomeSubmissions" element={adminWelcomeSubmissionsElement} />
+                <Route path="/adminwelcomesubmissions" element={adminWelcomeSubmissionsElement} />
+                <Route path="/AdminNotices" element={adminNoticesElement} />
+                <Route path="/adminnotices" element={adminNoticesElement} />
+                <Route path="/AdminGlobalNotices" element={adminGlobalNoticesElement} />
+                <Route path="/adminglobalnotices" element={adminGlobalNoticesElement} />
+                <Route path="/CharityPortal" element={<CharityPortal />} />
+                <Route path="/charityportal" element={<CharityPortal />} />
                 
                 <Route path="/AdminStoryBuilder" element={<AdminGuard><AdminStoryBuilder /></AdminGuard>} />
                 
@@ -448,6 +474,8 @@ function PagesContent() {
                 <Route path="/childprogress" element={<ChildProgress />} />
                 <Route path="/Competition" element={<Competition />} />
                 <Route path="/WhatsAppChannel" element={<WhatsAppChannel />} />
+                <Route path="/Features" element={<Features />} />
+                <Route path="/features" element={<Features />} />
                 
                 <Route path="*" element={<Home />} />
             </Routes>

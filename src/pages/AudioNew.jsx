@@ -37,8 +37,7 @@ export default function AudioNew() {
     },
     {
       label: "Kids Zone",
-      href: "https://islamic-kids-platform.vercel.app/",
-      external: true,
+      href: createPageUrl("KidsZone"),
     },
   ];
 

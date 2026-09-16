@@ -44,6 +44,8 @@ create table if not exists public.announcements (
   "order" integer default 0,
   popup_delay_seconds integer default 3,
   popup_cooldown_hours integer default 24,
+  starts_at timestamptz,
+  ends_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

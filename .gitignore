@@ -32,3 +32,36 @@ dist-ssr
 # Android
 android/.gradle/
 android/**/build/
+
+.env*
+
+# ===== Nested Next.js project (Chairtyportal) — separate app; huge caches =====
+# Remove leading # only if you want to version-control that project separately.
+Chairtyportal/**/.next/
+Chairtyportal/**/node_modules/
+Chairtyportal/**/out/
+Chairtyportal/**/.turbo/
+Chairtyportal/**/.vercel/
+
+# ===== Firebase Data Connect local dev DB (Postgres / pgLite data dirs) =====
+dataconnect/.dataconnect/
+dataconnect/**/*.log
+
+# ===== Pre-built static outputs (rebuilt on CI) =====
+docs/
+
+# ===== Vercel / build system extras =====
+.turbo/
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# ===== Local DB files / emulators =====
+*.db
+*.sqlite
+*.sqlite3
+firebase-debug.log
+firestore-debug.log
+pubsub-debug.log
+ui-debug.log

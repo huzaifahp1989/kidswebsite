@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import AdminImagePicker from "@/components/AdminImagePicker";
-import { getAnnouncementImages } from "@/utils/announcementImages";
+import { getAnnouncementImages, formatScheduleLabel, toDatetimeLocalValue } from "@/utils/announcementImages";
+import { isAnnouncementScheduledNow } from "@/utils/announcementSchedule";
 import {
   ArrowLeft,
   Bell,
@@ -36,6 +37,8 @@ const defaultForm = {
   order: 0,
   popupDelaySeconds: 3,
   popupCooldownHours: 24,
+  startsAt: "",
+  endsAt: "",
 };
 
 export default function AdminAnnouncements() {
@@ -96,6 +99,8 @@ export default function AdminAnnouncements() {
       order: item.order ?? 0,
       popupDelaySeconds: item.popupDelaySeconds ?? 3,
       popupCooldownHours: item.popupCooldownHours ?? 24,
+      startsAt: toDatetimeLocalValue(item.startsAt),
+      endsAt: toDatetimeLocalValue(item.endsAt),
     });
   };
 
@@ -118,8 +123,14 @@ export default function AdminAnnouncements() {
         order: Number(form.order) || 0,
         popupDelaySeconds: Number(form.popupDelaySeconds) || 3,
         popupCooldownHours: Number(form.popupCooldownHours) || 24,
+        startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null,
+        endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null,
         updatedAt: new Date().toISOString(),
       };
+
+      if (payload.startsAt && payload.endsAt && new Date(payload.endsAt) <= new Date(payload.startsAt)) {
+        throw new Error("End time must be after start time.");
+      }
 
       if (!payload.title && !payload.text) {
         throw new Error("Add a title or message text.");
@@ -186,7 +197,7 @@ export default function AdminAnnouncements() {
               Announcements
             </CardTitle>
             <p className="text-sm text-blue-100">
-              Create image + text announcements for the home page banner and optional popup.
+              Create image + text announcements for the home page banner and optional popup. Use schedule to show different announcements at set times.
             </p>
           </CardHeader>
           <CardContent className="p-6">
@@ -310,6 +321,33 @@ export default function AdminAnnouncements() {
                 </div>
               </div>
 
+              <div className="rounded-xl border bg-white p-4">
+                <Label className="text-base">Schedule (optional)</Label>
+                <p className="mt-1 text-xs text-gray-500">
+                  Set when this announcement appears on home and as a popup. Leave blank to show always.
+                </p>
+                <div className="mt-3 grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="startsAt">Start date & time</Label>
+                    <Input
+                      id="startsAt"
+                      type="datetime-local"
+                      value={form.startsAt}
+                      onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endsAt">End date & time</Label>
+                    <Input
+                      id="endsAt"
+                      type="datetime-local"
+                      value={form.endsAt}
+                      onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex flex-wrap gap-6 rounded-xl border bg-white p-4">
                 <label className="flex items-center gap-2 text-sm font-medium">
                   <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
@@ -402,7 +440,17 @@ export default function AdminAnnouncements() {
                           Popup
                         </span>
                       )}
+                      {(item.startsAt || item.endsAt) && (
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          isAnnouncementScheduledNow(item)
+                            ? "bg-green-100 text-green-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {isAnnouncementScheduledNow(item) ? "Live now" : "Scheduled"}
+                        </span>
+                      )}
                     </div>
+                    <p className="mt-1 text-xs text-gray-500">{formatScheduleLabel(item)}</p>
                     <p className="mt-1 line-clamp-3 text-sm text-gray-600">{item.text}</p>
                     {item.linkUrl && (
                       <p className="mt-1 truncate text-xs text-blue-600">{item.linkUrl}</p>

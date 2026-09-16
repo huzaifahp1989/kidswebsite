@@ -16,8 +16,11 @@ public class AlarmActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        SystemBarUtils.enable(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_alarm);
+
+        SystemBarUtils.applySystemBarInsets(findViewById(R.id.alarm_root));
 
         String soundUrl = getIntent().getStringExtra("soundUrl");
         Button dismiss = findViewById(R.id.dismiss_button);
