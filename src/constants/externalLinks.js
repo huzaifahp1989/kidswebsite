@@ -1,5 +1,11 @@
 export const HIFZ_ASSISTANT_URL = "https://traespeechhelpbe6b.vercel.app/quran";
 
+export const ISLAM_MEDIA_CENTRAL_PODCAST_URL =
+  "https://podcast.app/islam-media-central-p1322832";
+
+export const ISLAM_MEDIA_CENTRAL_SPOTIFY_URL =
+  "https://open.spotify.com/show/3bj3wSqEcPhXkfHDMFxJvO";
+
 /** In-app Kids Zone route (games, quizzes, stories). */
 export const KIDS_ZONE_PATH = "/kidszone";
 
@@ -14,7 +20,7 @@ export const WHATSAPP_CHANNEL_URL =
 
 export const WHATSAPP_GROUP_URL =
   import.meta.env.VITE_WHATSAPP_GROUP_URL ||
-  "https://chat.whatsapp.com/EVV22ufufG5BQWR89dUWyQ";
+  "https://chat.whatsapp.com/L73mwZKUQ215T17Z34wLrk";
 
 export const WHATSAPP_BROADCAST_URL =
   import.meta.env.VITE_WHATSAPP_BROADCAST_URL ||

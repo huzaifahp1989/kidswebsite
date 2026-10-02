@@ -132,6 +132,9 @@ import AdminWelcomeSubmissions from "./AdminWelcomeSubmissions";
 import AdminNotices from "./AdminNotices";
 import AdminGlobalNotices from "./AdminGlobalNotices";
 import CharityPortal from "./CharityPortal";
+import WatchLive from "./WatchLive";
+import IMCAssistant from "./IMCAssistant";
+import AdminAssistant from "./AdminAssistant";
 
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import Landing from "./Landing";
@@ -246,6 +249,7 @@ const PAGES = {
     AdminNotices: AdminNotices,
     AdminGlobalNotices: AdminGlobalNotices,
     CharityPortal: CharityPortal,
+    WatchLive: WatchLive,
 
     AdminStoryBuilder: AdminStoryBuilder,
     
@@ -258,6 +262,8 @@ const PAGES = {
     Competition: Competition,
     WhatsAppChannel: WhatsAppChannel,
     Features: Features,
+    IMCAssistant: IMCAssistant,
+    AdminAssistant: AdminAssistant,
 
 }
 
@@ -456,6 +462,8 @@ function PagesContent() {
                 <Route path="/adminglobalnotices" element={adminGlobalNoticesElement} />
                 <Route path="/CharityPortal" element={<CharityPortal />} />
                 <Route path="/charityportal" element={<CharityPortal />} />
+                <Route path="/WatchLive" element={<WatchLive />} />
+                <Route path="/watchlive" element={<WatchLive />} />
                 
                 <Route path="/AdminStoryBuilder" element={<AdminGuard><AdminStoryBuilder /></AdminGuard>} />
                 
@@ -476,6 +484,9 @@ function PagesContent() {
                 <Route path="/WhatsAppChannel" element={<WhatsAppChannel />} />
                 <Route path="/Features" element={<Features />} />
                 <Route path="/features" element={<Features />} />
+                <Route path="/assistant" element={<IMCAssistant />} />
+                <Route path="/IMCAssistant" element={<IMCAssistant />} />
+                <Route path="/AdminAssistant" element={<AdminGuard><AdminAssistant /></AdminGuard>} />
                 
                 <Route path="*" element={<Home />} />
             </Routes>

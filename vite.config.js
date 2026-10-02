@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { oneSignalApiPlugin } from "./vite.onesignal-api.js";
+import { imcAssistantApiPlugin } from "./vite.imc-assistant-api.js";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -23,7 +24,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [react(), oneSignalApiPlugin()],
+    plugins: [react(), oneSignalApiPlugin(), imcAssistantApiPlugin()],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

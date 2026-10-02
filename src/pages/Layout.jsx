@@ -2,8 +2,12 @@
 
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { HIFZ_ASSISTANT_URL } from "@/constants/externalLinks";
-import { Home, Gamepad2, BookOpen, Music, GraduationCap, Users, Info, Book, Trophy, ChevronDown, Menu, X, LogOut, User, LogIn, UserPlus, Settings, Play, Pause, Volume2, VolumeX, Radio, Mail, Star, Sparkles, BarChart2, Layers, Shield, Bell, Target, MessageCircle, BellRing, CheckCheck, Clock, ExternalLink, ArrowRight, Flame } from "lucide-react";
+import {
+  HIFZ_ASSISTANT_URL,
+  ISLAM_MEDIA_CENTRAL_PODCAST_URL,
+  ISLAM_MEDIA_CENTRAL_SPOTIFY_URL,
+} from "@/constants/externalLinks";
+import { Home, Gamepad2, BookOpen, Music, GraduationCap, Users, Info, Book, Trophy, ChevronDown, Menu, X, LogOut, User, LogIn, UserPlus, Settings, Play, Pause, Volume2, VolumeX, Radio, Mail, Star, Sparkles, BarChart2, Layers, Shield, Bell, Target, MessageCircle, BellRing, CheckCheck, Clock, ExternalLink, ArrowRight, Flame, Podcast, Music2 } from "lucide-react";
 import React, { useState, useEffect, useRef, createContext, useContext } from "react";
 import { motion } from "framer-motion";
 import {
@@ -29,8 +33,51 @@ import {
 import PropTypes from 'prop-types';
 import { watchAuth, getUserProfile, getFirebase } from "@/api/firebase";
 import { trackRadioListeningAndMaybeReview } from "@/utils/inAppReview";
+import { isAndroidWebView, openExternalUrl } from "@/utils/androidWebView";
 import GlobalNoticeBell from "@/components/GlobalNoticeBell.jsx";
 // Base44 auth removed from public UI; email-only access in place
+
+const podcastLinks = [
+  { label: "Podcast App", href: ISLAM_MEDIA_CENTRAL_PODCAST_URL, icon: Podcast },
+  { label: "Spotify", href: ISLAM_MEDIA_CENTRAL_SPOTIFY_URL, icon: Music2 },
+];
+
+function PodcastLinks({ className = "", compact = false }) {
+  return (
+    <div className={className}>
+      {podcastLinks.map(({ label, href, icon: Icon }) => (
+        <a
+          key={label}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(event) => {
+            if (isAndroidWebView()) {
+              event.preventDefault();
+              openExternalUrl(href);
+            }
+          }}
+          aria-label={label}
+          title={label}
+          className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/10 text-xs font-semibold text-white transition hover:bg-white/20 ${
+            compact
+              ? "h-9 w-9"
+              : "w-full min-w-0 whitespace-nowrap px-2 py-2 md:w-auto md:px-2.5 md:py-1.5 md:text-sm"
+          }`}
+        >
+          <Icon className="h-4 w-4 shrink-0" />
+          <span className={compact ? "sr-only" : ""}>{label}</span>
+          {!compact && <ExternalLink className="h-3 w-3 shrink-0 opacity-75" />}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+PodcastLinks.propTypes = {
+  className: PropTypes.string,
+  compact: PropTypes.bool,
+};
 
 // Create Radio Context
 const RadioContext = createContext();
@@ -129,7 +176,7 @@ export default function Layout({ children, currentPageName }) {
   }, [siteSettings.darkModeDefault]);
 
   const bgClass = `min-h-screen bg-gradient-to-br ${siteSettings.backgroundGradient}`;
-  const headerClass = `bg-gradient-to-r ${siteSettings.headerGradient} text-white shadow-lg sticky top-0 z-50`;
+  const headerClass = "sticky top-0 z-50 bg-gradient-to-r from-[#0f2a5f] via-[#123b7a] to-[#0b2454] text-white shadow-lg";
   const supportEmail = siteSettings.supportEmail || "imedia786@gmail.com";
   const radioSrc =
     siteSettings.radioUrl ||
@@ -471,6 +518,7 @@ export default function Layout({ children, currentPageName }) {
 
   const baseNavItems = [
     { name: "Kids Home", icon: Home, path: "Home" },
+    { name: "IMC Assistant", icon: MessageCircle, path: "IMCAssistant" },
     { name: "Kids Zone", icon: Star, path: "KidsZone" },
     { name: "WhatsApp Channel", icon: MessageCircle, path: "WhatsAppChannel" },
     { name: "Kids Recording Studio", icon: Radio, path: "KidsRecordingStudio" },
@@ -589,17 +637,19 @@ export default function Layout({ children, currentPageName }) {
 
         {/* Header */}
         <header className={headerClass}>
-          <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 safe-pt">
-            <div className="flex items-center justify-between">
-              <Link to={createPageUrl("Home")} className="flex items-center gap-2 md:gap-3 hover:opacity-90 transition-opacity">
-                <div className="text-3xl md:text-4xl">{siteSettings.logoEmoji}</div>
-                <div>
-                  <h1 className="text-xl md:text-2xl font-bold">{siteSettings.siteTitle}</h1>
-                  <p className="text-xs md:text-sm text-blue-100">{siteSettings.tagline}</p>
-                </div>
+          <div className="mx-auto max-w-7xl px-3 pb-2 pt-3 safe-pt md:px-6 md:pb-4 md:pt-5">
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                to={createPageUrl("Home")}
+                aria-label={siteSettings.siteTitle || "Islam Media Central"}
+                title={siteSettings.siteTitle || "Islam Media Central"}
+                className="flex shrink-0 items-center transition-opacity hover:opacity-90"
+              >
+                <div className="shrink-0 text-2xl md:text-4xl">{siteSettings.logoEmoji}</div>
               </Link>
 
               <div className="hidden md:flex items-center gap-2">
+                <PodcastLinks className="flex items-center gap-2" />
                 {radioSrc && (
                   <button
                     type="button"
@@ -644,40 +694,6 @@ export default function Layout({ children, currentPageName }) {
                     </button>
                   </>
                 )}
-                <button
-                  type="button"
-                  onClick={openNotices}
-                  aria-label="Open announcements"
-                  className="relative inline-flex items-center justify-center h-10 w-10 rounded-lg transition-all hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-                >
-                  {highestPriority === NOTICE_PRIORITY.urgent ? (
-                    <>
-                      <span className="absolute inset-0 rounded-lg bg-rose-500/25 animate-ping" />
-                      <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
-                    </>
-                  ) : highestPriority === NOTICE_PRIORITY.highlight ? (
-                    <>
-                      <span className="absolute inset-0 rounded-lg bg-amber-400/25" />
-                      <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 ring-2 ring-white animate-pulse" />
-                    </>
-                  ) : unreadCount > 0 ? (
-                    <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-indigo-500 ring-2 ring-white" />
-                  ) : null}
-                  {highestPriority === NOTICE_PRIORITY.urgent ? (
-                    <BellRing className="w-5 h-5 text-rose-100 drop-shadow relative z-10" />
-                  ) : highestPriority === NOTICE_PRIORITY.highlight ? (
-                    <BellRing className="w-5 h-5 text-amber-100 drop-shadow relative z-10" />
-                  ) : unreadCount > 0 ? (
-                    <Bell className="w-5 h-5 text-white drop-shadow relative z-10" />
-                  ) : (
-                    <Bell className="w-5 h-5 text-white/80 drop-shadow relative z-10" />
-                  )}
-                  {unreadCount > 0 ? (
-                    <span className="pointer-events-none absolute left-8 top-0 -translate-y-1 rounded-full bg-white text-indigo-700 text-[10px] font-bold px-1.5 py-0.5 min-w-[18px] text-center ring-1 ring-indigo-200">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  ) : null}
-                </button>
                 <GlobalNoticeBell />
               </div>
 
@@ -686,13 +702,14 @@ export default function Layout({ children, currentPageName }) {
               {/* Mobile Menu Button */}
               {!siteSettings.showMobileSidebar && (
                 <>
-                  <div className="md:hidden flex items-center gap-1">
+                  <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-white/15 bg-black/10 p-1 md:hidden">
+                    <PodcastLinks compact className="flex items-center gap-1" />
                     {radioSrc && (
                       <button
                         type="button"
                         onClick={togglePlay}
                         aria-label={isPlaying ? "Pause live radio" : "Listen live radio"}
-                        className={`relative inline-flex items-center justify-center h-10 w-10 rounded-lg transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                        className={`relative inline-flex h-9 w-9 items-center justify-center rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
                           isPlaying ? "bg-red-500/90" : "hover:bg-white/15"
                         }`}
                       >
@@ -702,50 +719,16 @@ export default function Layout({ children, currentPageName }) {
                         <Radio className={`w-5 h-5 relative z-10 ${isPlaying ? "text-white" : "text-white/90"}`} />
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={openNotices}
-                      aria-label="Open announcements"
-                      className="relative inline-flex items-center justify-center h-10 w-10 rounded-lg transition-all hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-                    >
-                      {highestPriority === NOTICE_PRIORITY.urgent ? (
-                        <>
-                          <span className="absolute inset-0 rounded-lg bg-rose-500/25 animate-ping" />
-                          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
-                        </>
-                      ) : highestPriority === NOTICE_PRIORITY.highlight ? (
-                        <>
-                          <span className="absolute inset-0 rounded-lg bg-amber-400/25" />
-                          <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 ring-2 ring-white animate-pulse" />
-                        </>
-                      ) : unreadCount > 0 ? (
-                        <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-indigo-500 ring-2 ring-white" />
-                      ) : null}
-                      {highestPriority === NOTICE_PRIORITY.urgent ? (
-                        <BellRing className="w-5 h-5 text-rose-100 drop-shadow relative z-10" />
-                      ) : highestPriority === NOTICE_PRIORITY.highlight ? (
-                        <BellRing className="w-5 h-5 text-amber-100 drop-shadow relative z-10" />
-                      ) : unreadCount > 0 ? (
-                        <Bell className="w-5 h-5 text-white drop-shadow relative z-10" />
-                      ) : (
-                        <Bell className="w-5 h-5 text-white/80 drop-shadow relative z-10" />
-                      )}
-                      {unreadCount > 0 ? (
-                        <span className="pointer-events-none absolute left-7 top-0 -translate-y-1 rounded-full bg-white text-indigo-700 text-[10px] font-bold px-1.5 py-0.5 min-w-[18px] text-center ring-1 ring-indigo-200">
-                          {unreadCount > 99 ? "99+" : unreadCount}
-                        </span>
-                      ) : null}
-                    </button>
                     <GlobalNoticeBell compact />
-                    <Link to={createPageUrl("Home")} className="md:hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-white/90 hover:text-white hover:bg-white/10">
+                    <Link to={createPageUrl("Home")} aria-label="Home" title="Home" className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition hover:bg-white/15 hover:text-white md:hidden">
                       <Home className="w-4 h-4" />
-                      Home
                     </Link>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="md:hidden text-white hover:bg-white/20"
+                      className="h-9 w-9 rounded-xl text-white hover:bg-white/20"
                       onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                      aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
                     >
                       {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                     </Button>
@@ -837,6 +820,7 @@ export default function Layout({ children, currentPageName }) {
                   <Link
                     key={item.path}
                     to={createPageUrl(item.path)}
+                    state={item.path === "IMCAssistant" ? { currentScreen: currentPageName } : undefined}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg whitespace-nowrap transition-all flex-shrink-0 ${
                       isActive
                         ? `bg-gradient-to-r ${siteSettings.navActiveGradient} text-white shadow-md`
@@ -860,8 +844,8 @@ export default function Layout({ children, currentPageName }) {
               onClick={() => setMobileMenuOpen(false)}
             />
             
-            <div className="absolute top-0 right-0 h-full w-[85vw] max-w-[360px] bg-white shadow-2xl overflow-y-auto z-[1001]">
-              <div className="p-4 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+            <div className="absolute right-0 top-0 z-[1001] h-full w-[88vw] max-w-[380px] overflow-y-auto rounded-l-3xl bg-white shadow-2xl">
+              <div className="p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900">Menu</h2>
                   <Button
@@ -925,6 +909,7 @@ export default function Layout({ children, currentPageName }) {
                           <Link
                             key={`link-${item.name}`}
                             to={createPageUrl(item.path)}
+                            state={item.path === "IMCAssistant" ? { currentScreen: currentPageName } : undefined}
                             onClick={handleMobileLinkClick}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium text-gray-800 bg-white hover:bg-blue-100 shadow transition-all duration-150"
                           >
@@ -963,6 +948,7 @@ export default function Layout({ children, currentPageName }) {
                             <Link
                               key={`link-${group.title}-${item.name}`}
                               to={createPageUrl(item.path)}
+                              state={item.path === "IMCAssistant" ? { currentScreen: currentPageName } : undefined}
                               onClick={handleMobileLinkClick}
                               className="flex items-center gap-2 px-4 py-2 rounded-lg text-base font-medium text-gray-800 bg-white hover:bg-blue-100 shadow transition-all duration-150"
                             >

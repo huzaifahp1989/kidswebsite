@@ -5,9 +5,13 @@
   "functions": {
     "api/index.js": {
       "includeFiles": "src/utils/**"
+    },
+    "api/imc-assistant.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
+    { "source": "/api/imc-assistant(.*)", "destination": "/api/imc-assistant.js" },
     { "source": "/api/onesignal(.*)", "destination": "/api/index.js" },
     { "source": "/api/me/notices(.*)", "destination": "/api/index.js" },
     { "source": "/api/admin/notices(.*)", "destination": "/api/index.js" },

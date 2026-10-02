@@ -15,6 +15,7 @@ import {
   Palette,
   Newspaper,
   HelpCircle, // Added new icon
+  Bot,
   GraduationCap, // Added new icon
   MessageSquare, // Added new icon
   Megaphone,
@@ -134,8 +135,8 @@ export default function AdminDashboard() {
       stats: "Configure placements"
     },
     {
-      title: "Welcome Submissions",
-      description: "View new user forms: name, city, mobile, broadcast, feedback",
+      title: "Live Session Registrations",
+      description: "View names, ages, WhatsApp numbers, cities, and broadcast opt-ins",
       icon: HandHeart,
       path: "AdminWelcomeSubmissions",
       color: "from-emerald-500 to-teal-600",
@@ -196,6 +197,14 @@ export default function AdminDashboard() {
       path: "AdminSettings",
       color: "from-gray-500 to-slate-500",
       stats: "Configure"
+    },
+    {
+      title: "AI Assistant Management",
+      description: "Manage help articles, assistant settings, feedback, and unanswered questions",
+      icon: Bot,
+      path: "AdminAssistant",
+      color: "from-sky-600 to-teal-600",
+      stats: "Knowledge base & analytics"
     }
   ];
 
