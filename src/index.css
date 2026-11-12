@@ -157,6 +157,32 @@ button:focus-visible {
   }
 }
 
+/* Top marquee banner — seamless continuous scroll */
+@keyframes imc-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: imc-marquee-scroll var(--marquee-duration, 40s) linear infinite;
+  will-change: transform;
+}
+
+/* Pause while the reader hovers a link */
+.marquee-viewport:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+}
+
 /* Cross-device utilities */
 @layer utilities {
   .scrollbar-hide::-webkit-scrollbar {

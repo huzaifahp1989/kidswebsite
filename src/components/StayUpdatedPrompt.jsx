@@ -65,11 +65,11 @@ export default function StayUpdatedPrompt() {
 
   return (
     <div
-      className="fixed inset-0 z-[9997] flex items-center justify-center px-4 pointer-events-none"
+      className="fixed inset-0 z-[9997] flex items-center justify-center px-2 py-3 pointer-events-none sm:px-4 sm:py-4"
     >
       <div className="pointer-events-auto fixed inset-0 z-[9998] bg-slate-950/55 backdrop-blur-sm" />
-      <div className="pointer-events-auto relative z-[9999] mx-auto max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-3xl border border-blue-100 bg-white shadow-2xl">
-        <div className="bg-gradient-to-r from-[#1e3a8a] via-[#2563eb] to-[#38bdf8] p-5 text-white">
+      <div className="pointer-events-auto relative z-[9999] mx-auto max-h-[calc(100dvh-1.5rem)] w-[calc(100%-0.5rem)] max-w-md overflow-y-auto rounded-2xl border border-blue-100 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:w-full sm:rounded-3xl">
+        <div className="bg-gradient-to-r from-[#1e3a8a] via-[#2563eb] to-[#38bdf8] p-4 text-white sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15">
@@ -85,7 +85,7 @@ export default function StayUpdatedPrompt() {
             <button
               type="button"
               onClick={handleDismiss}
-              className="rounded-full p-1 text-white/80 hover:bg-white/10 hover:text-white"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
               aria-label="Dismiss stay updated prompt"
             >
               <X className="h-4 w-4" />
@@ -93,7 +93,7 @@ export default function StayUpdatedPrompt() {
           </div>
         </div>
 
-        <div className="p-5">
+        <div className="p-4 sm:p-5">
           <p className="text-sm leading-6 text-slate-700">
             Sign up for our email newsletter or follow us on WhatsApp and Telegram.
           </p>
@@ -102,7 +102,7 @@ export default function StayUpdatedPrompt() {
             <Button
               size="lg"
               onClick={() => openChannelLink(NEWSLETTER_URL)}
-              className="h-12 w-full justify-center bg-[#f5b800] text-slate-950 hover:bg-[#dda600]"
+              className="h-12 w-full justify-center whitespace-normal bg-[#f5b800] text-slate-950 hover:bg-[#dda600]"
             >
               <Mail className="mr-2 h-4 w-4" />
               Sign Up for Our Newsletter
@@ -110,7 +110,7 @@ export default function StayUpdatedPrompt() {
             <Button
               size="lg"
               onClick={() => openChannelLink(WHATSAPP_GROUP_URL)}
-              className="h-12 w-full justify-center bg-[#25D366] text-white hover:bg-[#1ebe5d]"
+              className="h-12 w-full justify-center whitespace-normal bg-[#25D366] text-white hover:bg-[#1ebe5d]"
             >
               <MessageCircle className="mr-2 h-4 w-4" />
               Join WhatsApp Group
@@ -118,7 +118,7 @@ export default function StayUpdatedPrompt() {
             <Button
               size="lg"
               onClick={() => openChannelLink(TELEGRAM_CHANNEL_URL)}
-              className="h-12 w-full justify-center bg-[#229ED9] text-white hover:bg-[#1b8fc7]"
+              className="h-12 w-full justify-center whitespace-normal bg-[#229ED9] text-white hover:bg-[#1b8fc7]"
             >
               <Send className="mr-2 h-4 w-4" />
               Open Telegram
@@ -126,7 +126,7 @@ export default function StayUpdatedPrompt() {
             <Button
               size="lg"
               onClick={openPlayStoreReview}
-              className="h-12 w-full justify-center bg-[#15803d] text-white hover:bg-[#166534]"
+              className="h-12 w-full justify-center whitespace-normal bg-[#15803d] text-white hover:bg-[#166534]"
             >
               <Star className="mr-2 h-4 w-4" />
               Review now

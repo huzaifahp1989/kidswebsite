@@ -131,8 +131,17 @@ import Features from "./Features";
 import AdminWelcomeSubmissions from "./AdminWelcomeSubmissions";
 import AdminNotices from "./AdminNotices";
 import AdminGlobalNotices from "./AdminGlobalNotices";
+import AdminMarquee from "./AdminMarquee";
+import AdminEvents from "./AdminEvents";
+import Updates from "./Updates";
+import Survey from "./Survey";
+import SurveyTerms from "./SurveyTerms";
+import AdminSurvey from "./AdminSurvey";
+import GetToKnowYou from "./GetToKnowYou";
 import CharityPortal from "./CharityPortal";
 import WatchLive from "./WatchLive";
+import ReminderSettings from "./ReminderSettings";
+import ReminderDiagnostics from "./ReminderDiagnostics";
 import IMCAssistant from "./IMCAssistant";
 import AdminAssistant from "./AdminAssistant";
 
@@ -248,8 +257,17 @@ const PAGES = {
     AdminWelcomeSubmissions: AdminWelcomeSubmissions,
     AdminNotices: AdminNotices,
     AdminGlobalNotices: AdminGlobalNotices,
+    AdminMarquee: AdminMarquee,
+    AdminEvents: AdminEvents,
+    Updates: Updates,
+    Survey: Survey,
+    SurveyTerms: SurveyTerms,
+    AdminSurvey: AdminSurvey,
+    GetToKnowYou: GetToKnowYou,
     CharityPortal: CharityPortal,
     WatchLive: WatchLive,
+    ReminderSettings: ReminderSettings,
+    ReminderDiagnostics: ReminderDiagnostics,
 
     AdminStoryBuilder: AdminStoryBuilder,
     
@@ -309,6 +327,9 @@ function PagesContent() {
     const adminWelcomeSubmissionsElement = isDev ? <AdminWelcomeSubmissions /> : <AdminGuard><AdminWelcomeSubmissions /></AdminGuard>;
     const adminNoticesElement = isDev ? <AdminNotices /> : <AdminGuard><AdminNotices /></AdminGuard>;
     const adminGlobalNoticesElement = isDev ? <AdminGlobalNotices /> : <AdminGuard><AdminGlobalNotices /></AdminGuard>;
+    const adminMarqueeElement = isDev ? <AdminMarquee /> : <AdminGuard><AdminMarquee /></AdminGuard>;
+    const adminEventsElement = isDev ? <AdminEvents /> : <AdminGuard><AdminEvents /></AdminGuard>;
+    const adminSurveyElement = isDev ? <AdminSurvey /> : <AdminGuard><AdminSurvey /></AdminGuard>;
 
     return (
         <Layout currentPageName={currentPage}>
@@ -456,14 +477,36 @@ function PagesContent() {
                 <Route path="/adminsponsors" element={<AdminGuard><AdminSponsors /></AdminGuard>} />
                 <Route path="/AdminWelcomeSubmissions" element={adminWelcomeSubmissionsElement} />
                 <Route path="/adminwelcomesubmissions" element={adminWelcomeSubmissionsElement} />
+                <Route path="/website/admin" element={adminWelcomeSubmissionsElement} />
+                <Route path="/admin" element={adminWelcomeSubmissionsElement} />
                 <Route path="/AdminNotices" element={adminNoticesElement} />
                 <Route path="/adminnotices" element={adminNoticesElement} />
                 <Route path="/AdminGlobalNotices" element={adminGlobalNoticesElement} />
                 <Route path="/adminglobalnotices" element={adminGlobalNoticesElement} />
+                <Route path="/AdminMarquee" element={adminMarqueeElement} />
+                <Route path="/adminmarquee" element={adminMarqueeElement} />
+                <Route path="/AdminEvents" element={adminEventsElement} />
+                <Route path="/adminevents" element={adminEventsElement} />
+                <Route path="/Updates" element={<Updates />} />
+                <Route path="/updates" element={<Updates />} />
+                <Route path="/Survey" element={<Survey />} />
+                <Route path="/survey" element={<Survey />} />
+                <Route path="/SurveyTerms" element={<SurveyTerms />} />
+                <Route path="/surveyterms" element={<SurveyTerms />} />
+                <Route path="/AdminSurvey" element={adminSurveyElement} />
+                <Route path="/adminsurvey" element={adminSurveyElement} />
+
+                <Route path="/GetToKnowYou" element={<GetToKnowYou />} />
+                <Route path="/gettoknowyou" element={<GetToKnowYou />} />
+                <Route path="/get-to-know-you" element={<GetToKnowYou />} />
                 <Route path="/CharityPortal" element={<CharityPortal />} />
                 <Route path="/charityportal" element={<CharityPortal />} />
                 <Route path="/WatchLive" element={<WatchLive />} />
                 <Route path="/watchlive" element={<WatchLive />} />
+                <Route path="/ReminderSettings" element={<ReminderSettings />} />
+                <Route path="/remindersettings" element={<ReminderSettings />} />
+                <Route path="/ReminderDiagnostics" element={<ReminderDiagnostics />} />
+                <Route path="/reminderdiagnostics" element={<ReminderDiagnostics />} />
                 
                 <Route path="/AdminStoryBuilder" element={<AdminGuard><AdminStoryBuilder /></AdminGuard>} />
                 

@@ -15,6 +15,16 @@
     { "source": "/api/onesignal(.*)", "destination": "/api/index.js" },
     { "source": "/api/me/notices(.*)", "destination": "/api/index.js" },
     { "source": "/api/admin/notices(.*)", "destination": "/api/index.js" },
+    { "source": "/api/reminders(.*)", "destination": "/api/index.js" },
+    { "source": "/api/islamic-reminders(.*)", "destination": "/api/index.js" },
+    { "source": "/api/admin/marquee(.*)", "destination": "/api/index.js" },
+    { "source": "/api/marquee(.*)", "destination": "/api/index.js" },
+    { "source": "/api/admin/events(.*)", "destination": "/api/index.js" },
+    { "source": "/api/events(.*)", "destination": "/api/index.js" },
+    { "source": "/api/survey(.*)", "destination": "/api/index.js" },
+    { "source": "/api/admin/survey(.*)", "destination": "/api/index.js" },
+    { "source": "/api/app-users(.*)", "destination": "/api/index.js" },
+    { "source": "/api/admin/app-users(.*)", "destination": "/api/index.js" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

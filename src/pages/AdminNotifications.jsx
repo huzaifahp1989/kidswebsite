@@ -12,10 +12,15 @@ import {
   ArrowLeft,
   Bell,
   CalendarClock,
+  CalendarDays,
+  Landmark,
   Loader2,
+  Megaphone,
+  Music,
   RefreshCw,
   Send,
   Trash2,
+  Trophy,
 } from "lucide-react";
 
 const defaultForm = {
@@ -27,6 +32,61 @@ const defaultForm = {
   sendAfter: "",
   delayedOption: "none",
   deliveryTimeOfDay: "09:00",
+};
+
+// Feature 8 — admin broadcast category presets. Each preset fills a sensible
+// default title, message, and deep-link URL so admins can broadcast the right
+// kind of notification in one click. Tapping the delivered notification opens
+// the mapped app page.
+const BROADCAST_PRESETS = [
+  {
+    id: "general_islamic",
+    label: "General Islamic",
+    icon: "Landmark",
+    title: "Daily Islamic Reminder",
+    message: "Take a moment to remember Allah and reflect on His blessings today.",
+    url: "https://imediackids.com/",
+  },
+  {
+    id: "new_content",
+    label: "New Content",
+    icon: "Music",
+    title: "New Content Available",
+    message: "New Quran recitations, nasheeds or talks are now available for you.",
+    url: "https://imediackids.com/Audio",
+  },
+  {
+    id: "events",
+    label: "Event Announcement",
+    icon: "CalendarDays",
+    title: "Islamic Event",
+    message: "A new Islamic event has been announced. Tap to view the details.",
+    url: "https://imediackids.com/Competition",
+  },
+  {
+    id: "competitions",
+    label: "Competition",
+    icon: "Trophy",
+    title: "Competition Reminder",
+    message: "Don't miss the ongoing competition! Participate and earn rewards.",
+    url: "https://imediackids.com/Competition",
+  },
+  {
+    id: "announcement",
+    label: "App Announcement",
+    icon: "Megaphone",
+    title: "Important Announcement",
+    message: "An important update for Islam Media Central users. Tap to read more.",
+    url: "https://imediackids.com/",
+  },
+];
+
+const ICON_MAP = {
+  Landmark,
+  Music,
+  CalendarDays,
+  Trophy,
+  Megaphone,
 };
 
 function toDatetimeLocalValue(date = new Date()) {
@@ -139,6 +199,19 @@ export default function AdminNotifications() {
     }
   };
 
+  // Apply a broadcast category preset (Feature 8). Fills title, message and
+  // deep-link URL. The admin can still edit any field before sending.
+  const applyPreset = (preset) => {
+    setForm((current) => ({
+      ...current,
+      title: preset.title,
+      message: preset.message,
+      url: preset.url,
+    }));
+    setError("");
+    setSuccess(`Loaded "${preset.label}" preset — review and send.`);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50 py-8 px-4">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -193,6 +266,31 @@ export default function AdminNotifications() {
                 {success}
               </div>
             ) : null}
+
+            {/* Feature 8 — broadcast category presets */}
+            <div className="rounded-xl border bg-slate-50 p-4">
+              <p className="mb-3 text-sm font-medium text-slate-700">
+                Quick broadcast — pick a category to auto-fill the title, message and deep link:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {BROADCAST_PRESETS.map((preset) => {
+                  const Icon = ICON_MAP[preset.icon] || Bell;
+                  return (
+                    <Button
+                      key={preset.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => applyPreset(preset)}
+                      className="border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <Icon className="mr-1.5 h-4 w-4" />
+                      {preset.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">

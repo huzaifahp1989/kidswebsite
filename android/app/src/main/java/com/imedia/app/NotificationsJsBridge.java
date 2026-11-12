@@ -29,6 +29,25 @@ public class NotificationsJsBridge {
         return NotificationManagerCompat.from(activity).areNotificationsEnabled();
     }
 
+    /**
+     * The native OneSignal subscription/user ID for this device. The web page uses
+     * this to store reminders, because a WebView cannot receive web push on its own.
+     */
+    @JavascriptInterface
+    public String getSubscriptionId() {
+        try {
+            String id = OneSignal.getUser().getPushSubscription().getId();
+            if (id != null && !id.isEmpty()) return id;
+        } catch (Exception ignored) {
+        }
+        try {
+            String onesignalId = OneSignal.getUser().getOnesignalId();
+            if (onesignalId != null && !onesignalId.isEmpty()) return onesignalId;
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
+
     @JavascriptInterface
     public void requestPermission() {
         activity.runOnUiThread(() -> {

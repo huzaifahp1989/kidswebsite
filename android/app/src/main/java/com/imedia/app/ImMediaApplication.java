@@ -7,7 +7,9 @@ import com.onesignal.OneSignal;
 import com.onesignal.debug.LogLevel;
 
 public class ImMediaApplication extends Application {
-    private static final String ONESIGNAL_APP_ID = "daf8fc36-781a-417d-8ee4-5078635f22e7";
+    // Must match the website / reminders backend (VITE_ONESIGNAL_APP_ID) so that
+    // notifications sent from the backend reach Android app users too.
+    private static final String ONESIGNAL_APP_ID = "0bb81263-a5f5-4fd8-8786-d71f43a43725";
 
     @Override
     public void onCreate() {

@@ -1,1 +1,16 @@
-{"projectId":"prj_crIW8d3g8JouDEVV4SffE3KqeGJc","orgId":"team_64GvdyfyEF12JGc5Ex77SDgi","projectName":"trae_imedia3_phmb","neverMindDeployCard":true}
+{
+  "projectId": "prj_crIW8d3g8JouDEVV4SffE3KqeGJc",
+  "orgId": "team_64GvdyfyEF12JGc5Ex77SDgi",
+  "projectName": "trae_imedia3_phmb",
+  "settings": {
+    "createdAt": 1763247089345,
+    "framework": "vite",
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": "npm run build",
+    "outputDirectory": "dist",
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "22.x"
+  }
+}

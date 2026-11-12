@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { createPageUrl } from "@/utils";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const redirected = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -34,9 +35,20 @@ export default function AdminLogin() {
     const { app } = getFirebase();
     setConfigured(Boolean(app));
     const unsub = watchAuth(async (user) => {
-      if (user) {
+      // Redirect at most once per visit. `watchAuth` fires on every auth event, and
+      // re-navigating on each one used to fight with AdminGuard's own redirect — the
+      // two pages kept handing the visitor back and forth.
+      if (!user || redirected.current) return;
+      try {
         const ok = await isAdminUser();
-        if (ok) navigate(createPageUrl("AdminDashboard"));
+        if (ok && !redirected.current) {
+          redirected.current = true;
+          navigate(createPageUrl("AdminDashboard"));
+        }
+      } catch (err) {
+        // `isAdminUser` can reject on a failed request; stay on the form so the
+        // visitor sees the error instead of being bounced around.
+        console.error("AdminLogin: admin check failed", err);
       }
     });
     return () => unsub && unsub();
@@ -48,7 +60,7 @@ export default function AdminLogin() {
     setLoading(true);
     try {
       if (!configured) throw new Error("Supabase is not configured");
-      const user = await adminSignIn(email, password);
+      await adminSignIn(email, password);
       // Removed optional static 2FA code gate; sign-in proceeds with email/password only
       const ok = await isAdminUser();
       if (!ok) {
@@ -70,8 +82,6 @@ export default function AdminLogin() {
       setLoading(false);
     }
   };
-
-  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || "";
 
   return (
     <div className="min-h-screen py-12 px-4 bg-gradient-to-br from-slate-50 to-blue-50">

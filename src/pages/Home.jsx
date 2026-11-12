@@ -12,8 +12,11 @@ import {
   ClipboardList,
   Megaphone,
   HeartHandshake,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FaFacebookF, FaInstagram, FaTiktok, FaYoutube } from "react-icons/fa";
 import { useState, useEffect, useRef } from "react";
 import React from "react";
 import { Link } from "react-router-dom";
@@ -24,12 +27,20 @@ import { isAndroidWebView, openExternalUrl } from "@/utils/androidWebView";
 import {
   AICT_GLOBAL_URL,
   DONATE_SUPPORT_URL,
+  FACEBOOK_URL,
   HIFZ_ASSISTANT_URL,
+  INSTAGRAM_URL,
+  ISLAM_MEDIA_CENTRAL_YOUTUBE_URL,
+  LIVE_QURAN_URL,
   SURVEY_FORM_URL,
+  TIKTOK_URL,
   WHATSAPP_GROUP_URL,
 } from "@/constants/externalLinks";
 import { announcementsApi } from "@/api/firebase";
 import AnnouncementImageSlider from "@/components/AnnouncementImageSlider";
+import CommunityWorshipTabs from "@/components/CommunityWorshipTabs";
+import FundraisingAppealBanner from "@/components/FundraisingAppealBanner";
+import PosterSlider from "@/components/PosterSlider";
 import { getAnnouncementImages, isAnnouncementScheduledNow } from "@/utils/announcementImages";
 import { supabase } from "@/lib/supabase";
 
@@ -44,6 +55,77 @@ const HOME_HIT_COUNTER_START = 6000;
 const HOME_VISITOR_ID_KEY = "home_visitor_id";
 const HOME_VISIT_SESSION_KEY = "home_visitor_counted_session";
 const HOME_VISIT_SESSION_ID_KEY = "home_visitor_session_id";
+const featureSlides = [
+  {
+    key: "podcast",
+    label: "Podcast",
+    title: "Stories, talks and reminders",
+    description: "Listen to thoughtful Islamic audio wherever you are.",
+    icon: MessageCircle,
+    href: "https://create-me-a-audio.vercel.app",
+    external: true,
+    tone: "from-[#0f766e] to-[#134e4a]",
+  },
+  {
+    key: "kids",
+    label: "Kids Zone",
+    title: "Learn, play and grow",
+    description: "Games, stories and creative activities for young learners.",
+    icon: Star,
+    href: "https://islamic-kids-platform.vercel.app/",
+    external: true,
+    tone: "from-[#1e3a8a] to-[#172554]",
+  },
+  {
+    key: "advertise",
+    label: "Advertise with us",
+    title: "Reach a purpose-led audience",
+    description: "Place your organisation or service in front of our community.",
+    icon: Megaphone,
+    href: ADS_SECTION_URL,
+    tone: "from-[#9a3412] to-[#7c2d12]",
+    external: true,
+  },
+  {
+    key: "radio",
+    label: "Islam Media Radio",
+    title: "Tune in for uplifting audio",
+    description: "Stream Islamic content live from Islam Media Central.",
+    icon: Radio,
+    tone: "from-[#6b21a8] to-[#4c1d95]",
+  },
+];
+
+const FOLLOW_LINKS = [
+  {
+    label: "Instagram",
+    handle: "@imediac786",
+    href: INSTAGRAM_URL,
+    icon: FaInstagram,
+    tone: "bg-gradient-to-br from-[#f58529] via-[#dd2a7b] to-[#8134af]",
+  },
+  {
+    label: "Facebook",
+    handle: "Islam Media Central",
+    href: FACEBOOK_URL,
+    icon: FaFacebookF,
+    tone: "bg-[#1877F2]",
+  },
+  {
+    label: "TikTok",
+    handle: "@imediac",
+    href: TIKTOK_URL,
+    icon: FaTiktok,
+    tone: "bg-black",
+  },
+  {
+    label: "YouTube",
+    handle: "@IslamMediaCentral",
+    href: `${ISLAM_MEDIA_CENTRAL_YOUTUBE_URL.replace(/\/$/, "")}/streams`,
+    icon: FaYoutube,
+    tone: "bg-[#FF0000]",
+  },
+];
 
 function readCachedHomeHitCount() {
   try {
@@ -232,6 +314,7 @@ function SectionHeading({ eyebrow, title, subtitle }) {
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [featureSlide, setFeatureSlide] = useState(0);
   const [announcements, setAnnouncements] = useState([]);
   const [lightboxAnnouncement, setLightboxAnnouncement] = useState(null);
   const [lightboxImageIndex, setLightboxImageIndex] = useState(0);
@@ -249,6 +332,13 @@ export default function Home() {
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % bannerSlides.length);
     }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFeatureSlide((prev) => (prev + 1) % featureSlides.length);
+    }, 4500);
     return () => clearInterval(interval);
   }, []);
 
@@ -490,6 +580,39 @@ export default function Home() {
   const donateLinkProps = externalLinkProps(DONATE_SUPPORT_URL);
   const aictDonateLinkProps = externalLinkProps(AICT_GLOBAL_URL);
   const surveyLinkProps = externalLinkProps(SURVEY_FORM_URL);
+  const activeFeature = featureSlides[featureSlide];
+  const ActiveFeatureIcon = activeFeature.icon;
+
+  const moveFeatureSlide = (direction) => {
+    setFeatureSlide((current) => (current + direction + featureSlides.length) % featureSlides.length);
+  };
+
+  const renderFeatureLink = (content) => {
+    if (activeFeature.key === "radio") {
+      return (
+        <button
+          type="button"
+          onClick={toggleRadio}
+          className="block h-full w-full text-left"
+          aria-label={isRadioPlaying ? "Pause Islam Media Radio" : "Play Islam Media Radio"}
+        >
+          {content}
+        </button>
+      );
+    }
+    if (activeFeature.external) {
+      return (
+        <a {...externalLinkProps(activeFeature.href)} className="block h-full">
+          {content}
+        </a>
+      );
+    }
+    return (
+      <Link to={activeFeature.href} className="block h-full">
+        {content}
+      </Link>
+    );
+  };
 
   const dismissSurveyPopup = () => {
     try {
@@ -510,12 +633,141 @@ export default function Home() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-[#EFF6FF]">
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-900 sm:text-sm">
+        {/* Visitor counter — first thing on the page and pinned under the sticky
+            header (--imc-topbar-h is measured in the layout) so it stays in view */}
+        <div
+          style={{ top: "var(--imc-topbar-h, 64px)" }}
+          className="sticky z-30 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-900 sm:text-sm"
+        >
           Visitors:{" "}
           <span className="inline-block tabular-nums">
             {displayHitCount.toLocaleString()}
           </span>
         </div>
+
+        {/* Posters — slider fed from the Advertise app; the date of the poster on
+            screen is shown just underneath, and new posters appear automatically */}
+        <PosterSlider />
+
+        {/* Appeal banner — top of the page, figures come from the database */}
+        <FundraisingAppealBanner />
+
+        {/* Follow us on social media */}
+        <section className="border-b border-slate-200 bg-white px-3 py-2.5 sm:px-4">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 sm:text-xs">
+              Follow Islam Media Central
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {FOLLOW_LINKS.map(({ label, handle, href, icon: Icon, tone }) => (
+                <a
+                  key={label}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => {
+                    if (isAndroidWebView()) {
+                      event.preventDefault();
+                      openExternalUrl(href);
+                    }
+                  }}
+                  aria-label={`Follow Islam Media Central on ${label}`}
+                  title={`${label} — ${handle}`}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold text-white transition hover:opacity-90 ${tone}`}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden sm:inline">{handle}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-b border-slate-200 bg-white px-3 py-3 sm:px-4 sm:py-4">
+          <div className="mx-auto max-w-5xl">
+            <div className="relative overflow-hidden rounded-2xl shadow-md">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeFeature.key}
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.35 }}
+                  className={`bg-gradient-to-r ${activeFeature.tone}`}
+                >
+                  {renderFeatureLink(
+                    <div className="flex min-h-[132px] items-center gap-3 px-4 py-4 text-white sm:min-h-[148px] sm:gap-5 sm:px-8">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20 sm:h-14 sm:w-14">
+                        <ActiveFeatureIcon className="h-6 w-6 sm:h-7 sm:w-7" />
+                      </div>
+                      <div className="min-w-0 flex-1 pr-8 sm:pr-10">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/70 sm:text-xs">
+                          {activeFeature.label}
+                        </p>
+                        <h2 className="mt-1 text-lg font-bold leading-tight sm:text-2xl">
+                          {activeFeature.title}
+                        </h2>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/80 sm:text-sm">
+                          {activeFeature.description}
+                        </p>
+                        <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-white sm:text-sm">
+                          {activeFeature.key === "radio"
+                            ? isRadioPlaying
+                              ? "Pause stream"
+                              : "Play stream"
+                            : "Explore feature"}
+                          <ChevronRight className="h-4 w-4" />
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+              <button
+                type="button"
+                onClick={() => moveFeatureSlide(-1)}
+                className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/15 text-white transition hover:bg-black/30 focus:outline-none focus:ring-2 focus:ring-white/80"
+                aria-label="Previous featured service"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => moveFeatureSlide(1)}
+                className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/15 text-white transition hover:bg-black/30 focus:outline-none focus:ring-2 focus:ring-white/80"
+                aria-label="Next featured service"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+              <div className="absolute bottom-2.5 left-1/2 flex -translate-x-1/2 gap-1.5" aria-label="Featured services">
+                {featureSlides.map((slide, index) => (
+                  <button
+                    key={slide.key}
+                    type="button"
+                    onClick={() => setFeatureSlide(index)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      index === featureSlide ? "w-6 bg-white" : "w-1.5 bg-white/45"
+                    }`}
+                    aria-label={`Show ${slide.label}`}
+                    aria-current={index === featureSlide ? "true" : undefined}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Community worship tracker — Durood and Qur'an Juz inputs.
+            The id is the landing point for the "Juz & Durood" tab in the menu. */}
+        <section
+          id="juz-durood-tracker"
+          className="scroll-mt-32 border-b border-slate-200 bg-[#EFF6FF] px-3 py-2.5 sm:px-4"
+        >
+          <div className="mx-auto w-full max-w-3xl">
+            <CommunityWorshipTabs />
+          </div>
+        </section>
+
         {/* Utility bar: donate + survey */}
         <div className="border-b border-white/10 bg-[#1e3a8a] px-4 py-2">
           <div className="mx-auto flex max-w-5xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -599,7 +851,7 @@ export default function Home() {
             if (!open) dismissSurveyPopup();
           }}
         >
-          <DialogContent className="w-[calc(100%-2rem)] max-w-md overflow-hidden rounded-3xl border-0 p-0 shadow-2xl">
+          <DialogContent className="max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1rem)] max-w-md overflow-y-auto rounded-2xl border-0 p-0 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100%-2rem)] sm:rounded-3xl">
             <div className="bg-gradient-to-br from-[#1e3a8a] via-[#1e40af] to-[#172554] px-6 pb-5 pt-7 text-white">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
                 <ClipboardList className="h-6 w-6 text-sky-200" />
@@ -651,6 +903,112 @@ export default function Home() {
           </a>
         </motion.div>
 
+        {/* Sponsors */}
+        <section className="border-b border-slate-100 bg-white px-3 py-6 sm:px-4 sm:py-10">
+          <div className="mx-auto max-w-5xl">
+            <a
+              {...externalLinkProps(LIVE_QURAN_URL)}
+              className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 px-4 py-3 shadow-sm transition hover:border-amber-300 hover:shadow-md sm:px-5"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                  <Sparkles className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-slate-900 sm:text-base">
+                    What&apos;s New · October 2026
+                  </span>
+                  <span className="block text-xs text-slate-600 sm:text-sm">
+                    Children and adults can gain points and win prizes. Sign up today!
+                  </span>
+                </span>
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-amber-800 sm:text-sm">
+                Listen now
+                <ExternalLink className="h-4 w-4" />
+              </span>
+            </a>
+            <div className="mb-5 flex flex-col gap-3 rounded-lg border border-red-100 bg-red-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-600" />
+                </span>
+                <div>
+                  <span className="text-sm font-bold text-slate-900">Live TV</span>
+                  <p className="text-[11px] font-medium text-red-800/80 sm:text-xs">
+                    Watch Islam Media Central live on the official live player.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+                <a
+                  href="https://app.onestream.live/hosted/g210cpv8"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {
+                    try {
+                      const w = window.open(
+                        "https://app.onestream.live/hosted/g210cpv8",
+                        "_blank",
+                        "noopener,noreferrer"
+                      );
+                      if (!w) throw new Error("popup-blocked");
+                      e.preventDefault();
+                    } catch (err) {
+                      // let the default href navigate
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 shadow"
+                >
+                  <Radio className="h-4 w-4" />
+                  Watch Live
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </div>
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700/80">
+                  Partners
+                </p>
+                <h2 className="mt-1 text-lg font-bold text-[#1e3a8a] sm:text-xl">Featured sponsors</h2>
+              </div>
+              <a
+                href={ADS_SECTION_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900"
+              >
+                View all ads <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
+            <div className="relative overflow-hidden">
+              <motion.div
+                className="flex w-max gap-3"
+                animate={{ x: ["0%", "-50%"] }}
+                transition={{ duration: 28, ease: "linear", repeat: Infinity }}
+              >
+                {[...mainFeaturedSponsors, ...mainFeaturedSponsors].map((item, index) => (
+                  <a
+                    key={`${item.name}-ticker-${index}`}
+                    href={ADS_SECTION_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block shrink-0"
+                  >
+                    <div className="h-[72px] w-[140px] overflow-hidden rounded-xl border border-slate-200">
+                      <FeaturedSponsorLogo item={item} />
+                    </div>
+                  </a>
+                ))}
+              </motion.div>
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-white to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent" />
+            </div>
+          </div>
+        </section>
+
         {/* Hero */}
         <section className="relative overflow-hidden bg-[#1e3a8a]">
           <div
@@ -661,7 +1019,7 @@ export default function Home() {
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-[#1e3a8a] via-[#1e40af]/95 to-[#172554]" />
-          <div className="relative z-10 mx-auto max-w-5xl px-4 pb-16 pt-16 text-center md:pb-20 md:pt-20">
+          <div className="relative z-10 mx-auto max-w-5xl px-4 pb-12 pt-12 text-center sm:pb-16 sm:pt-16 md:pb-20 md:pt-20">
             <motion.div
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
@@ -670,7 +1028,7 @@ export default function Home() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-300/90">
                 Media With Purpose
               </p>
-              <h1 className="mt-4 text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
+              <h1 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
                 Islam Media Central
               </h1>
               <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-blue-100/85 md:text-lg">
@@ -680,7 +1038,7 @@ export default function Home() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.35, duration: 0.5 }}
-                className="mt-8 flex flex-col items-center gap-1 text-sm text-blue-100/70 sm:flex-row sm:justify-center sm:gap-3"
+                className="mt-6 flex flex-col items-center gap-1 text-sm text-blue-100/70 sm:mt-8 sm:flex-row sm:justify-center sm:gap-3"
               >
                 <span>{gregorianDate || "Loading date…"}</span>
                 <span className="hidden text-sky-400/60 sm:inline">|</span>
@@ -697,7 +1055,7 @@ export default function Home() {
         </section>
 
         {/* Live radio */}
-        <section className="border-b border-blue-100 bg-white px-4 py-3">
+        <section className="border-b border-blue-100 bg-white px-3 py-2 sm:px-4 sm:py-3">
           <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EFF6FF]">
@@ -789,51 +1147,6 @@ export default function Home() {
           </section>
         )}
 
-        {/* Sponsors */}
-        <section className="border-b border-slate-100 bg-white px-4 py-10">
-          <div className="mx-auto max-w-5xl">
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700/80">
-                  Partners
-                </p>
-                <h2 className="mt-1 text-xl font-bold text-[#1e3a8a]">Featured sponsors</h2>
-              </div>
-              <a
-                href={ADS_SECTION_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900"
-              >
-                View all ads <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            </div>
-            <div className="relative overflow-hidden">
-              <motion.div
-                className="flex w-max gap-3"
-                animate={{ x: ["0%", "-50%"] }}
-                transition={{ duration: 28, ease: "linear", repeat: Infinity }}
-              >
-                {[...mainFeaturedSponsors, ...mainFeaturedSponsors].map((item, index) => (
-                  <a
-                    key={`${item.name}-ticker-${index}`}
-                    href={ADS_SECTION_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block shrink-0"
-                  >
-                    <div className="h-[72px] w-[140px] overflow-hidden rounded-xl border border-slate-200">
-                      <FeaturedSponsorLogo item={item} />
-                    </div>
-                  </a>
-                ))}
-              </motion.div>
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-white to-transparent" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent" />
-            </div>
-          </div>
-        </section>
-
         {/* Platforms */}
         <section className="px-4 py-14 md:py-16">
           <div className="mx-auto max-w-5xl">
@@ -842,7 +1155,7 @@ export default function Home() {
               title="Learn with purpose"
               subtitle="Tools for Qur’an memorisation and engaging Islamic learning for children."
             />
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-3">
               <motion.a
                 href={HIFZ_ASSISTANT_URL}
                 target="_blank"
@@ -864,6 +1177,29 @@ export default function Home() {
                   <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-white">
                     <BookOpen className="h-4 w-4" />
                     Open assistant
+                    <ExternalLink className="h-3.5 w-3.5 opacity-80 transition group-hover:translate-x-0.5" />
+                  </span>
+                </div>
+              </motion.a>
+
+              <motion.a
+                {...externalLinkProps(LIVE_QURAN_URL)}
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
+                className="group block"
+              >
+                <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-violet-200/70 bg-gradient-to-br from-[#6b21a8] to-[#4c1d95] p-7 text-white shadow-sm md:p-8">
+                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-violet-50">
+                    <Radio className="h-3 w-3" />
+                    Live
+                  </span>
+                  <h3 className="mt-4 text-2xl font-bold leading-tight">Live Quran</h3>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-violet-50/90">
+                    Join live Quran sessions for adults and children, and earn points and rewards.
+                  </p>
+                  <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-white">
+                    <Radio className="h-4 w-4" />
+                    Join Live Quran
                     <ExternalLink className="h-3.5 w-3.5 opacity-80 transition group-hover:translate-x-0.5" />
                   </span>
                 </div>

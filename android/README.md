@@ -66,6 +66,12 @@ This AAB is compatible with:
 
 The Android app includes the **OneSignal Android SDK** for native push.
 
+> **Note:** Daily reminders no longer depend on push. The web app registers them
+> with the native on-device scheduler (`ReminderAlarmBridge` /
+> `ReminderAlarmReceiver`), which raises a local notification at the scheduled
+> time — no Firebase, OneSignal subscription or network required. Push below is
+> still used for broadcast announcements.
+
 ### 1. Firebase setup (required for delivery)
 
 1. Open [Firebase Console](https://console.firebase.google.com/) → project `push-notification-78356`
@@ -82,7 +88,7 @@ The Android app includes the **OneSignal Android SDK** for native push.
 1. [OneSignal](https://onesignal.com) → your app
 2. **Settings → Platforms → Google Android (FCM)**
 3. Upload Firebase **service account JSON**
-4. App ID used in code: `daf8fc36-781a-417d-8ee4-5078635f22e7`
+4. App ID used in code: `0bb81263-a5f5-4fd8-8786-d71f43a43725`
 
 ### 3. Build in Android Studio
 

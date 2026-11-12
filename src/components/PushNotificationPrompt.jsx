@@ -156,21 +156,21 @@ export default function PushNotificationPrompt() {
           {statusNote ? (
             <p className="mt-2 text-xs text-amber-700">{statusNote}</p>
           ) : null}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button
               size="sm"
               onClick={handleEnable}
               disabled={loading}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 sm:w-auto"
             >
               {loading ? "Opening..." : "Enable notifications"}
             </Button>
             {inAndroidApp ? (
-              <Button size="sm" variant="outline" onClick={handleOpenSettings}>
+              <Button size="sm" variant="outline" onClick={handleOpenSettings} className="w-full sm:w-auto">
                 App settings
               </Button>
             ) : null}
-            <Button size="sm" variant="ghost" onClick={handleDismiss}>
+            <Button size="sm" variant="ghost" onClick={handleDismiss} className="w-full sm:w-auto">
               Not now
             </Button>
           </div>
@@ -178,7 +178,7 @@ export default function PushNotificationPrompt() {
         <button
           type="button"
           onClick={handleDismiss}
-          className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           aria-label="Dismiss notification prompt"
         >
           <X className="h-4 w-4" />

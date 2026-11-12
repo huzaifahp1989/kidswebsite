@@ -84,7 +84,7 @@ export default function PlatformLinksMenu() {
 
       {open && (
         <div
-          className="fixed inset-0 z-[10001] flex items-end justify-center p-4 sm:items-center"
+          className="fixed inset-0 z-[10001] flex items-end justify-center p-2 sm:items-center sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="platform-links-title"
@@ -96,7 +96,7 @@ export default function PlatformLinksMenu() {
             onClick={closeMenu}
           />
 
-          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border bg-white shadow-2xl">
+          <div className="relative z-10 max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-hidden rounded-2xl border bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
             <div className="bg-gradient-to-br from-[#1e3a8a] to-[#1d4ed8] px-5 py-4 text-white">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -110,7 +110,7 @@ export default function PlatformLinksMenu() {
                 <button
                   type="button"
                   onClick={closeMenu}
-                  className="rounded-full p-1.5 text-white/80 transition hover:bg-white/10 hover:text-white"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white"
                   aria-label="Close"
                 >
                   <X className="h-5 w-5" />

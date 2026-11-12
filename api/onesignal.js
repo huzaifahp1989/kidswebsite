@@ -3,7 +3,7 @@
  * Used by Vercel `/api/onesignal` and the Vite dev middleware.
  */
 
-const DEFAULT_APP_ID = 'daf8fc36-781a-417d-8ee4-5078635f22e7';
+const DEFAULT_APP_ID = '0bb81263-a5f5-4fd8-8786-d71f43a43725';
 const ONESIGNAL_API = 'https://api.onesignal.com';
 
 function getEnv(name, fallback = '') {

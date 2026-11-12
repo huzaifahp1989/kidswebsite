@@ -2,8 +2,10 @@ import './App.css'
 import { useEffect } from 'react'
 import Pages from "@/pages/index.jsx"
 import { Toaster } from "@/components/ui/toaster"
+import { Toaster as SonnerToaster } from "sonner"
 import PlatformLinksMenu from "@/components/PlatformLinksMenu"
 import StayUpdatedPrompt from "@/components/StayUpdatedPrompt"
+import GetToKnowYouPrompt from "@/components/GetToKnowYouPrompt"
 import AnalyticsListener from "@/components/AnalyticsListener"
 import { watchAuth } from '@/api/firebase'
 import { enableWtnFirebaseAnalytics } from '@/utils/androidWebView'
@@ -11,6 +13,7 @@ import { identifyAnalyticsUser, initAnalytics } from '@/utils/analytics'
 import { trackDonationReturnAndMaybeReview, triggerInAppReview } from '@/utils/inAppReview'
 import {
   initOneSignal,
+  autoEnablePushNotifications,
   promptPushNotification,
   resetPushPromptDismissal,
   syncOneSignalUser,
@@ -57,6 +60,9 @@ function App() {
       });
     });
 
+    // Request notification permission and subscribe automatically — no in-app prompt.
+    autoEnablePushNotifications();
+
     return () => {
       window.removeEventListener('focus', handleAppReturn);
       document.removeEventListener('visibilitychange', handleAppReturn);
@@ -70,8 +76,10 @@ function App() {
       <Pages />
       <AnalyticsListener />
       <Toaster />
+      <SonnerToaster position="bottom-right" richColors closeButton />
       <PlatformLinksMenu />
       <StayUpdatedPrompt />
+      <GetToKnowYouPrompt />
     </>
   )
 }

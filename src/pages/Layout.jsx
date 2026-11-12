@@ -1,14 +1,16 @@
 
 
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
   HIFZ_ASSISTANT_URL,
-  ISLAM_MEDIA_CENTRAL_PODCAST_URL,
+  LIVE_QURAN_URL,
   ISLAM_MEDIA_CENTRAL_SPOTIFY_URL,
+  ISLAM_MEDIA_CENTRAL_YOUTUBE_URL,
 } from "@/constants/externalLinks";
-import { Home, Gamepad2, BookOpen, Music, GraduationCap, Users, Info, Book, Trophy, ChevronDown, Menu, X, LogOut, User, LogIn, UserPlus, Settings, Play, Pause, Volume2, VolumeX, Radio, Mail, Star, Sparkles, BarChart2, Layers, Shield, Bell, Target, MessageCircle, BellRing, CheckCheck, Clock, ExternalLink, ArrowRight, Flame, Podcast, Music2 } from "lucide-react";
+import { Home, Gamepad2, BookOpen, Music, GraduationCap, Users, Info, Book, Trophy, ChevronDown, Menu, X, LogOut, User, LogIn, UserPlus, Settings, Settings2, Play, Pause, Volume2, VolumeX, Radio, Mail, Star, Sparkles, BarChart2, Layers, Shield, Bell, Target, MessageCircle, BellRing, CheckCheck, Clock, ExternalLink, ArrowRight, Flame, Heart } from "lucide-react";
 import React, { useState, useEffect, useRef, createContext, useContext } from "react";
+import { FaSpotify, FaYoutube } from "react-icons/fa";
 import { motion } from "framer-motion";
 import {
   DropdownMenu,
@@ -35,11 +37,15 @@ import { watchAuth, getUserProfile, getFirebase } from "@/api/firebase";
 import { trackRadioListeningAndMaybeReview } from "@/utils/inAppReview";
 import { isAndroidWebView, openExternalUrl } from "@/utils/androidWebView";
 import GlobalNoticeBell from "@/components/GlobalNoticeBell.jsx";
+import MarqueeBanner from "@/components/MarqueeBanner.jsx";
+import LatestUpdatesStrip from "@/components/LatestUpdatesStrip.jsx";
+import HeaderSponsors from "@/components/HeaderSponsors.jsx";
+import VisitorCount from "@/components/VisitorCount.jsx";
 // Base44 auth removed from public UI; email-only access in place
 
 const podcastLinks = [
-  { label: "Podcast App", href: ISLAM_MEDIA_CENTRAL_PODCAST_URL, icon: Podcast },
-  { label: "Spotify", href: ISLAM_MEDIA_CENTRAL_SPOTIFY_URL, icon: Music2 },
+  { label: "Spotify Podcast", href: ISLAM_MEDIA_CENTRAL_SPOTIFY_URL, icon: FaSpotify },
+  { label: "YouTube Channel", href: ISLAM_MEDIA_CENTRAL_YOUTUBE_URL, icon: FaYoutube },
 ];
 
 function PodcastLinks({ className = "", compact = false }) {
@@ -98,6 +104,9 @@ export const useRadio = () => {
 };
 
 export default function Layout({ children, currentPageName }) {
+  const location = useLocation();
+  const headerRef = useRef(null);
+  const desktopNavRef = useRef(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -177,6 +186,29 @@ export default function Layout({ children, currentPageName }) {
 
   const bgClass = `min-h-screen bg-gradient-to-br ${siteSettings.backgroundGradient}`;
   const headerClass = "sticky top-0 z-50 bg-gradient-to-r from-[#0f2a5f] via-[#123b7a] to-[#0b2454] text-white shadow-lg";
+
+  /**
+   * How much of the top of the viewport the sticky header (plus the desktop nav)
+   * covers. Pages that pin their own bar underneath read it as --imc-topbar-h,
+   * so nothing has to guess the header height.
+   */
+  useEffect(() => {
+    const header = headerRef.current;
+    const nav = desktopNavRef.current;
+    if (!header || typeof ResizeObserver === "undefined") return undefined;
+
+    const apply = () => {
+      const height = header.getBoundingClientRect().height + (nav?.getBoundingClientRect().height || 0);
+      document.documentElement.style.setProperty("--imc-topbar-h", `${Math.round(height)}px`);
+    };
+
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(header);
+    if (nav) observer.observe(nav);
+    return () => observer.disconnect();
+  }, []);
+
   const supportEmail = siteSettings.supportEmail || "imedia786@gmail.com";
   const radioSrc =
     siteSettings.radioUrl ||
@@ -516,7 +548,22 @@ export default function Layout({ children, currentPageName }) {
     }
   };
 
+  /**
+   * Tabs that carry a fragment (Juz & Durood lands on the tracker) need the
+   * scroll doing by hand — React Router does not scroll fragments. Depending on
+   * the whole location, not just the hash, means a second tap works too.
+   */
+  useEffect(() => {
+    if (!location.hash) return;
+    const target = document.getElementById(location.hash.slice(1));
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [location]);
+
   const baseNavItems = [
+    // The fragment is what makes the home page scroll straight to the tracker,
+    // so the tab works from any page in the app.
+    { name: "Juz & Durood", icon: Heart, path: "Home#juz-durood-tracker" },
+    { name: "What's New", icon: Sparkles, path: "Features" },
     { name: "Kids Home", icon: Home, path: "Home" },
     { name: "IMC Assistant", icon: MessageCircle, path: "IMCAssistant" },
     { name: "Kids Zone", icon: Star, path: "KidsZone" },
@@ -537,6 +584,7 @@ export default function Layout({ children, currentPageName }) {
       icon: BookOpen,
       dropdown: [
         { name: "Quran Hifz Assistant", external: true, url: HIFZ_ASSISTANT_URL, icon: Sparkles },
+        { name: "Listen to Quran", external: true, url: LIVE_QURAN_URL, icon: Radio },
         { name: "Learn Quran", path: "Quran", icon: BookOpen },
         { name: "Full Quran", path: "FullQuran", icon: Book },
         { name: "Quran Dictionary", path: "QuranDictionary", icon: BookOpen },
@@ -571,19 +619,24 @@ export default function Layout({ children, currentPageName }) {
   const [menuQuery, setMenuQuery] = useState("");
   const normalizedQuery = menuQuery.trim().toLowerCase();
   const kidsNames = ["Kids Home", "Kids Zone"];
+  const featuredLinks = navItemsWithPrivacy.filter((i) => i.name === "What's New");
   const quranItem = navItemsWithPrivacy.find((i) => i.name === "Quran");
   const learnItem = navItemsWithPrivacy.find((i) => i.name === "Learn");
   const allItems = navItemsWithPrivacy.filter((i) => !i.dropdown && i.name !== "Quran" && i.name !== "Learn");
   const kidsLinks = allItems.filter((i) => kidsNames.includes(i.name));
-  const moreLinks = allItems.filter((i) => !kidsNames.includes(i.name));
+  const moreLinks = allItems.filter(
+    (i) => !kidsNames.includes(i.name) && i.name !== "What's New"
+  );
 
   const groups = [
+    { title: "Featured", entries: featuredLinks },
     { title: "Kids", entries: kidsLinks },
     { title: "Quran", entries: quranItem?.dropdown || [] },
     { title: "Learn", entries: learnItem?.dropdown || [] },
     { title: "More", entries: moreLinks },
   ];
   const flatEntries = [
+    ...featuredLinks,
     ...kidsLinks,
     ...((quranItem?.dropdown || []).map((e) => ({ ...e, _isSub: true }))),
     ...((learnItem?.dropdown || []).map((e) => ({ ...e, _isSub: true }))),
@@ -626,6 +679,12 @@ export default function Layout({ children, currentPageName }) {
   return (
     <RadioContext.Provider value={radioContextValue}>
       <div className={bgClass}>
+        {/* Latest updates — events + notices, visible on every page */}
+        <LatestUpdatesStrip />
+
+        {/* Animated top banner (messages managed in Admin → Marquee Banner) */}
+        <MarqueeBanner />
+
         {/* Hidden Audio Element — always attach whenever a stream URL exists */}
         {radioSrc ? (
           <audio
@@ -636,17 +695,21 @@ export default function Layout({ children, currentPageName }) {
         ) : null}
 
         {/* Header */}
-        <header className={headerClass}>
+        <header ref={headerRef} className={headerClass}>
           <div className="mx-auto max-w-7xl px-3 pb-2 pt-3 safe-pt md:px-6 md:pb-4 md:pt-5">
             <div className="flex items-center justify-between gap-2">
-              <Link
-                to={createPageUrl("Home")}
-                aria-label={siteSettings.siteTitle || "Islam Media Central"}
-                title={siteSettings.siteTitle || "Islam Media Central"}
-                className="flex shrink-0 items-center transition-opacity hover:opacity-90"
-              >
-                <div className="shrink-0 text-2xl md:text-4xl">{siteSettings.logoEmoji}</div>
-              </Link>
+              <div className="flex min-w-0 items-center gap-2">
+                <Link
+                  to={createPageUrl("Home")}
+                  aria-label={siteSettings.siteTitle || "Islam Media Central"}
+                  title={siteSettings.siteTitle || "Islam Media Central"}
+                  className="flex shrink-0 items-center transition-opacity hover:opacity-90"
+                >
+                  <div className="shrink-0 text-2xl md:text-4xl">{siteSettings.logoEmoji}</div>
+                </Link>
+
+                <VisitorCount />
+              </div>
 
               <div className="hidden md:flex items-center gap-2">
                 <PodcastLinks className="flex items-center gap-2" />
@@ -695,6 +758,14 @@ export default function Layout({ children, currentPageName }) {
                   </>
                 )}
                 <GlobalNoticeBell />
+                <Link
+                  to={createPageUrl("ReminderSettings")}
+                  aria-label="Notification settings"
+                  title="Notification settings"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition hover:bg-white/15 hover:text-white"
+                >
+                  <Settings2 className="w-5 h-5" />
+                </Link>
               </div>
 
               {/* Mobile auth is shown inside the drawer above menu; header kept minimal */}
@@ -720,6 +791,14 @@ export default function Layout({ children, currentPageName }) {
                       </button>
                     )}
                     <GlobalNoticeBell compact />
+                    <Link
+                      to={createPageUrl("ReminderSettings")}
+                      aria-label="Notification settings"
+                      title="Notification settings"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition hover:bg-white/15 hover:text-white"
+                    >
+                      <Settings2 className="w-5 h-5" />
+                    </Link>
                     <Link to={createPageUrl("Home")} aria-label="Home" title="Home" className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition hover:bg-white/15 hover:text-white md:hidden">
                       <Home className="w-4 h-4" />
                     </Link>
@@ -739,11 +818,17 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </header>
 
+        {/* Featured sponsors — managed in Admin → Sponsors, shown on every page */}
+        <HeaderSponsors />
+
         {/* Mobile Home pill (quick return to Home) */}
 
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:block bg-white shadow-md sticky top-[calc(env(safe-area-inset-top)+100px)] z-40">
+        <nav
+          ref={desktopNavRef}
+          className="hidden md:block bg-white shadow-md sticky top-[calc(env(safe-area-inset-top)+100px)] z-40"
+        >
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex overflow-x-auto scrollbar-hide gap-1 py-2">
               {navItems.map((item) => {

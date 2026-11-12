@@ -19,6 +19,7 @@ import {
   GraduationCap, // Added new icon
   MessageSquare, // Added new icon
   Megaphone,
+  CalendarDays,
   Bell,
   BellRing,
   Gamepad2, // Added new icon
@@ -135,8 +136,8 @@ export default function AdminDashboard() {
       stats: "Configure placements"
     },
     {
-      title: "Live Session Registrations",
-      description: "View names, ages, WhatsApp numbers, cities, and broadcast opt-ins",
+      title: "App Users",
+      description: "Get-to-know-you form responses — full name, age, city and how users heard about the app",
       icon: HandHeart,
       path: "AdminWelcomeSubmissions",
       color: "from-emerald-500 to-teal-600",
@@ -149,6 +150,30 @@ export default function AdminDashboard() {
       path: "AdminNotices",
       color: "from-indigo-500 to-violet-600",
       stats: "Add / pause / edit"
+    },
+    {
+      title: "Marquee Banner",
+      description: "Animated scrolling messages shown at the very top of every page",
+      icon: Megaphone,
+      path: "AdminMarquee",
+      color: "from-blue-600 to-indigo-600",
+      stats: "Top ticker"
+    },
+    {
+      title: "Events",
+      description: "Upcoming events shown in the Latest updates strip and on the public Updates page",
+      icon: CalendarDays,
+      path: "AdminEvents",
+      color: "from-amber-500 to-orange-500",
+      stats: "Upcoming list"
+    },
+    {
+      title: "Survey & Prize Draw",
+      description: "Public survey with admin-managed prizes, entries, results and random winner draw",
+      icon: HandHeart,
+      path: "AdminSurvey",
+      color: "from-violet-600 to-fuchsia-600",
+      stats: "Prizes / entries"
     },
     {
       title: "Central Global Notices",

@@ -50,6 +50,8 @@ public class MainActivity extends AppCompatActivity {
         webView.addJavascriptInterface(new ReviewJsBridge(this, inAppReviewManager), "AndroidReview");
         notificationsJsBridge = new NotificationsJsBridge(this);
         webView.addJavascriptInterface(notificationsJsBridge, "AndroidNotifications");
+        // On-device reminder notifications — no push subscription required.
+        webView.addJavascriptInterface(new ReminderAlarmBridge(this), "AndroidReminders");
     }
 
     private void restoreWebView() {
@@ -107,6 +109,9 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setAllowContentAccess(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
         webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+        // Required so `target="_blank"` links (social media etc.) reach
+        // onCreateWindow, where they are handed to the external browser.
+        webSettings.setSupportMultipleWindows(true);
         webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -119,8 +124,10 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, android.os.Message resultMsg) {
-                // Avoid WebView crashes from target="_blank" popups.
-                return false;
+                // `target="_blank"` / window.open links (social media, external
+                // sites) must leave the app — the WebView itself is never used,
+                // which also avoids the popup crashes this previously guarded against.
+                return openNewWindowExternally(view);
             }
         });
         webView.setWebViewClient(new WebViewClient() {
@@ -131,13 +138,7 @@ public class MainActivity extends AppCompatActivity {
                     if (isAppUrl(url)) {
                         return false;
                     }
-                    if (url.startsWith("http://") || url.startsWith("https://")) {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                        startActivity(intent);
-                        return true;
-                    }
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                    startActivity(intent);
+                    openExternally(url);
                     return true;
                 } catch (Exception ignored) {
                     return false;
@@ -154,6 +155,35 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
+    }
+
+    /**
+     * Sends a `target="_blank"` / window.open request to the external browser
+     * instead of loading it inside the app. Without this, social media links are
+     * silently swallowed by the WebView.
+     */
+    private boolean openNewWindowExternally(WebView view) {
+        try {
+            WebView.HitTestResult result = view.getHitTestResult();
+            String url = result != null ? result.getExtra() : null;
+            if (url != null && (url.startsWith("http://") || url.startsWith("https://"))) {
+                openExternally(url);
+                return true;
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
+    }
+
+    /** Hands a URL to the device's browser rather than the WebView. */
+    private void openExternally(String url) {
+        if (url == null || url.isEmpty()) return;
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Exception ignored) {
+        }
     }
 
     private boolean isAppUrl(String url) {

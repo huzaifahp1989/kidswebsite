@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Trophy, BookOpen, Palette, Sparkles, GraduationCap, Video, Radio, Target, Gamepad2, Star, Shield, Gift, Bell, Moon, Heart, Book, Megaphone, Mic, Play, Lightbulb } from "lucide-react";
+import { Trophy, BookOpen, Palette, Sparkles, GraduationCap, Video, Radio, Target, Gamepad2, Star, Shield, Gift, Bell, Moon, Heart, Book, Megaphone, Mic, Play, Lightbulb, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { LIVE_QURAN_URL } from "@/constants/externalLinks";
 import { watchAuth, getUserProfile } from "@/api/firebase";
 import Stories from "./Stories";
 import CreativeCorner from "./CreativeCorner";
@@ -86,6 +87,22 @@ export default function KidsZone() {
           </div>
         </CardContent>
       </Card>
+
+      <a
+        href={LIVE_QURAN_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mb-6 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-violet-700 to-purple-600 p-4 sm:p-5 text-white shadow-lg transition hover:shadow-xl"
+      >
+        <Radio className="h-7 w-7 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="text-base sm:text-lg font-bold">Join Live Quran</div>
+          <div className="text-xs sm:text-sm text-white/85">
+            Join live sessions and earn points and rewards.
+          </div>
+        </div>
+        <ExternalLink className="h-5 w-5 shrink-0" />
+      </a>
 
       <div className="mb-6">
         <Link to={createPageUrl("Competition")} className="block rounded-2xl border-2 border-white/30 bg-gradient-to-r from-blue-600 to-purple-600 p-4 sm:p-5 text-white shadow hover:shadow-lg transition">

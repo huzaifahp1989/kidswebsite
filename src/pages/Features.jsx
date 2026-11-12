@@ -69,8 +69,20 @@ const featureGroups = [
 
 const monthlyUpdates = [
   {
-    month: "August 2026",
+    month: "October 2026",
     label: "Latest",
+    items: [
+      {
+        icon: Trophy,
+        title: "Points and prizes for everyone",
+        text: "Children and adults can gain points and win prizes. Sign up today to get started.",
+        href: createPageUrl("Signup"),
+        linkLabel: "Sign up today",
+      },
+    ],
+  },
+  {
+    month: "August 2026",
     items: [
       { icon: Sparkles, title: "Full feature guide", text: "A single place to discover every learning, Quran, media, and community tool." },
       { icon: Users, title: "Stay updated", text: "Quick access to newsletter, WhatsApp, and Telegram updates." },
@@ -178,6 +190,15 @@ export default function Features() {
                         <Icon className="h-5 w-5 text-[#147d68]" />
                         <h4 className="mt-3 font-bold text-[#162a46]">{item.title}</h4>
                         <p className="mt-2 text-sm leading-6 text-slate-600">{item.text}</p>
+                        {item.href && (
+                          <Link
+                            to={item.href}
+                            className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[#1d4ed8] hover:text-[#162a46]"
+                          >
+                            {item.linkLabel || "Learn more"}
+                            <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        )}
                       </article>
                     );
                   })}

@@ -2,7 +2,7 @@
  * App data + auth API (Supabase-backed).
  * Filename kept for existing imports across the codebase.
  */
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, getStoredAuthSession } from '../lib/supabase';
 
 const ANNOUNCEMENTS_LOCAL_KEY = 'homepage_announcements';
 
@@ -302,6 +302,39 @@ export const sponsorsApi = {
   },
 };
 
+function mapFundraisingRow(row) {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    blurb: row.blurb ?? '',
+    // A missing figure stays null so the UI can show an em dash instead of 0.
+    targetAmount: row.target_amount == null ? null : Number(row.target_amount),
+    raisedAmount: row.raised_amount == null ? null : Number(row.raised_amount),
+    currency: row.currency || 'GBP',
+    linkUrl: row.link_url ?? '',
+    active: row.active ?? true,
+    order: row.sort_order ?? 0,
+  };
+}
+
+/**
+ * Read-only view of the live fundraising campaigns behind the appeal banner.
+ * The totals are maintained in the database by the charity, never in the app.
+ */
+export const fundraisingApi = {
+  async active() {
+    if (!isSupabaseConfigured()) return [];
+    const { data, error } = await supabase
+      .from('fundraising_campaigns')
+      .select('*')
+      .eq('active', true)
+      .order('sort_order', { ascending: true });
+    if (error) throw error;
+    return (data || []).map(mapFundraisingRow);
+  },
+};
+
 function mapAnnouncementRow(row) {
   const imageUrls = Array.isArray(row.image_urls) && row.image_urls.length
     ? row.image_urls.filter(Boolean)
@@ -483,11 +516,42 @@ export async function uploadSponsorImage(file, label = 'sponsor') {
   return upload(file, label);
 }
 
+function emailMatchesAdmin(email) {
+  const adminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
+  if (!adminEmail) return true;
+  return String(email || '').toLowerCase() === adminEmail;
+}
+
+/**
+ * Synchronous admin check, read from the persisted session. No lock, no network,
+ * so it can never hang behind another tab's auth lock.
+ */
+export function hasAdminSession() {
+  if (!supabase) return false;
+  const session = getStoredAuthSession();
+  return Boolean(session?.user) && emailMatchesAdmin(session.user.email);
+}
+
 export async function isAdminUser() {
   if (!supabase) return false;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
-  const adminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || '').toLowerCase();
-  const email = String(user.email || '').toLowerCase();
-  return adminEmail ? email === adminEmail : true;
+  const session = getStoredAuthSession();
+  if (session?.user) return emailMatchesAdmin(session.user.email);
+
+  // Nothing persisted. Ask the SDK once, but never let the shared auth lock hang
+  // the caller — a timeout resolves the race as "not an admin".
+  let timerId;
+  try {
+    const { data } = await Promise.race([
+      supabase.auth.getUser(),
+      new Promise((resolve) => {
+        timerId = window.setTimeout(() => resolve({ data: { user: null } }), 5000);
+      }),
+    ]);
+    return Boolean(data?.user) && emailMatchesAdmin(data.user.email);
+  } catch (error) {
+    console.error('isAdminUser: auth check failed', error);
+    return false;
+  } finally {
+    if (timerId) window.clearTimeout(timerId);
+  }
 }

@@ -1,10 +1,12 @@
 export const HIFZ_ASSISTANT_URL = "https://traespeechhelpbe6b.vercel.app/quran";
 
-export const ISLAM_MEDIA_CENTRAL_PODCAST_URL =
-  "https://podcast.app/islam-media-central-p1322832";
+export const LIVE_QURAN_URL = "https://traespeechhelpbe6b.vercel.app/quran/listen";
 
 export const ISLAM_MEDIA_CENTRAL_SPOTIFY_URL =
   "https://open.spotify.com/show/3bj3wSqEcPhXkfHDMFxJvO";
+
+export const ISLAM_MEDIA_CENTRAL_YOUTUBE_URL =
+  "https://www.youtube.com/@IslamMediaCentral";
 
 /** In-app Kids Zone route (games, quizzes, stories). */
 export const KIDS_ZONE_PATH = "/kidszone";
@@ -31,15 +33,15 @@ export const TELEGRAM_CHANNEL_URL =
 
 export const FACEBOOK_URL =
   import.meta.env.VITE_FACEBOOK_URL ||
-  "https://www.facebook.com/search/top?q=Islam%20Media%20Central";
+  "https://www.facebook.com/IslamMediaCentral";
 
 export const INSTAGRAM_URL =
   import.meta.env.VITE_INSTAGRAM_URL ||
-  "https://www.instagram.com/explore/search/keyword/?q=islam%20media%20central";
+  "https://www.instagram.com/imediac786";
 
 export const TIKTOK_URL =
   import.meta.env.VITE_TIKTOK_URL ||
-  "https://www.tiktok.com/search?q=Islam%20Media%20Central";
+  "https://www.tiktok.com/@imediac";
 
 export const NEWSLETTER_URL =
   import.meta.env.VITE_NEWSLETTER_URL || "https://mailchi.mp/3a9b946d45cb/imedia";

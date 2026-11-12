@@ -24,6 +24,10 @@ export function requestInAppReview(reason = "unknown") {
       window.AndroidReview.requestReview();
       return true;
     }
+    if (window.WTN?.isNativeApp && typeof window.WTN.appReview?.prompt === "function") {
+      window.WTN.appReview.prompt();
+      return true;
+    }
   } catch (error) {
     console.warn("[InAppReview] Native request failed; continuing normally.", error);
   }
