@@ -141,9 +141,13 @@ export async function handleRadioScheduleRequest(req, res) {
       if (!checkAdminAuth(req)) { json(res, 401, { error: 'Unauthorized' }); return; }
 
       if (req.method === 'GET') {
+        // The columns are listed rather than taken as '*' so that a database
+        // missing supabase/add-radio-schedule-daily-posters.sql is reported as a
+        // setup problem straight away, instead of silently loading rows without
+        // the poster and daily-repeat fields.
         const { data, error } = await supabaseAdmin
           .from('radio_schedule')
-          .select('*')
+          .select('id,title,presenter,description,poster_url,coming_soon,repeat_daily,starts_at,ends_at,start_time,end_time,active,sort_order,created_at,updated_at')
           .order('sort_order', { ascending: true })
           .order('starts_at', { ascending: true })
           .limit(ADMIN_LIMIT);
