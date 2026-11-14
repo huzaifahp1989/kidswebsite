@@ -1,21 +1,19 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Shield, Lock, CheckCircle2, AlertTriangle } from "lucide-react";
-import { adminSignIn, adminSignOut, watchAuth, isAdminUser, hasAdminSession, getFirebase, resetPassword } from "@/api/firebase";
+import { adminSignIn, adminSignOut, isAdminUser, hasAdminSession, getFirebase, resetPassword } from "@/api/firebase";
 import { createPageUrl } from "@/utils";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const redirected = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [configured, setConfigured] = useState(false);
   const envFlags = {
     supabaseUrl: Boolean(import.meta.env.VITE_SUPABASE_URL),
     supabaseKey: Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY),
@@ -31,26 +29,14 @@ export default function AdminLogin() {
     return `${s.slice(0, start)}…${s.slice(-end)}`;
   };
 
-  useEffect(() => {
-    const { app } = getFirebase();
-    setConfigured(Boolean(app));
-    const unsub = watchAuth(async (user) => {
-      // Redirect at most once per visit. `watchAuth` fires on every auth event, and
-      // re-navigating on each one used to fight with AdminGuard's own redirect — the
-      // two pages kept handing the visitor back and forth.
-      if (!user || redirected.current) return;
-      // Use exactly the test AdminGuard uses. `hasAdminSession()` reads the persisted
-      // session without touching the browser-wide auth lock, so it answers
-      // immediately; `isAdminUser()` is only the fallback and gives up after five
-      // seconds. When the two pages ran different checks they disagreed, and a
-      // signed-in visitor was bounced straight back here.
-      const ok = hasAdminSession() || (await isAdminUser());
-      if (!ok || redirected.current) return;
-      redirected.current = true;
-      navigate(createPageUrl("AdminDashboard"));
-    });
-    return () => unsub && unsub();
-  }, [navigate]);
+  // This page deliberately never navigates on its own. It used to watch the auth
+  // state and jump to /AdminDashboard as soon as any session was found in
+  // storage. In the app that fired a second or two after the page opened — while
+  // the email was being typed — so the sign-in form kept vanishing before it
+  // could be filled in (and the guard could hand the visitor straight back,
+  // which looked like the page reloading in a loop). The form now always stays
+  // put; a signed-in admin is routed to the dashboard from `handleLogin` below.
+  const configured = Boolean(getFirebase().app);
 
   const handleLogin = async (e) => {
     e.preventDefault();
