@@ -19,8 +19,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   </React.StrictMode>
 );
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
-}
+// The root service worker is registered by OneSignal (see utils/oneSignal.js,
+// scope "/"). Registering a second worker at that same scope here made OneSignal
+// re-register its own worker and reload the page, which showed up as the site
+// (and the admin login) refreshing in a loop.

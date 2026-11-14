@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Mail, Megaphone, MessageCircle, Send, Star, X } from "lucide-react";
 import { FaFacebookF, FaInstagram, FaTiktok } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
@@ -28,9 +29,17 @@ function openChannelLink(url) {
 }
 
 export default function StayUpdatedPrompt() {
+  const location = useLocation();
   const [visible, setVisible] = useState(false);
 
+  // Never cover the admin area. This modal has a full-screen backdrop, and on
+  // /AdminLogin it landed on top of the sign-in form so the email and password
+  // fields could not be typed into.
+  const isAdminRoute = location.pathname.toLowerCase().startsWith("/admin");
+
   useEffect(() => {
+    if (isAdminRoute) return undefined;
+
     let cancelled = false;
     const timer = window.setTimeout(() => {
       const dismissedAt = parseInt(localStorage.getItem(DISMISS_KEY) || "0", 10);
@@ -42,7 +51,7 @@ export default function StayUpdatedPrompt() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [isAdminRoute]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -61,7 +70,7 @@ export default function StayUpdatedPrompt() {
     setVisible(false);
   };
 
-  if (!visible) return null;
+  if (!visible || isAdminRoute) return null;
 
   return (
     <div

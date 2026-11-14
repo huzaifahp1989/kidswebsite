@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Shield, Lock, CheckCircle2, AlertTriangle } from "lucide-react";
-import { adminSignIn, adminSignOut, watchAuth, isAdminUser, getFirebase, resetPassword } from "@/api/firebase";
+import { adminSignIn, adminSignOut, watchAuth, isAdminUser, hasAdminSession, getFirebase, resetPassword } from "@/api/firebase";
 import { createPageUrl } from "@/utils";
 
 export default function AdminLogin() {
@@ -39,17 +39,15 @@ export default function AdminLogin() {
       // re-navigating on each one used to fight with AdminGuard's own redirect — the
       // two pages kept handing the visitor back and forth.
       if (!user || redirected.current) return;
-      try {
-        const ok = await isAdminUser();
-        if (ok && !redirected.current) {
-          redirected.current = true;
-          navigate(createPageUrl("AdminDashboard"));
-        }
-      } catch (err) {
-        // `isAdminUser` can reject on a failed request; stay on the form so the
-        // visitor sees the error instead of being bounced around.
-        console.error("AdminLogin: admin check failed", err);
-      }
+      // Use exactly the test AdminGuard uses. `hasAdminSession()` reads the persisted
+      // session without touching the browser-wide auth lock, so it answers
+      // immediately; `isAdminUser()` is only the fallback and gives up after five
+      // seconds. When the two pages ran different checks they disagreed, and a
+      // signed-in visitor was bounced straight back here.
+      const ok = hasAdminSession() || (await isAdminUser());
+      if (!ok || redirected.current) return;
+      redirected.current = true;
+      navigate(createPageUrl("AdminDashboard"));
     });
     return () => unsub && unsub();
   }, [navigate]);
@@ -62,21 +60,24 @@ export default function AdminLogin() {
       if (!configured) throw new Error("Supabase is not configured");
       await adminSignIn(email, password);
       // Removed optional static 2FA code gate; sign-in proceeds with email/password only
-      const ok = await isAdminUser();
+      // The sign-in has just written the session to storage, so the lock-free check
+      // answers instantly. Only fall back to the async check — and only sign the
+      // visitor out for a definitive "no", never for a timed-out lookup.
+      const ok = hasAdminSession() || (await isAdminUser());
       if (!ok) {
         await adminSignOut();
         throw new Error("Access restricted to admin only");
       }
       navigate(createPageUrl("AdminDashboard"));
     } catch (err) {
-      // Map common Firebase auth errors to friendly messages
+      // Map common Supabase auth errors to friendly messages
       const code = err?.code || "";
       let msg = err?.message || "Login failed";
-      if (code === "auth/invalid-credential") msg = "Invalid email or password. Please try again or reset your password.";
-      if (code === "auth/user-not-found") msg = "No account found for this email. Please sign up or ask an admin to create one.";
-      if (code === "auth/wrong-password") msg = "Incorrect password. Try again or reset your password.";
-      if (code === "auth/too-many-requests") msg = "Too many attempts. Please wait a minute, then try again.";
-      if (code === "auth/operation-not-allowed") msg = "Email/password sign-in is disabled. Enable it in Supabase Auth.";
+      if (code === "invalid_credentials") msg = "Invalid email or password. Please try again or reset your password.";
+      if (code === "email_not_confirmed") msg = "Please confirm your email address before signing in.";
+      if (code === "user_not_found") msg = "No account found for this email. Ask an admin to create one.";
+      if (code === "over_request_rate_limit" || code === "over_email_send_rate_limit") msg = "Too many attempts. Please wait a minute, then try again.";
+      if (code === "email_provider_disabled") msg = "Email/password sign-in is disabled. Enable it in Supabase Auth.";
       setError(msg);
     } finally {
       setLoading(false);
