@@ -102,6 +102,39 @@ export const useRadio = () => {
   return context;
 };
 
+/**
+ * Declared at module scope on purpose. This used to be declared inside the
+ * `Layout` component body, so every `Layout` render produced a brand new class.
+ * React compares element types by identity, so a new class each render made it
+ * unmount and remount the whole page subtree — and `Layout` re-renders every
+ * 10 seconds (the notices poll). Every page therefore rebuilt itself on a 10
+ * second timer: scroll position, in-progress form input and all page state were
+ * thrown away, which read as the page "refreshing" on its own.
+ */
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch() {}
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-gray-900">Something went wrong</div>
+            <div className="text-sm text-gray-600">Please refresh the page</div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const headerRef = useRef(null);
@@ -652,30 +685,6 @@ export default function Layout({ children, currentPageName }) {
     toggleMute,
     setVolume: handleVolumeChange
   };
-
-  class ErrorBoundary extends React.Component {
-    constructor(props) {
-      super(props);
-      this.state = { hasError: false };
-    }
-    static getDerivedStateFromError() {
-      return { hasError: true };
-    }
-    componentDidCatch() {}
-    render() {
-      if (this.state.hasError) {
-        return (
-          <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">Something went wrong</div>
-              <div className="text-sm text-gray-600">Please refresh the page</div>
-            </div>
-          </div>
-        );
-      }
-      return this.props.children;
-    }
-  }
 
   return (
     <RadioContext.Provider value={radioContextValue}>
