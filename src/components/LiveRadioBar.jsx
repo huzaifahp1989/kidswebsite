@@ -83,7 +83,8 @@ export default function LiveRadioBar() {
             </span>
             <Radio className="h-4 w-4 shrink-0" />
             <p className="truncate text-[13px] font-bold leading-tight">
-              Listen to Live Radio
+              <span className="sm:hidden">Live Radio</span>
+              <span className="hidden sm:inline">Listen to Live Radio</span>
             </p>
 
             {typeof listeners === "number" ? (
@@ -106,10 +107,12 @@ export default function LiveRadioBar() {
               type="button"
               onClick={() => setScheduleOpen(true)}
               aria-haspopup="dialog"
+              aria-label="Show the live radio schedule"
+              title="Schedule"
               className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/40 bg-white/10 px-2.5 py-1.5 text-xs font-bold text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
-              <CalendarDays className="h-3 w-3" />
-              Schedule
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Schedule</span>
             </button>
 
             <button

@@ -40,7 +40,6 @@ import GlobalNoticeBell from "@/components/GlobalNoticeBell.jsx";
 import MarqueeBanner from "@/components/MarqueeBanner.jsx";
 import LatestUpdatesStrip from "@/components/LatestUpdatesStrip.jsx";
 import HeaderSponsors from "@/components/HeaderSponsors.jsx";
-import VisitorCount from "@/components/VisitorCount.jsx";
 // Base44 auth removed from public UI; email-only access in place
 
 const podcastLinks = [
@@ -709,8 +708,6 @@ export default function Layout({ children, currentPageName }) {
                 >
                   <div className="shrink-0 text-2xl md:text-4xl">{siteSettings.logoEmoji}</div>
                 </Link>
-
-                <VisitorCount />
               </div>
 
               <div className="hidden md:flex items-center gap-2">
@@ -801,17 +798,9 @@ export default function Layout({ children, currentPageName }) {
                     >
                       <Settings2 className="w-5 h-5" />
                     </Link>
-                    <Link
-                      to={createPageUrl("AdminDashboard")}
-                      aria-label="Admin"
-                      title="Admin"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition hover:bg-white/15 hover:text-white"
-                    >
-                      <Shield className="w-4 h-4" />
-                    </Link>
-                    <Link to={createPageUrl("Home")} aria-label="Home" title="Home" className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition hover:bg-white/15 hover:text-white md:hidden">
-                      <Home className="w-4 h-4" />
-                    </Link>
+                    {/* Admin lives at the top-right of the mobile menu, and the logo
+                        already links home, so neither is repeated here — the strip
+                        has to fit next to the logo on a narrow phone. */}
                     <Button
                       variant="ghost"
                       size="icon"
