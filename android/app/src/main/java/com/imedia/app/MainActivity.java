@@ -5,6 +5,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.ViewGroup;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebSettings;
@@ -15,10 +16,13 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
     private static final String START_URL = "https://imediackids.com/";
+    private static final int REQUEST_CODE_FILE_CHOOSER = 1001;
 
     private WebView webView;
     private NotificationsJsBridge notificationsJsBridge;
     private InAppReviewManager inAppReviewManager;
+    // The pending `<input type="file">` request, answered in onActivityResult.
+    private ValueCallback<Uri[]> fileChooserCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -129,6 +133,15 @@ public class MainActivity extends AppCompatActivity {
                 // which also avoids the popup crashes this previously guarded against.
                 return openNewWindowExternally(view);
             }
+
+            @Override
+            public boolean onShowFileChooser(
+                WebView view,
+                ValueCallback<Uri[]> callback,
+                FileChooserParams fileChooserParams
+            ) {
+                return openFileChooser(callback, fileChooserParams);
+            }
         });
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -186,6 +199,34 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Opens the Android file/gallery picker for an `<input type="file">`.
+     *
+     * The WebView silently ignores every file input when the chrome client does
+     * not answer this callback, which is why the admin "Browse & upload" button
+     * did nothing inside the app. The chosen file arrives in onActivityResult and
+     * is handed back to the page, which then uploads it as usual.
+     */
+    private boolean openFileChooser(
+        ValueCallback<Uri[]> callback,
+        WebChromeClient.FileChooserParams params
+    ) {
+        if (fileChooserCallback != null) {
+            // A previous picker is still open — release it so the WebView does
+            // not wait forever for an answer that will never come.
+            fileChooserCallback.onReceiveValue(null);
+        }
+        fileChooserCallback = callback;
+        try {
+            Intent intent = params.createIntent();
+            startActivityForResult(intent, REQUEST_CODE_FILE_CHOOSER);
+            return true;
+        } catch (Exception e) {
+            fileChooserCallback = null;
+            return false;
+        }
+    }
+
     private boolean isAppUrl(String url) {
         return url.contains("traeimedia3phmb.vercel.app")
             || url.contains("imediackids.com")
@@ -202,6 +243,20 @@ public class MainActivity extends AppCompatActivity {
         } else {
             super.onBackPressed();
         }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_CODE_FILE_CHOOSER) return;
+        if (fileChooserCallback == null) return;
+
+        Uri[] result = null;
+        if (resultCode == RESULT_OK && data != null) {
+            result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+        }
+        fileChooserCallback.onReceiveValue(result);
+        fileChooserCallback = null;
     }
 
     @Override
