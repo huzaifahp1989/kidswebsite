@@ -3,11 +3,52 @@ import { Radio, Play, Pause, Headphones, CalendarDays, Loader2 } from "lucide-re
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { fetchRadioStats } from "@/lib/radioStats";
-import { formatSlotTime, groupSlotsByDay } from "@/utils/radioSchedule";
+import {
+  formatDailySlotRange,
+  formatDailySlotTime,
+  formatSlotTime,
+  groupSlotsByDay,
+} from "@/utils/radioSchedule";
 import { useRadio } from "@/pages/Layout.jsx";
 
 /** How often the live listener count is refreshed from the stream server. */
 const LISTENER_POLL_MS = 30_000;
+
+/** Module scope: defining this inside the component would remount the list. */
+function ComingSoonBadge() {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-amber-800 ring-1 ring-amber-200">
+      Coming soon
+    </span>
+  );
+}
+
+/** Poster (or nothing) plus the programme name, time and extras. */
+function ScheduleSlot({ title, time, presenter, description, posterUrl, comingSoon }) {
+  return (
+    <div className="flex gap-3">
+      {posterUrl ? (
+        <img
+          src={posterUrl}
+          alt=""
+          loading="lazy"
+          className="h-16 w-16 shrink-0 rounded-lg object-cover ring-1 ring-slate-200"
+        />
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-bold text-slate-900">{title}</p>
+          {comingSoon ? <ComingSoonBadge /> : null}
+        </div>
+        <p className="mt-0.5 text-xs font-semibold text-rose-700">{time}</p>
+        {presenter ? <p className="mt-0.5 text-xs text-slate-600">with {presenter}</p> : null}
+        {description ? (
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{description}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Slim bar at the very top of the Home page that plays the Islam Media Central
@@ -18,6 +59,7 @@ const LISTENER_POLL_MS = 30_000;
 export default function LiveRadioBar() {
   const [listeners, setListeners] = useState(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [daily, setDaily] = useState([]);
   const [slots, setSlots] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState("");
@@ -53,6 +95,7 @@ export default function LiveRadioBar() {
         const json = await res.json().catch(() => ({}));
         if (!active) return;
         if (!res.ok) throw new Error(json?.error || "Could not load the schedule");
+        setDaily(Array.isArray(json.daily) ? json.daily : []);
         setSlots(Array.isArray(json.slots) ? json.slots : []);
       } catch (err) {
         if (active) setScheduleError(err?.message || "Could not load the schedule");
@@ -68,6 +111,8 @@ export default function LiveRadioBar() {
   }, [scheduleOpen]);
 
   const days = groupSlotsByDay(slots);
+  const dailyRange = formatDailySlotRange(daily);
+  const hasSchedule = daily.length > 0 || days.length > 0;
 
   return (
     <>
@@ -135,7 +180,8 @@ export default function LiveRadioBar() {
             Live radio schedule
           </DialogTitle>
           <DialogDescription className="text-sm text-slate-600">
-            Programmes on Islam Media Central. Times show in your own timezone.
+            Our daily line-up runs the same programmes every day. One-off specials are listed by
+            date.
           </DialogDescription>
 
           <div className="max-h-[60vh] overflow-y-auto">
@@ -146,12 +192,39 @@ export default function LiveRadioBar() {
               </p>
             ) : scheduleError ? (
               <p className="py-10 text-center text-sm text-rose-700">{scheduleError}</p>
-            ) : days.length === 0 ? (
+            ) : !hasSchedule ? (
               <p className="py-10 text-center text-sm text-slate-500">
                 No programmes scheduled right now — please check back soon.
               </p>
             ) : (
               <ul className="space-y-4">
+                {daily.length > 0 ? (
+                  <li>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1e3a8a]">
+                        Every day
+                      </p>
+                      {dailyRange ? (
+                        <p className="text-[11px] font-bold text-slate-500">{dailyRange}</p>
+                      ) : null}
+                    </div>
+                    <ul className="mt-1.5 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                      {daily.map((slot) => (
+                        <li key={slot.id} className="px-3 py-2.5">
+                          <ScheduleSlot
+                            title={slot.title}
+                            time={formatDailySlotTime(slot.start_time, slot.end_time)}
+                            presenter={slot.presenter}
+                            description={slot.description}
+                            posterUrl={slot.poster_url}
+                            comingSoon={slot.coming_soon}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ) : null}
+
                 {days.map((day) => (
                   <li key={day.key}>
                     <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1e3a8a]">
@@ -160,20 +233,14 @@ export default function LiveRadioBar() {
                     <ul className="mt-1.5 divide-y divide-slate-100 rounded-xl border border-slate-200">
                       {day.slots.map((slot) => (
                         <li key={slot.id} className="px-3 py-2.5">
-                          <p className="text-sm font-bold text-slate-900">{slot.title}</p>
-                          <p className="mt-0.5 text-xs font-semibold text-rose-700">
-                            {formatSlotTime(slot.starts_at, slot.ends_at)}
-                          </p>
-                          {slot.presenter ? (
-                            <p className="mt-0.5 text-xs text-slate-600">
-                              with {slot.presenter}
-                            </p>
-                          ) : null}
-                          {slot.description ? (
-                            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                              {slot.description}
-                            </p>
-                          ) : null}
+                          <ScheduleSlot
+                            title={slot.title}
+                            time={formatSlotTime(slot.starts_at, slot.ends_at)}
+                            presenter={slot.presenter}
+                            description={slot.description}
+                            posterUrl={slot.poster_url}
+                            comingSoon={slot.coming_soon}
+                          />
                         </li>
                       ))}
                     </ul>

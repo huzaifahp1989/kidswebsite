@@ -2,9 +2,10 @@ import { supabaseAdmin } from '../src/utils/supabase-admin.js';
 import { buildRadioSlotRow, validateRadioSlotInput } from '../src/utils/radioSchedule.js';
 
 const SETUP_NOT_CONFIGURED_MSG =
-  'Radio schedule table is not configured yet. Apply supabase/create-radio-schedule.sql in the Supabase SQL editor.';
+  'Radio schedule table is not configured yet. Apply supabase/create-radio-schedule.sql, then supabase/add-radio-schedule-daily-posters.sql, in the Supabase SQL editor.';
 
 const PUBLIC_SLOT_LIMIT = 40;
+const PUBLIC_DAILY_LIMIT = 40;
 const ADMIN_LIMIT = 200;
 // A programme that started less than this ago is still worth showing, so the
 // pop-up does not go blank the moment a slot begins.
@@ -49,6 +50,19 @@ function isTableMissing(err) {
   );
 }
 
+// poster_url / coming_soon / repeat_daily / start_time / end_time all arrive with
+// supabase/add-radio-schedule-daily-posters.sql. Asking for one before that file
+// has been applied is a "column does not exist" error, which is a setup problem
+// rather than a bug.
+function isMissingNewColumns(err) {
+  const msg = String((err && err.message) || '');
+  return /poster_url|coming_soon|repeat_daily|start_time|end_time/i.test(msg);
+}
+
+function isSetupIncomplete(err) {
+  return isTableMissing(err) || isMissingNewColumns(err);
+}
+
 function checkAdminAuth(request) {
   const header = request.headers['x-admin-auth'];
   return header === 'true';
@@ -81,19 +95,45 @@ export async function handleRadioScheduleRequest(req, res) {
     if (path === '/api/radio-schedule') {
       if (req.method !== 'GET') { json(res, 405, { error: 'Method not allowed' }); return; }
 
-      const cutoff = new Date(Date.now() - IN_PROGRESS_GRACE_MS).toISOString();
-      const { data, error } = await supabaseAdmin
+      // Repeating programmes run at the same time every day, so they are
+      // returned as their own list and never filtered by date.
+      const dailyResult = await supabaseAdmin
         .from('radio_schedule')
-        .select('id,title,presenter,description,starts_at,ends_at')
+        .select('id,title,presenter,description,poster_url,coming_soon,start_time,end_time')
+        .eq('active', true)
+        .eq('repeat_daily', true)
+        .order('start_time', { ascending: true })
+        .limit(PUBLIC_DAILY_LIMIT);
+
+      // If only the daily/poster columns are missing the migration has not been
+      // applied yet. The pop-up keeps working with the dated programmes rather
+      // than going blank, and the admin page asks for the migration.
+      if (dailyResult.error && !isMissingNewColumns(dailyResult.error)) {
+        if (isTableMissing(dailyResult.error)) return setupNotConfiguredError(res);
+        throw dailyResult.error;
+      }
+      const dailySupported = !dailyResult.error;
+
+      const cutoff = new Date(Date.now() - IN_PROGRESS_GRACE_MS).toISOString();
+      let datedQuery = supabaseAdmin
+        .from('radio_schedule')
+        .select(
+          dailySupported
+            ? 'id,title,presenter,description,poster_url,coming_soon,starts_at,ends_at'
+            : 'id,title,presenter,description,starts_at,ends_at'
+        )
         .eq('active', true)
         .gte('starts_at', cutoff)
         .order('starts_at', { ascending: true })
         .limit(PUBLIC_SLOT_LIMIT);
+      if (dailySupported) datedQuery = datedQuery.eq('repeat_daily', false);
+
+      const { data, error } = await datedQuery;
       if (error) {
         if (isTableMissing(error)) return setupNotConfiguredError(res);
         throw error;
       }
-      json(res, 200, { slots: data || [] });
+      json(res, 200, { daily: dailySupported ? dailyResult.data || [] : [], slots: data || [] });
       return;
     }
 
@@ -108,7 +148,7 @@ export async function handleRadioScheduleRequest(req, res) {
           .order('starts_at', { ascending: true })
           .limit(ADMIN_LIMIT);
         if (error) {
-          if (isTableMissing(error)) return setupNotConfiguredError(res);
+          if (isSetupIncomplete(error)) return setupNotConfiguredError(res);
           throw error;
         }
         json(res, 200, { slots: data || [] });
@@ -125,7 +165,7 @@ export async function handleRadioScheduleRequest(req, res) {
           .select()
           .single();
         if (error) {
-          if (isTableMissing(error)) return setupNotConfiguredError(res);
+          if (isSetupIncomplete(error)) return setupNotConfiguredError(res);
           throw error;
         }
         json(res, 200, { slot: data });
@@ -145,7 +185,7 @@ export async function handleRadioScheduleRequest(req, res) {
           .select()
           .single();
         if (error) {
-          if (isTableMissing(error)) return setupNotConfiguredError(res);
+          if (isSetupIncomplete(error)) return setupNotConfiguredError(res);
           throw error;
         }
         json(res, 200, { slot: data });
@@ -161,7 +201,7 @@ export async function handleRadioScheduleRequest(req, res) {
         if (!id) return json(res, 400, { error: 'id is required' });
         const { error } = await supabaseAdmin.from('radio_schedule').delete().eq('id', id);
         if (error) {
-          if (isTableMissing(error)) return setupNotConfiguredError(res);
+          if (isSetupIncomplete(error)) return setupNotConfiguredError(res);
           throw error;
         }
         json(res, 200, { success: true, id });
