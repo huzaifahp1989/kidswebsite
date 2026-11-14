@@ -6,6 +6,7 @@ import { Toaster as SonnerToaster } from "sonner"
 import PlatformLinksMenu from "@/components/PlatformLinksMenu"
 import StayUpdatedPrompt from "@/components/StayUpdatedPrompt"
 import GetToKnowYouPrompt from "@/components/GetToKnowYouPrompt"
+import ImediaConnectPrompt from "@/components/ImediaConnectPrompt"
 import AnalyticsListener from "@/components/AnalyticsListener"
 import { watchAuth } from '@/api/firebase'
 import { enableWtnFirebaseAnalytics } from '@/utils/androidWebView'
@@ -80,6 +81,7 @@ function App() {
       <PlatformLinksMenu />
       <StayUpdatedPrompt />
       <GetToKnowYouPrompt />
+      <ImediaConnectPrompt />
     </>
   )
 }
