@@ -21,6 +21,8 @@
     { "source": "/api/marquee(.*)", "destination": "/api/index.js" },
     { "source": "/api/admin/events(.*)", "destination": "/api/index.js" },
     { "source": "/api/events(.*)", "destination": "/api/index.js" },
+    { "source": "/api/admin/radio-schedule(.*)", "destination": "/api/index.js" },
+    { "source": "/api/radio-schedule(.*)", "destination": "/api/index.js" },
     { "source": "/api/survey(.*)", "destination": "/api/index.js" },
     { "source": "/api/admin/survey(.*)", "destination": "/api/index.js" },
     { "source": "/api/app-users(.*)", "destination": "/api/index.js" },
