@@ -11,6 +11,7 @@ import android.os.Build;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 
 import java.util.Calendar;
 
@@ -28,6 +29,7 @@ public class ReminderAlarmReceiver extends BroadcastReceiver {
     static final String EXTRA_HOUR = "reminder_hour";
     static final String EXTRA_MINUTE = "reminder_minute";
     static final String EXTRA_DAYS = "reminder_days";
+    static final String EXTRA_SOUND = "reminder_sound";
 
     private static final String CHANNEL_ID = "imedia_reminders";
     private static final int TEST_NOTIFICATION_ID = 9701;
@@ -41,25 +43,48 @@ public class ReminderAlarmReceiver extends BroadcastReceiver {
         int hour = intent.getIntExtra(EXTRA_HOUR, -1);
         int minute = intent.getIntExtra(EXTRA_MINUTE, 0);
         String daysCsv = intent.getStringExtra(EXTRA_DAYS);
+        String sound = intent.getStringExtra(EXTRA_SOUND);
 
-        post(context, notificationId(key), title, message);
+        if (sound == null || sound.trim().isEmpty()) {
+            post(context, notificationId(key), title, message);
+        } else {
+            ring(context, notificationId(key), title, message, sound);
+        }
 
         // Re-arm for the next occurrence so daily/weekly reminders repeat.
         if (hour >= 0) {
             try {
-                schedule(context, key, title, message, hour, minute, daysCsv);
+                schedule(context, key, title, message, hour, minute, daysCsv, sound);
             } catch (Exception ignored) {
             }
         }
     }
 
+    /**
+     * Rings the reminder's sound through {@link AudioService}. Falls back to a
+     * plain notification when Android refuses to start a background service
+     * (Android 12+ blocks this unless the alarm is exact).
+     */
+    private static void ring(Context context, int id, String title, String message, String sound) {
+        Intent intent = new Intent(context, AudioService.class);
+        intent.setAction(AudioService.ACTION_START);
+        intent.putExtra(AudioService.EXTRA_TITLE, title);
+        intent.putExtra(AudioService.EXTRA_MESSAGE, message);
+        intent.putExtra(AudioService.EXTRA_SOUND_URL, sound);
+        try {
+            ContextCompat.startForegroundService(context, intent);
+        } catch (Exception e) {
+            post(context, id, title, message);
+        }
+    }
+
     static void schedule(Context context, String key, String title, String message,
-                         int hour, int minute, String daysCsv) {
+                         int hour, int minute, String daysCsv, String sound) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null || key == null || key.isEmpty()) return;
 
         long triggerAt = nextTriggerMillis(hour, minute, parseDays(daysCsv));
-        Intent intent = buildIntent(context, key, title, message, hour, minute, daysCsv);
+        Intent intent = buildIntent(context, key, title, message, hour, minute, daysCsv, sound);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 context,
                 notificationId(key),
@@ -143,7 +168,7 @@ public class ReminderAlarmReceiver extends BroadcastReceiver {
     }
 
     private static Intent buildIntent(Context context, String key, String title, String message,
-                                      int hour, int minute, String daysCsv) {
+                                      int hour, int minute, String daysCsv, String sound) {
         Intent intent = new Intent(context, ReminderAlarmReceiver.class);
         intent.putExtra(EXTRA_KEY, key);
         intent.putExtra(EXTRA_TITLE, title);
@@ -151,6 +176,7 @@ public class ReminderAlarmReceiver extends BroadcastReceiver {
         intent.putExtra(EXTRA_HOUR, hour);
         intent.putExtra(EXTRA_MINUTE, minute);
         intent.putExtra(EXTRA_DAYS, daysCsv);
+        intent.putExtra(EXTRA_SOUND, sound);
         return intent;
     }
 

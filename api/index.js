@@ -4,6 +4,7 @@ import { handleActivityRemindersRequest } from './activity-reminders.js';
 import { handleIslamicRemindersRequest } from './islamic-reminders.js';
 import { handleMarqueeRequest } from './marquee.js';
 import { handleEventsRequest } from './events.js';
+import { handleRadioScheduleRequest } from './radio-schedule.js';
 import { handleSurveyRequest } from './survey.js';
 import { handleAppUsersRequest } from './app-users.js';
 
@@ -73,6 +74,16 @@ export default async function handler(req, res) {
   if (pathname.startsWith('/api/admin/events') || pathname.startsWith('/api/events')) {
     try {
       await handleEventsRequest(req, res);
+      return;
+    } catch (err) {
+      cors(res, 500, { error: err?.message || 'Server error' });
+      return;
+    }
+  }
+
+  if (pathname.startsWith('/api/admin/radio-schedule') || pathname.startsWith('/api/radio-schedule')) {
+    try {
+      await handleRadioScheduleRequest(req, res);
       return;
     } catch (err) {
       cors(res, 500, { error: err?.message || 'Server error' });

@@ -38,8 +38,8 @@ import {
 } from "@/constants/externalLinks";
 import { announcementsApi } from "@/api/firebase";
 import AnnouncementImageSlider from "@/components/AnnouncementImageSlider";
-import CommunityWorshipTabs from "@/components/CommunityWorshipTabs";
-import FundraisingAppealBanner from "@/components/FundraisingAppealBanner";
+import ImediaConnectBanner from "@/components/ImediaConnectBanner";
+import LiveRadioBar from "@/components/LiveRadioBar";
 import PosterSlider from "@/components/PosterSlider";
 import { getAnnouncementImages, isAnnouncementScheduledNow } from "@/utils/announcementImages";
 import { supabase } from "@/lib/supabase";
@@ -645,12 +645,15 @@ export default function Home() {
           </span>
         </div>
 
+        {/* Live radio — top of the page, links to the Islam Media Central stream */}
+        <LiveRadioBar />
+
         {/* Posters — slider fed from the Advertise app; the date of the poster on
             screen is shown just underneath, and new posters appear automatically */}
         <PosterSlider />
 
-        {/* Appeal banner — top of the page, figures come from the database */}
-        <FundraisingAppealBanner />
+        {/* Imedia Connect — community network invite (replaces the appeal banner) */}
+        <ImediaConnectBanner />
 
         {/* Follow us on social media */}
         <section className="border-b border-slate-200 bg-white px-3 py-2.5 sm:px-4">
@@ -757,14 +760,35 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Community worship tracker — Durood and Qur'an Juz inputs.
-            The id is the landing point for the "Juz & Durood" tab in the menu. */}
+        {/* Community worship tracker — a single tab that opens its own page.
+            The id stays so older "#juz-durood-tracker" links still land here. */}
         <section
           id="juz-durood-tracker"
           className="scroll-mt-32 border-b border-slate-200 bg-[#EFF6FF] px-3 py-2.5 sm:px-4"
         >
           <div className="mx-auto w-full max-w-3xl">
-            <CommunityWorshipTabs />
+            <Link
+              to={createPageUrl("JuzDurood")}
+              className="group flex items-center justify-between gap-3 rounded-2xl border border-[#1e3a8a]/15 bg-white px-3.5 py-3 shadow-sm transition hover:border-[#1e3a8a]/40 hover:shadow-md"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1e3a8a] text-white">
+                  <HeartHandshake className="h-5 w-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold text-[#1e3a8a] sm:text-base">
+                    Juz · Durood · Pledge
+                  </span>
+                  <span className="mt-0.5 block text-xs text-slate-600">
+                    Send durood, recite your juz and pledge your share
+                  </span>
+                </span>
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#1e3a8a] px-3 py-1.5 text-xs font-semibold text-white transition group-hover:bg-[#172554]">
+                Open
+                <ChevronRight className="h-3.5 w-3.5" />
+              </span>
+            </Link>
           </div>
         </section>
 

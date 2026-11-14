@@ -20,6 +20,7 @@ import {
   MessageSquare, // Added new icon
   Megaphone,
   CalendarDays,
+  Radio,
   Bell,
   BellRing,
   Gamepad2, // Added new icon
@@ -166,6 +167,14 @@ export default function AdminDashboard() {
       path: "AdminEvents",
       color: "from-amber-500 to-orange-500",
       stats: "Upcoming list"
+    },
+    {
+      title: "Radio Schedule",
+      description: "Programmes shown in the Schedule pop-up on the home-page live radio bar",
+      icon: Radio,
+      path: "AdminRadioSchedule",
+      color: "from-rose-500 to-red-600",
+      stats: "Live schedule"
     },
     {
       title: "Survey & Prize Draw",

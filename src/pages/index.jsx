@@ -144,6 +144,8 @@ import ReminderSettings from "./ReminderSettings";
 import ReminderDiagnostics from "./ReminderDiagnostics";
 import IMCAssistant from "./IMCAssistant";
 import AdminAssistant from "./AdminAssistant";
+import JuzDurood from "./JuzDurood";
+import AdminRadioSchedule from "./AdminRadioSchedule";
 
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import Landing from "./Landing";
@@ -151,6 +153,7 @@ import Landing from "./Landing";
 const PAGES = {
     
     Home: Home,
+    JuzDurood: JuzDurood,
     
     Games: Games,
     
@@ -259,6 +262,7 @@ const PAGES = {
     AdminGlobalNotices: AdminGlobalNotices,
     AdminMarquee: AdminMarquee,
     AdminEvents: AdminEvents,
+    AdminRadioSchedule: AdminRadioSchedule,
     Updates: Updates,
     Survey: Survey,
     SurveyTerms: SurveyTerms,
@@ -329,6 +333,7 @@ function PagesContent() {
     const adminGlobalNoticesElement = isDev ? <AdminGlobalNotices /> : <AdminGuard><AdminGlobalNotices /></AdminGuard>;
     const adminMarqueeElement = isDev ? <AdminMarquee /> : <AdminGuard><AdminMarquee /></AdminGuard>;
     const adminEventsElement = isDev ? <AdminEvents /> : <AdminGuard><AdminEvents /></AdminGuard>;
+    const adminRadioScheduleElement = isDev ? <AdminRadioSchedule /> : <AdminGuard><AdminRadioSchedule /></AdminGuard>;
     const adminSurveyElement = isDev ? <AdminSurvey /> : <AdminGuard><AdminSurvey /></AdminGuard>;
 
     return (
@@ -341,6 +346,9 @@ function PagesContent() {
                 
                 <Route path="/Home" element={<Home />} />
                 <Route path="/home" element={<Home />} />
+                <Route path="/JuzDurood" element={<JuzDurood />} />
+                <Route path="/juzdurood" element={<JuzDurood />} />
+                <Route path="/juz-durood" element={<JuzDurood />} />
                 <Route path="/kids" element={<KidsZone />} />
                 <Route path="/DailyMissions" element={<DailyMissions />} />
                 <Route path="/MyRewards" element={<MyRewards />} />
@@ -487,6 +495,8 @@ function PagesContent() {
                 <Route path="/adminmarquee" element={adminMarqueeElement} />
                 <Route path="/AdminEvents" element={adminEventsElement} />
                 <Route path="/adminevents" element={adminEventsElement} />
+                <Route path="/AdminRadioSchedule" element={adminRadioScheduleElement} />
+                <Route path="/adminradioschedule" element={adminRadioScheduleElement} />
                 <Route path="/Updates" element={<Updates />} />
                 <Route path="/updates" element={<Updates />} />
                 <Route path="/Survey" element={<Survey />} />

@@ -23,14 +23,17 @@ public class ReminderAlarmBridge {
      *
      * @param key      stable identifier for the reminder (its database id or category)
      * @param daysCsv  comma-separated weekdays (0=Sunday..6=Saturday); empty = every day
+     * @param soundUrl alarm to ring when the reminder fires: SYSTEM_ALARM,
+     *                 SYSTEM_NOTIFICATION, SYSTEM_RINGTONE or an http(s) URL /
+     *                 local path. Empty = show a silent notification.
      */
     @JavascriptInterface
     public boolean scheduleReminder(String key, String title, String message,
-                                    int hour, int minute, String daysCsv) {
+                                    int hour, int minute, String daysCsv, String soundUrl) {
         if (key == null || key.isEmpty()) return false;
         if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return false;
         try {
-            ReminderAlarmReceiver.schedule(activity, key, title, message, hour, minute, daysCsv);
+            ReminderAlarmReceiver.schedule(activity, key, title, message, hour, minute, daysCsv, soundUrl);
             return true;
         } catch (Exception e) {
             return false;

@@ -109,6 +109,20 @@ const DAYS = [
   { id: 6, label: "Sat" },
 ];
 
+// Sound each reminder rings with on the device (Android app). Radix' Select
+// rejects empty-string values, so "silent" is a sentinel mapped to "" on save.
+const ALARM_SOUNDS = [
+  { id: "SYSTEM_ALARM", label: "System alarm" },
+  { id: "SYSTEM_NOTIFICATION", label: "System notification" },
+  { id: "SYSTEM_RINGTONE", label: "System ringtone" },
+  { id: "SILENT", label: "Silent (notification only)" },
+];
+
+const DEFAULT_SOUND = "SYSTEM_ALARM";
+
+const soundToOption = (sound) => (sound ? String(sound) : "SILENT");
+const optionToSound = (option) => (option === "SILENT" ? "" : option);
+
 const DEFAULT_TITLES = {
   daily_islamic: "Daily Islamic Reminder",
   morning_adhkar: "Morning Adhkar",
@@ -174,6 +188,7 @@ function syncAndroidReminder(row) {
     hour: time.hour,
     minute: time.minute,
     days: Array.isArray(row.days_of_week) ? row.days_of_week : null,
+    sound: row.sound ?? DEFAULT_SOUND,
   });
 }
 
@@ -198,7 +213,7 @@ export default function ReminderSettings() {
 
   // Custom reminder dialog
   const [customOpen, setCustomOpen] = useState(false);
-  const [customForm, setCustomForm] = useState({ title: "", message: "", time: "09:00", days: [], editId: null });
+  const [customForm, setCustomForm] = useState({ title: "", message: "", time: "09:00", days: [], sound: DEFAULT_SOUND, editId: null });
 
   useEffect(() => {
     async function init() {
@@ -275,6 +290,7 @@ export default function ReminderSettings() {
         time_zone: timeZone,
         days_of_week: patch.days ?? existing?.days_of_week ?? null,
         enabled: patch.enabled ?? existing?.enabled ?? true,
+        sound: patch.sound ?? existing?.sound ?? DEFAULT_SOUND,
         next_occurrence_at: existing?.next_occurrence_at,
       };
       // Compute next occurrence if enabled
@@ -472,10 +488,11 @@ export default function ReminderSettings() {
         message: reminder.message,
         time: reminder.reminder_time?.slice?.(0, 5) || "09:00",
         days: reminder.days_of_week || [],
+        sound: reminder.sound || DEFAULT_SOUND,
         editId: reminder.id,
       });
     } else {
-      setCustomForm({ title: "", message: "", time: "09:00", days: [], editId: null });
+      setCustomForm({ title: "", message: "", time: "09:00", days: [], sound: DEFAULT_SOUND, editId: null });
     }
     setCustomOpen(true);
   }
@@ -499,6 +516,7 @@ export default function ReminderSettings() {
         time_zone: timeZone,
         days_of_week: customForm.days.length ? customForm.days : null,
         enabled: true,
+        sound: customForm.sound,
         next_occurrence_at: getNextReminderAtWithDays(customForm.time, timeZone, customForm.days.length ? customForm.days : null),
       };
       const saved = await upsertReminder(row);
@@ -711,6 +729,23 @@ export default function ReminderSettings() {
                           />
                         </div>
                       </div>
+                      {isAndroidReminderBridgeAvailable() && (
+                        <div className="max-w-xs">
+                          <Label className="text-xs">Alarm sound</Label>
+                          <Select
+                            value={soundToOption(existing?.sound || DEFAULT_SOUND)}
+                            onValueChange={(v) => saveBuiltin(cat.id, { sound: optionToSound(v) })}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {ALARM_SOUNDS.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="mt-1 text-xs text-slate-500">Rings on your device even when the app is closed.</p>
+                        </div>
+                      )}
                       <div className="flex justify-end">
                         <Button variant="outline" size="sm" onClick={() => handleTest(cat.id)} disabled={testing === cat.id}>
                           {testing === cat.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1 h-3.5 w-3.5" />}
@@ -861,6 +896,22 @@ export default function ReminderSettings() {
               <Label className="text-xs">Time</Label>
               <Input type="time" value={customForm.time} onChange={(e) => setCustomForm({ ...customForm, time: e.target.value })} />
             </div>
+            {isAndroidReminderBridgeAvailable() && (
+              <div>
+                <Label className="text-xs">Alarm sound</Label>
+                <Select
+                  value={soundToOption(customForm.sound)}
+                  onValueChange={(v) => setCustomForm({ ...customForm, sound: optionToSound(v) })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ALARM_SOUNDS.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <Label className="text-xs">Repeat</Label>
               <div className="flex flex-wrap gap-1 pt-1">

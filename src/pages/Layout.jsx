@@ -549,9 +549,9 @@ export default function Layout({ children, currentPageName }) {
   };
 
   /**
-   * Tabs that carry a fragment (Juz & Durood lands on the tracker) need the
-   * scroll doing by hand — React Router does not scroll fragments. Depending on
-   * the whole location, not just the hash, means a second tap works too.
+   * Links that carry a fragment need the scroll doing by hand — React Router
+   * does not scroll fragments. Depending on the whole location, not just the
+   * hash, means a second tap works too.
    */
   useEffect(() => {
     if (!location.hash) return;
@@ -560,9 +560,11 @@ export default function Layout({ children, currentPageName }) {
   }, [location]);
 
   const baseNavItems = [
-    // The fragment is what makes the home page scroll straight to the tracker,
-    // so the tab works from any page in the app.
-    { name: "Juz & Durood", icon: Heart, path: "Home#juz-durood-tracker" },
+    // /AdminDashboard is behind AdminGuard, so this is safe to show publicly —
+    // anyone without admin access is sent to the login screen.
+    { name: "Admin", icon: Shield, path: "AdminDashboard" },
+    // The tracker lives on its own page now, so the tab opens straight into it.
+    { name: "Juz & Durood", icon: Heart, path: "JuzDurood" },
     { name: "What's New", icon: Sparkles, path: "Features" },
     { name: "Kids Home", icon: Home, path: "Home" },
     { name: "IMC Assistant", icon: MessageCircle, path: "IMCAssistant" },
@@ -799,6 +801,14 @@ export default function Layout({ children, currentPageName }) {
                     >
                       <Settings2 className="w-5 h-5" />
                     </Link>
+                    <Link
+                      to={createPageUrl("AdminDashboard")}
+                      aria-label="Admin"
+                      title="Admin"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition hover:bg-white/15 hover:text-white"
+                    >
+                      <Shield className="w-4 h-4" />
+                    </Link>
                     <Link to={createPageUrl("Home")} aria-label="Home" title="Home" className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-white/90 transition hover:bg-white/15 hover:text-white md:hidden">
                       <Home className="w-4 h-4" />
                     </Link>
@@ -933,13 +943,23 @@ export default function Layout({ children, currentPageName }) {
               <div className="p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900">Menu</h2>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <X className="w-5 h-5" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Link
+                      to={createPageUrl("AdminDashboard")}
+                      onClick={handleMobileLinkClick}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-800"
+                    >
+                      <Shield className="w-4 h-4" />
+                      Admin
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <X className="w-5 h-5" />
+                    </Button>
+                  </div>
                 </div>
 
                 {isAuthenticated && user ? (

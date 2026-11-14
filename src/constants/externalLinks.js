@@ -46,6 +46,18 @@ export const TIKTOK_URL =
 export const NEWSLETTER_URL =
   import.meta.env.VITE_NEWSLETTER_URL || "https://mailchi.mp/3a9b946d45cb/imedia";
 
+/** Imedia Connect — the community social network (reels and updates). */
+export const IMEDIA_CONNECT_URL =
+  import.meta.env.VITE_IMEDIA_CONNECT_URL || "https://imediasocial-network7059.ai.studio/";
+
+/** Islam Media Central live radio stream (Icecast/Shoutcast MP3). */
+export const LIVE_RADIO_URL =
+  import.meta.env.VITE_RADIO_URL || "https://a4.asurahosting.com:7820/radio.mp3";
+
+/** Icecast stats endpoint for the same stream — reports the live listener count. */
+export const LIVE_RADIO_STATS_URL =
+  import.meta.env.VITE_RADIO_STATS_URL || "https://a4.asurahosting.com:7820/status-json.xsl";
+
 export const DONATE_SUPPORT_URL =
   import.meta.env.VITE_DONATE_SUPPORT_URL ||
   "https://alimdaadaid.givebrite.com/india-hospital-appeal-aict";

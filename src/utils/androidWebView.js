@@ -19,6 +19,23 @@ export function isAndroidWebView() {
   }
 }
 
+/**
+ * Props for a link that leaves the app: opens a new tab on the web and is
+ * handed to the native browser inside the Android WebView.
+ */
+export function externalLinkProps(url) {
+  if (isAndroidWebView()) {
+    return {
+      href: url,
+      onClick: (event) => {
+        event.preventDefault();
+        openExternalUrl(url);
+      },
+    };
+  }
+  return { href: url, target: '_blank', rel: 'noopener noreferrer' };
+}
+
 /** Enable Firebase Analytics collection via WebToNative (WTN) bridge when available. */
 export function enableWtnFirebaseAnalytics() {
   try {
@@ -125,12 +142,29 @@ export function isAndroidReminderBridgeAvailable() {
 /**
  * Schedules a repeating on-device reminder. `days` is an array of weekdays
  * (0=Sunday..6=Saturday); omit or pass an empty array for every day.
+ * `sound` is SYSTEM_ALARM / SYSTEM_NOTIFICATION / SYSTEM_RINGTONE or a URL;
+ * when set the reminder rings from the background even if the app is closed.
+ * Older app builds only accept the six-argument form, so the soundless call is
+ * used as a fallback.
  */
-export function scheduleAndroidReminder({ key, title, message, hour, minute, days } = {}) {
+export function scheduleAndroidReminder({ key, title, message, hour, minute, days, sound } = {}) {
   try {
     if (!isAndroidReminderBridgeAvailable() || !key) return false;
     if (!Number.isInteger(hour) || !Number.isInteger(minute)) return false;
     const daysCsv = Array.isArray(days) && days.length ? days.join(',') : '';
+    const soundArg = sound ? String(sound) : '';
+    const scheduled = soundArg
+      ? window.AndroidReminders.scheduleReminder(
+          String(key),
+          String(title || ''),
+          String(message || ''),
+          hour,
+          minute,
+          daysCsv,
+          soundArg,
+        )
+      : false;
+    if (scheduled) return true;
     return Boolean(
       window.AndroidReminders.scheduleReminder(
         String(key),
