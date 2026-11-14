@@ -48,7 +48,7 @@ export const NEWSLETTER_URL =
 
 /** Imedia Connect — the community social network (reels and updates). */
 export const IMEDIA_CONNECT_URL =
-  import.meta.env.VITE_IMEDIA_CONNECT_URL || "https://imediasocial-network7059.ai.studio/";
+  import.meta.env.VITE_IMEDIA_CONNECT_URL || "https://imedia-connect-network.vercel.app/";
 
 /** Islam Media Central live radio stream (Icecast/Shoutcast MP3). */
 export const LIVE_RADIO_URL =
