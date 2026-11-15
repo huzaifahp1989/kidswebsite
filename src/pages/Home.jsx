@@ -43,6 +43,7 @@ import LiveRadioBar from "@/components/LiveRadioBar";
 import PosterSlider from "@/components/PosterSlider";
 import { getAnnouncementImages, isAnnouncementScheduledNow } from "@/utils/announcementImages";
 import { supabase } from "@/lib/supabase";
+import { fetchVisitorTotal } from "@/lib/visitorCount";
 
 const ADS_SECTION_URL = "https://traeadvert8pia.vercel.app/";
 const KIDS_ZONE_PATH = createPageUrl("KidsZone");
@@ -57,6 +58,8 @@ const HOME_VIEW_COUNTED_AT_KEY = "home_view_counted_at";
 // Only guard against a duplicate mount (React StrictMode) sending a second
 // increment for the same page load. Genuine reloads and revisits count.
 const HOME_VIEW_DEDUPE_MS = 3000;
+// How often the displayed total is re-read from the server while the page stays open.
+const VIEW_REFRESH_MS = 30000;
 const HOME_VISIT_SESSION_ID_KEY = "home_visitor_session_id";
 const featureSlides = [
   {
@@ -475,8 +478,18 @@ export default function Home() {
     };
 
     registerVisit();
+
+    // The Android app loads this page once and keeps it open, so without this the
+    // figure stays frozen until the app is restarted. Re-read the total regularly;
+    // a null visitor id means "just tell me the total", so this never counts.
+    const refreshTimer = window.setInterval(async () => {
+      const value = await fetchVisitorTotal();
+      if (value != null) applyCount(value, { animate: true });
+    }, VIEW_REFRESH_MS);
+
     return () => {
       cancelled = true;
+      window.clearInterval(refreshTimer);
     };
   }, []);
 
