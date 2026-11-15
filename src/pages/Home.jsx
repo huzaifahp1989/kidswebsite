@@ -53,7 +53,10 @@ const HOME_HIT_COUNTER_KEY = "home_hit_counter";
 const HOME_VISITOR_COUNTED_KEY = "home_visitor_counted";
 const HOME_HIT_COUNTER_START = 6000;
 const HOME_VISITOR_ID_KEY = "home_visitor_id";
-const HOME_VISIT_SESSION_KEY = "home_visitor_counted_session";
+const HOME_VIEW_COUNTED_AT_KEY = "home_view_counted_at";
+// Only guard against a duplicate mount (React StrictMode) sending a second
+// increment for the same page load. Genuine reloads and revisits count.
+const HOME_VIEW_DEDUPE_MS = 3000;
 const HOME_VISIT_SESSION_ID_KEY = "home_visitor_session_id";
 const featureSlides = [
   {
@@ -385,17 +388,18 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
 
-    const readSessionCounted = () => {
+    const readRecentlyCounted = () => {
       try {
-        return sessionStorage.getItem(HOME_VISIT_SESSION_KEY) === "true";
+        const at = Number(localStorage.getItem(HOME_VIEW_COUNTED_AT_KEY));
+        return Number.isFinite(at) && at > 0 && Date.now() - at < HOME_VIEW_DEDUPE_MS;
       } catch {
         return false;
       }
     };
 
-    const markSessionCounted = () => {
+    const markCounted = () => {
       try {
-        sessionStorage.setItem(HOME_VISIT_SESSION_KEY, "true");
+        localStorage.setItem(HOME_VIEW_COUNTED_AT_KEY, String(Date.now()));
       } catch {}
     };
 
@@ -432,14 +436,14 @@ export default function Home() {
     };
 
     const registerVisit = async () => {
-      // Claim this session synchronously so StrictMode remounts / refresh
-      // never send a second increment.
-      const alreadyCountedThisSession = readSessionCounted();
-      if (!alreadyCountedThisSession) {
-        markSessionCounted();
+      // Claim this view synchronously so a duplicate mount never sends a second
+      // increment for the same page load.
+      const alreadyCounted = readRecentlyCounted();
+      if (!alreadyCounted) {
+        markCounted();
       }
 
-      const shouldIncrement = !alreadyCountedThisSession;
+      const shouldIncrement = !alreadyCounted;
       const visitorId = shouldIncrement ? getSessionVisitorId() : null;
 
       if (supabase) {
