@@ -54,10 +54,9 @@ const HOME_HIT_COUNTER_KEY = "home_hit_counter";
 const HOME_VISITOR_COUNTED_KEY = "home_visitor_counted";
 const HOME_HIT_COUNTER_START = 6000;
 const HOME_VISITOR_ID_KEY = "home_visitor_id";
-const HOME_VIEW_COUNTED_AT_KEY = "home_view_counted_at";
-// Only guard against a duplicate mount (React StrictMode) sending a second
-// increment for the same page load. Genuine reloads and revisits count.
-const HOME_VIEW_DEDUPE_MS = 3000;
+// A visit is counted once per browser tab session, so refreshing the page — or
+// the app reloading it — never adds another view.
+const HOME_VISIT_SESSION_KEY = "home_visitor_counted_session";
 // How often the displayed total is re-read from the server while the page stays open.
 const VIEW_REFRESH_MS = 30000;
 const HOME_VISIT_SESSION_ID_KEY = "home_visitor_session_id";
@@ -391,18 +390,17 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
 
-    const readRecentlyCounted = () => {
+    const readSessionCounted = () => {
       try {
-        const at = Number(localStorage.getItem(HOME_VIEW_COUNTED_AT_KEY));
-        return Number.isFinite(at) && at > 0 && Date.now() - at < HOME_VIEW_DEDUPE_MS;
+        return sessionStorage.getItem(HOME_VISIT_SESSION_KEY) === "true";
       } catch {
         return false;
       }
     };
 
-    const markCounted = () => {
+    const markSessionCounted = () => {
       try {
-        localStorage.setItem(HOME_VIEW_COUNTED_AT_KEY, String(Date.now()));
+        sessionStorage.setItem(HOME_VISIT_SESSION_KEY, "true");
       } catch {}
     };
 
@@ -439,14 +437,14 @@ export default function Home() {
     };
 
     const registerVisit = async () => {
-      // Claim this view synchronously so a duplicate mount never sends a second
-      // increment for the same page load.
-      const alreadyCounted = readRecentlyCounted();
-      if (!alreadyCounted) {
-        markCounted();
+      // Claim this session synchronously so a refresh, a remount or a second
+      // mount in the same tab never sends another increment.
+      const alreadyCountedThisSession = readSessionCounted();
+      if (!alreadyCountedThisSession) {
+        markSessionCounted();
       }
 
-      const shouldIncrement = !alreadyCounted;
+      const shouldIncrement = !alreadyCountedThisSession;
       const visitorId = shouldIncrement ? getSessionVisitorId() : null;
 
       if (supabase) {
