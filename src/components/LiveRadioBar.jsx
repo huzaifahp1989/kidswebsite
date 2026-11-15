@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Radio, Play, Pause, Headphones, CalendarDays, Loader2 } from "lucide-react";
+import { Radio, Play, Pause, Headphones, CalendarDays, Loader2, Star } from "lucide-react";
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { fetchRadioStats } from "@/lib/radioStats";
@@ -180,8 +180,8 @@ export default function LiveRadioBar() {
             Live radio schedule
           </DialogTitle>
           <DialogDescription className="text-sm text-slate-600">
-            Our daily line-up runs the same programmes every day. One-off specials are listed by
-            date.
+            Featured specials come first, followed by the daily line-up that runs the same
+            programmes every day.
           </DialogDescription>
 
           <div className="max-h-[60vh] overflow-y-auto">
@@ -198,6 +198,31 @@ export default function LiveRadioBar() {
               </p>
             ) : (
               <ul className="space-y-4">
+                {days.map((day) => (
+                  <li key={day.key}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-rose-800">
+                        <Star className="h-3.5 w-3.5 shrink-0 fill-rose-500 text-rose-500" />
+                        Featured · {day.label}
+                      </p>
+                    </div>
+                    <ul className="mt-1.5 divide-y divide-rose-100 rounded-xl border border-rose-200 bg-rose-50/50">
+                      {day.slots.map((slot) => (
+                        <li key={slot.id} className="px-3 py-2.5">
+                          <ScheduleSlot
+                            title={slot.title}
+                            time={formatSlotTime(slot.starts_at, slot.ends_at)}
+                            presenter={slot.presenter}
+                            description={slot.description}
+                            posterUrl={slot.poster_url}
+                            comingSoon={slot.coming_soon}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+
                 {daily.length > 0 ? (
                   <li>
                     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -224,28 +249,6 @@ export default function LiveRadioBar() {
                     </ul>
                   </li>
                 ) : null}
-
-                {days.map((day) => (
-                  <li key={day.key}>
-                    <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1e3a8a]">
-                      {day.label}
-                    </p>
-                    <ul className="mt-1.5 divide-y divide-slate-100 rounded-xl border border-slate-200">
-                      {day.slots.map((slot) => (
-                        <li key={slot.id} className="px-3 py-2.5">
-                          <ScheduleSlot
-                            title={slot.title}
-                            time={formatSlotTime(slot.starts_at, slot.ends_at)}
-                            presenter={slot.presenter}
-                            description={slot.description}
-                            posterUrl={slot.poster_url}
-                            comingSoon={slot.coming_soon}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
               </ul>
             )}
           </div>

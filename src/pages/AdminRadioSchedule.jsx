@@ -367,7 +367,7 @@ export default function AdminRadioSchedule() {
           </h1>
           <p className="mt-1 text-sm text-slate-600">
             Daily programmes repeat at the same time every day — the default line-up runs 8:00am to
-            11:00pm. One-off specials are shown on their own date only. Everything appears in the
+            11:00pm. One-off specials are shown on their own date and are featured at the top of the
             “Schedule” pop-up on the home-page radio bar.
           </p>
         </header>
