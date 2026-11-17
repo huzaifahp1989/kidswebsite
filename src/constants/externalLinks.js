@@ -46,6 +46,10 @@ export const TIKTOK_URL =
 export const NEWSLETTER_URL =
   import.meta.env.VITE_NEWSLETTER_URL || "https://mailchi.mp/3a9b946d45cb/imedia";
 
+/** Islam Media Central podcast (the Islam Media audio app). */
+export const PODCAST_URL =
+  import.meta.env.VITE_PODCAST_URL || "https://create-me-a-audio.vercel.app/podcast";
+
 /** Imedia Connect — the community social network (reels and updates). */
 export const IMEDIA_CONNECT_URL =
   import.meta.env.VITE_IMEDIA_CONNECT_URL || "https://www.imediaconnect.co.uk/";
