@@ -662,44 +662,39 @@ export default function Home() {
           </span>
         </div>
 
-        {/* Podcast — direct link to the Islam Media Central podcast, at the top */}
-        <a
-          href={PODCAST_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(event) => {
-            if (isAndroidWebView()) {
-              event.preventDefault();
-              openExternalUrl(PODCAST_URL);
-            }
-          }}
-          aria-label="Listen to the Islam Media Central podcast"
-          className="group block border-b border-teal-900/30 bg-gradient-to-r from-teal-700 via-teal-600 to-teal-700 px-3 py-2 text-white transition hover:opacity-95 sm:px-4"
-        >
-          <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
-            <span className="flex min-w-0 items-center gap-2">
-              <Headphones className="h-4 w-4 shrink-0" />
-              <span className="truncate text-[13px] font-bold leading-tight">
-                <span className="sm:hidden">Podcast</span>
-                <span className="hidden sm:inline">Islam Media Central Podcast</span>
-              </span>
-              <span className="hidden truncate text-[11px] text-white/85 sm:inline">
-                Stories, talks and reminders
-              </span>
-            </span>
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-teal-700 transition group-hover:bg-teal-50">
-              Listen now
-              <ExternalLink className="h-3 w-3" />
-            </span>
-          </div>
-        </a>
-
         {/* Live radio — top of the page, links to the Islam Media Central stream */}
         <LiveRadioBar />
 
         {/* Posters — slider fed from the Advertise app; the date of the poster on
             screen is shown just underneath, and new posters appear automatically */}
         <PosterSlider />
+
+        {/* Podcast tab — sits directly under the posters and opens the podcast */}
+        <section
+          aria-label="Podcast"
+          className="border-b border-slate-200 bg-white px-3 py-2.5 sm:px-4"
+        >
+          <div className="mx-auto flex max-w-5xl items-center justify-center">
+            <a
+              href={PODCAST_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => {
+                if (isAndroidWebView()) {
+                  event.preventDefault();
+                  openExternalUrl(PODCAST_URL);
+                }
+              }}
+              aria-label="Open the Islam Media Central podcast"
+              title="Islam Media Central Podcast"
+              className="inline-flex items-center gap-2 rounded-full bg-[#1e3a8a] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#172554] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a8a] focus-visible:ring-offset-2 sm:text-sm"
+            >
+              <Headphones className="h-3.5 w-3.5 shrink-0" />
+              Podcast
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+            </a>
+          </div>
+        </section>
 
         {/* Imedia Connect — community network invite (replaces the appeal banner) */}
         <ImediaConnectBanner />
